@@ -1,0 +1,516 @@
+{
+  "_note": "Prices marked verified:false are placeholder estimates. Verify against live supplier listings before relying on output.",
+  "last_updated": "2026-06-24",
+  "materials": [
+    {
+      "name": "Consumer unit 10-way RCBO",
+      "aliases": ["consumer unit 10", "consumer unit", "fuseboard", "fuse box", "fuse board", "10 way consumer unit"],
+      "trade": "electrician",
+      "prices": [
+        { "supplier": "Screwfix", "price": 189.99, "sku": "12345", "verified": false },
+        { "supplier": "Toolstation", "price": 184.50, "sku": "67890", "verified": false },
+        { "supplier": "B&Q", "price": 199.00, "sku": "11223", "verified": false }
+      ]
+    },
+    {
+      "name": "Consumer unit 16-way RCBO",
+      "aliases": ["consumer unit 16", "16 way consumer unit", "16 way fuseboard"],
+      "trade": "electrician",
+      "prices": [
+        { "supplier": "Screwfix", "price": 249.99, "sku": "12346", "verified": false },
+        { "supplier": "Toolstation", "price": 239.00, "sku": "67891", "verified": false },
+        { "supplier": "B&Q", "price": 259.00, "sku": "11224", "verified": false }
+      ]
+    },
+    {
+      "name": "MCB Type B 6A",
+      "aliases": ["MCB 6A", "6A MCB", "6 amp MCB", "miniature circuit breaker 6A"],
+      "trade": "electrician",
+      "prices": [
+        { "supplier": "Screwfix", "price": 4.99, "sku": "22101", "verified": false },
+        { "supplier": "Toolstation", "price": 4.50, "sku": "33201", "verified": false },
+        { "supplier": "B&Q", "price": 5.49, "sku": "44301", "verified": false }
+      ]
+    },
+    {
+      "name": "MCB Type B 16A",
+      "aliases": ["MCB 16A", "16A MCB", "16 amp MCB", "miniature circuit breaker 16A"],
+      "trade": "electrician",
+      "prices": [
+        { "supplier": "Screwfix", "price": 4.99, "sku": "22102", "verified": false },
+        { "supplier": "Toolstation", "price": 4.50, "sku": "33202", "verified": false },
+        { "supplier": "B&Q", "price": 5.49, "sku": "44302", "verified": false }
+      ]
+    },
+    {
+      "name": "MCB Type B 32A",
+      "aliases": ["MCB 32A", "32A MCB", "32 amp MCB", "miniature circuit breaker 32A"],
+      "trade": "electrician",
+      "prices": [
+        { "supplier": "Screwfix", "price": 5.49, "sku": "22103", "verified": false },
+        { "supplier": "Toolstation", "price": 4.99, "sku": "33203", "verified": false },
+        { "supplier": "B&Q", "price": 5.99, "sku": "44303", "verified": false }
+      ]
+    },
+    {
+      "name": "15mm copper pipe 3m",
+      "aliases": ["15mm pipe", "copper pipe 15mm", "15mm straight pipe", "plumbing pipe 15mm"],
+      "trade": "plumber",
+      "prices": [
+        { "supplier": "Screwfix", "price": 12.99, "sku": "55101", "verified": false },
+        { "supplier": "Toolstation", "price": 11.99, "sku": "66201", "verified": false },
+        { "supplier": "B&Q", "price": 13.99, "sku": "77301", "verified": false }
+      ]
+    },
+    {
+      "name": "22mm copper pipe 3m",
+      "aliases": ["22mm pipe", "copper pipe 22mm", "22mm straight pipe", "plumbing pipe 22mm"],
+      "trade": "plumber",
+      "prices": [
+        { "supplier": "Screwfix", "price": 19.99, "sku": "55102", "verified": false },
+        { "supplier": "Toolstation", "price": 18.99, "sku": "66202", "verified": false },
+        { "supplier": "B&Q", "price": 21.99, "sku": "77302", "verified": false }
+      ]
+    },
+    {
+      "name": "15mm push-fit tee",
+      "aliases": ["15mm tee", "speedfit tee 15mm", "push fit tee 15mm", "push-fit tee 15mm", "equal tee 15mm"],
+      "trade": "plumber",
+      "prices": [
+        { "supplier": "Screwfix", "price": 1.49, "sku": "55201", "verified": false },
+        { "supplier": "Toolstation", "price": 1.29, "sku": "66301", "verified": false },
+        { "supplier": "B&Q", "price": 1.69, "sku": "77401", "verified": false }
+      ]
+    },
+    {
+      "name": "22mm push-fit elbow",
+      "aliases": ["22mm elbow", "speedfit elbow 22mm", "push fit elbow 22mm", "push-fit elbow 22mm"],
+      "trade": "plumber",
+      "prices": [
+        { "supplier": "Screwfix", "price": 1.89, "sku": "55202", "verified": false },
+        { "supplier": "Toolstation", "price": 1.69, "sku": "66302", "verified": false },
+        { "supplier": "B&Q", "price": 2.09, "sku": "77402", "verified": false }
+      ]
+    },
+    {
+      "name": "5L white emulsion paint",
+      "aliases": ["white emulsion 5L", "5 litre white emulsion", "white matt emulsion 5L", "silk emulsion 5L white", "dulux white emulsion 5L"],
+      "trade": "decorator",
+      "prices": [
+        { "supplier": "Screwfix", "price": 14.99, "sku": "88101", "verified": false },
+        { "supplier": "Toolstation", "price": 13.99, "sku": "99201", "verified": false },
+        { "supplier": "B&Q", "price": 16.00, "sku": "10301", "verified": false }
+      ]
+    },
+    {
+      "name": "10L white emulsion paint",
+      "aliases": ["white emulsion 10L", "10 litre white emulsion", "white matt emulsion 10L"],
+      "trade": "decorator",
+      "prices": [
+        { "supplier": "Screwfix", "price": 24.99, "sku": "88102", "verified": false },
+        { "supplier": "Toolstation", "price": 22.99, "sku": "99202", "verified": false },
+        { "supplier": "B&Q", "price": 26.00, "sku": "10302", "verified": false }
+      ]
+    },
+    {
+      "name": "5L magnolia emulsion paint",
+      "aliases": ["magnolia paint 5L", "5 litre magnolia", "magnolia emulsion 5L", "dulux magnolia 5L"],
+      "trade": "decorator",
+      "prices": [
+        { "supplier": "Screwfix", "price": 14.99, "sku": "88103", "verified": false },
+        { "supplier": "Toolstation", "price": 13.99, "sku": "99203", "verified": false },
+        { "supplier": "B&Q", "price": 15.50, "sku": "10303", "verified": false }
+      ]
+    },
+    {
+      "name": "12.5mm plasterboard 1200x2400mm",
+      "aliases": ["plasterboard 12.5mm", "plasterboard sheet", "gypsum board", "wallboard", "plasterboard 2400x1200", "plasterboard 8x4"],
+      "trade": "builder",
+      "prices": [
+        { "supplier": "Screwfix", "price": 8.99, "sku": "11101", "verified": false },
+        { "supplier": "Toolstation", "price": 8.49, "sku": "22201", "verified": false },
+        { "supplier": "B&Q", "price": 9.50, "sku": "33301", "verified": false }
+      ]
+    },
+    {
+      "name": "25kg bonding plaster",
+      "aliases": ["bonding coat 25kg", "browning coat", "bonding coat plaster", "thistle bonding 25kg", "base coat plaster"],
+      "trade": "plasterer",
+      "prices": [
+        { "supplier": "Screwfix", "price": 12.49, "sku": "44101", "verified": false },
+        { "supplier": "Toolstation", "price": 11.99, "sku": "55201", "verified": false },
+        { "supplier": "B&Q", "price": 13.00, "sku": "66301", "verified": false }
+      ]
+    },
+    {
+      "name": "25kg multi-finish plaster",
+      "aliases": ["multi finish 25kg", "finish coat plaster", "thistle multi-finish 25kg", "skim plaster 25kg", "finishing plaster"],
+      "trade": "plasterer",
+      "prices": [
+        { "supplier": "Screwfix", "price": 12.49, "sku": "44102", "verified": false },
+        { "supplier": "Toolstation", "price": 11.99, "sku": "55202", "verified": false },
+        { "supplier": "B&Q", "price": 13.00, "sku": "66302", "verified": false }
+      ]
+    },
+    {
+      "name": "2.5mm twin and earth cable 100m",
+      "aliases": ["2.5mm T&E 100m", "twin and earth 2.5mm", "flat twin cable 2.5mm", "2.5mm cable 100m", "2.5mm twin earth 100m"],
+      "trade": "electrician",
+      "prices": [
+        { "supplier": "Screwfix", "price": 79.99, "sku": "33101", "verified": false },
+        { "supplier": "Toolstation", "price": 74.99, "sku": "44201", "verified": false },
+        { "supplier": "B&Q", "price": 84.99, "sku": "55301", "verified": false }
+      ]
+    },
+    {
+      "name": "Single socket outlet white",
+      "aliases": ["single socket", "1 gang socket", "single plug socket", "single 13A socket"],
+      "trade": "electrician",
+      "prices": [
+        { "supplier": "Screwfix", "price": 2.49, "sku": "66101", "verified": false },
+        { "supplier": "Toolstation", "price": 2.19, "sku": "77201", "verified": false },
+        { "supplier": "B&Q", "price": 2.99, "sku": "88301", "verified": false }
+      ]
+    },
+    {
+      "name": "Double socket outlet white",
+      "aliases": ["double socket", "2 gang socket", "double plug socket", "double 13A socket"],
+      "trade": "electrician",
+      "prices": [
+        { "supplier": "Screwfix", "price": 3.49, "sku": "66102", "verified": false },
+        { "supplier": "Toolstation", "price": 2.99, "sku": "77202", "verified": false },
+        { "supplier": "B&Q", "price": 3.99, "sku": "88302", "verified": false }
+      ]
+    },
+    {
+      "name": "1-gang light switch white",
+      "aliases": ["single light switch", "1 gang switch", "one gang switch", "light switch single"],
+      "trade": "electrician",
+      "prices": [
+        { "supplier": "Screwfix", "price": 1.99, "sku": "66201", "verified": false },
+        { "supplier": "Toolstation", "price": 1.79, "sku": "77301", "verified": false },
+        { "supplier": "B&Q", "price": 2.49, "sku": "88401", "verified": false }
+      ]
+    },
+    {
+      "name": "2-gang light switch white",
+      "aliases": ["double light switch", "2 gang switch", "two gang switch", "light switch double"],
+      "trade": "electrician",
+      "prices": [
+        { "supplier": "Screwfix", "price": 2.49, "sku": "66202", "verified": false },
+        { "supplier": "Toolstation", "price": 2.19, "sku": "77302", "verified": false },
+        { "supplier": "B&Q", "price": 2.99, "sku": "88402", "verified": false }
+      ]
+    },
+    {
+      "name": "Surge protection device",
+      "aliases": ["SPD", "surge protector", "surge arrester", "surge protection"],
+      "trade": "electrician",
+      "prices": [
+        { "supplier": "Screwfix", "price": 34.99, "sku": "77101", "verified": false },
+        { "supplier": "Toolstation", "price": 29.99, "sku": "88201", "verified": false },
+        { "supplier": "B&Q", "price": 39.99, "sku": "99301", "verified": false }
+      ]
+    },
+    {
+      "name": "6mm twin and earth cable 50m",
+      "aliases": ["6mm T&E 50m", "6mm twin and earth", "twin and earth 6mm", "6mm cable 50m"],
+      "trade": "electrician",
+      "prices": [
+        { "supplier": "Screwfix", "price": 89.99, "sku": "33102", "verified": false },
+        { "supplier": "Toolstation", "price": 84.99, "sku": "44202", "verified": false },
+        { "supplier": "B&Q", "price": 94.99, "sku": "55302", "verified": false }
+      ]
+    },
+    {
+      "name": "Earth cable 6mm 10m",
+      "aliases": ["earth sleeving", "earth wire", "green yellow earth cable", "6mm earth 10m", "CPC cable"],
+      "trade": "electrician",
+      "prices": [
+        { "supplier": "Screwfix", "price": 9.99, "sku": "33103", "verified": false },
+        { "supplier": "Toolstation", "price": 8.99, "sku": "44203", "verified": false },
+        { "supplier": "B&Q", "price": 10.99, "sku": "55303", "verified": false }
+      ]
+    },
+    {
+      "name": "LED downlight 6W white",
+      "aliases": ["recessed downlight", "LED spotlight", "downlighter 6W", "recessed LED 6W", "ceiling downlight"],
+      "trade": "electrician",
+      "prices": [
+        { "supplier": "Screwfix", "price": 5.99, "sku": "99101", "verified": false },
+        { "supplier": "Toolstation", "price": 5.49, "sku": "10201", "verified": false },
+        { "supplier": "B&Q", "price": 6.99, "sku": "11301", "verified": false }
+      ]
+    },
+    {
+      "name": "15mm compression elbow",
+      "aliases": ["compression elbow 15mm", "15mm compression fitting elbow", "15mm brass elbow"],
+      "trade": "plumber",
+      "prices": [
+        { "supplier": "Screwfix", "price": 1.79, "sku": "55203", "verified": false },
+        { "supplier": "Toolstation", "price": 1.59, "sku": "66303", "verified": false },
+        { "supplier": "B&Q", "price": 1.99, "sku": "77403", "verified": false }
+      ]
+    },
+    {
+      "name": "22mm compression tee",
+      "aliases": ["compression tee 22mm", "22mm compression fitting tee", "22mm brass tee"],
+      "trade": "plumber",
+      "prices": [
+        { "supplier": "Screwfix", "price": 2.99, "sku": "55204", "verified": false },
+        { "supplier": "Toolstation", "price": 2.69, "sku": "66304", "verified": false },
+        { "supplier": "B&Q", "price": 3.29, "sku": "77404", "verified": false }
+      ]
+    },
+    {
+      "name": "Thermostatic radiator valve 15mm",
+      "aliases": ["TRV 15mm", "radiator valve 15mm", "thermostatic valve", "TRV", "thermostatic radiator valve"],
+      "trade": "plumber",
+      "prices": [
+        { "supplier": "Screwfix", "price": 14.99, "sku": "55301", "verified": false },
+        { "supplier": "Toolstation", "price": 13.49, "sku": "66401", "verified": false },
+        { "supplier": "B&Q", "price": 15.99, "sku": "77501", "verified": false }
+      ]
+    },
+    {
+      "name": "PTFE tape 12m",
+      "aliases": ["PTFE tape", "thread seal tape", "plumbers tape", "ptfe"],
+      "trade": "plumber",
+      "prices": [
+        { "supplier": "Screwfix", "price": 0.99, "sku": "55401", "verified": false },
+        { "supplier": "Toolstation", "price": 0.89, "sku": "66501", "verified": false },
+        { "supplier": "B&Q", "price": 1.29, "sku": "77601", "verified": false }
+      ]
+    },
+    {
+      "name": "Solvent weld waste pipe 40mm 3m",
+      "aliases": ["40mm waste pipe", "solvent weld pipe 40mm", "waste pipe 40mm"],
+      "trade": "plumber",
+      "prices": [
+        { "supplier": "Screwfix", "price": 7.99, "sku": "55501", "verified": false },
+        { "supplier": "Toolstation", "price": 6.99, "sku": "66601", "verified": false },
+        { "supplier": "B&Q", "price": 8.99, "sku": "77701", "verified": false }
+      ]
+    },
+    {
+      "name": "Floor tile adhesive 20kg",
+      "aliases": ["tile adhesive 20kg", "tile fix 20kg", "BAL adhesive 20kg", "floor tile fix", "tile cement 20kg"],
+      "trade": "tiler",
+      "prices": [
+        { "supplier": "Screwfix", "price": 14.99, "sku": "12201", "verified": false },
+        { "supplier": "Toolstation", "price": 13.49, "sku": "23301", "verified": false },
+        { "supplier": "B&Q", "price": 15.99, "sku": "34401", "verified": false }
+      ]
+    },
+    {
+      "name": "Flexible grout 5kg grey",
+      "aliases": ["grout 5kg grey", "wall and floor grout 5kg", "flexible grout grey", "floor grout grey 5kg"],
+      "trade": "tiler",
+      "prices": [
+        { "supplier": "Screwfix", "price": 12.99, "sku": "12202", "verified": false },
+        { "supplier": "Toolstation", "price": 11.99, "sku": "23302", "verified": false },
+        { "supplier": "B&Q", "price": 13.99, "sku": "34402", "verified": false }
+      ]
+    },
+    {
+      "name": "50mm CLS timber stud 3m",
+      "aliases": ["CLS timber 50mm", "stud timber 3m", "50x75 CLS", "timber stud 50mm", "CLS stud 3m"],
+      "trade": "builder",
+      "prices": [
+        { "supplier": "Screwfix", "price": 4.99, "sku": "23101", "verified": false },
+        { "supplier": "Toolstation", "price": 4.49, "sku": "34201", "verified": false },
+        { "supplier": "B&Q", "price": 5.49, "sku": "45301", "verified": false }
+      ]
+    },
+    {
+      "name": "Plasterboard screws 75mm 1000pk",
+      "aliases": ["drywall screws 75mm", "self tapping screws plasterboard", "plasterboard fixings 1000", "3.5mm plasterboard screws"],
+      "trade": "builder",
+      "prices": [
+        { "supplier": "Screwfix", "price": 8.99, "sku": "23102", "verified": false },
+        { "supplier": "Toolstation", "price": 7.99, "sku": "34202", "verified": false },
+        { "supplier": "B&Q", "price": 9.99, "sku": "45302", "verified": false }
+      ]
+    },
+    {
+      "name": "Expanding foam 500ml",
+      "aliases": ["gap filler foam", "expanding sealant foam", "foam sealant 500ml", "PU foam 500ml"],
+      "trade": "builder",
+      "prices": [
+        { "supplier": "Screwfix", "price": 6.99, "sku": "23201", "verified": false },
+        { "supplier": "Toolstation", "price": 5.99, "sku": "34301", "verified": false },
+        { "supplier": "B&Q", "price": 7.49, "sku": "45401", "verified": false }
+      ]
+    },
+    {
+      "name": "Silicone sealant clear 300ml",
+      "aliases": ["clear silicone 300ml", "silicone sealant", "bathroom sealant clear", "silicone seal clear"],
+      "trade": "builder",
+      "prices": [
+        { "supplier": "Screwfix", "price": 4.99, "sku": "23202", "verified": false },
+        { "supplier": "Toolstation", "price": 4.49, "sku": "34302", "verified": false },
+        { "supplier": "B&Q", "price": 5.49, "sku": "45402", "verified": false }
+      ]
+    },
+    {
+      "name": "Masking tape 50mm 50m",
+      "aliases": ["painters tape 50mm", "decorating tape 50mm", "masking tape", "tape 50mm"],
+      "trade": "decorator",
+      "prices": [
+        { "supplier": "Screwfix", "price": 3.49, "sku": "88104", "verified": false },
+        { "supplier": "Toolstation", "price": 2.99, "sku": "99204", "verified": false },
+        { "supplier": "B&Q", "price": 3.99, "sku": "10304", "verified": false }
+      ]
+    },
+    {
+      "name": "Fine surface filler 400g",
+      "aliases": ["polyfilla 400g", "ready mixed filler", "surface filler 400g", "fine filler", "decorators filler"],
+      "trade": "decorator",
+      "prices": [
+        { "supplier": "Screwfix", "price": 3.99, "sku": "88105", "verified": false },
+        { "supplier": "Toolstation", "price": 3.49, "sku": "99205", "verified": false },
+        { "supplier": "B&Q", "price": 4.49, "sku": "10305", "verified": false }
+      ]
+    },
+    {
+      "name": "Sandpaper assorted pack 10 sheets",
+      "aliases": ["sandpaper pack", "abrasive paper", "sanding sheets assorted", "sandpaper mixed"],
+      "trade": "decorator",
+      "prices": [
+        { "supplier": "Screwfix", "price": 3.99, "sku": "88106", "verified": false },
+        { "supplier": "Toolstation", "price": 3.49, "sku": "99206", "verified": false },
+        { "supplier": "B&Q", "price": 4.49, "sku": "10306", "verified": false }
+      ]
+    },
+    {
+      "name": "50mm wood screws 200pk",
+      "aliases": ["timber screws 50mm", "pozidrive screws 50mm", "wood screws 200", "screws 50mm 200"],
+      "trade": "carpenter",
+      "prices": [
+        { "supplier": "Screwfix", "price": 4.99, "sku": "34101", "verified": false },
+        { "supplier": "Toolstation", "price": 4.49, "sku": "45201", "verified": false },
+        { "supplier": "B&Q", "price": 5.49, "sku": "56301", "verified": false }
+      ]
+    },
+    {
+      "name": "Wall plugs 100pk",
+      "aliases": ["rawl plugs 100", "plastic plugs 100pk", "fixings wall plugs", "dowel plugs 100pk"],
+      "trade": "carpenter",
+      "prices": [
+        { "supplier": "Screwfix", "price": 2.49, "sku": "34102", "verified": false },
+        { "supplier": "Toolstation", "price": 1.99, "sku": "45202", "verified": false },
+        { "supplier": "B&Q", "price": 2.99, "sku": "56302", "verified": false }
+      ]
+    },
+    {
+      "name": "Roofing felt type 1F 8x1m",
+      "aliases": ["shed felt", "roofing underlay felt", "type 1F felt", "underlay felt", "roofing felt"],
+      "trade": "roofer",
+      "prices": [
+        { "supplier": "Screwfix", "price": 14.99, "sku": "45101", "verified": false },
+        { "supplier": "Toolstation", "price": 12.99, "sku": "56201", "verified": false },
+        { "supplier": "B&Q", "price": 15.99, "sku": "67301", "verified": false }
+      ]
+    },
+    {
+      "name": "Sharp sand 25kg",
+      "aliases": ["grit sand 25kg", "building sand 25kg", "coarse sand 25kg", "sharp sand bag"],
+      "trade": "groundworker",
+      "prices": [
+        { "supplier": "Screwfix", "price": 4.49, "sku": "56101", "verified": false },
+        { "supplier": "Toolstation", "price": 3.99, "sku": "67201", "verified": false },
+        { "supplier": "B&Q", "price": 4.99, "sku": "78301", "verified": false }
+      ]
+    },
+    {
+      "name": "Cement 25kg",
+      "aliases": ["portland cement 25kg", "OPC cement", "general purpose cement", "cement bag 25kg"],
+      "trade": "builder",
+      "prices": [
+        { "supplier": "Screwfix", "price": 8.99, "sku": "56102", "verified": false },
+        { "supplier": "Toolstation", "price": 7.99, "sku": "67202", "verified": false },
+        { "supplier": "B&Q", "price": 9.49, "sku": "78302", "verified": false }
+      ]
+    },
+    {
+      "name": "Programmable thermostat 7-day",
+      "aliases": ["7 day programmer", "heating programmer", "boiler programmer", "thermostat programmer"],
+      "trade": "gas-engineer",
+      "prices": [
+        { "supplier": "Screwfix", "price": 24.99, "sku": "67101", "verified": false },
+        { "supplier": "Toolstation", "price": 22.49, "sku": "78201", "verified": false },
+        { "supplier": "B&Q", "price": 27.99, "sku": "89301", "verified": false }
+      ]
+    },
+    {
+      "name": "Pipe lagging 22mm 1m",
+      "aliases": ["pipe insulation 22mm", "foam lagging 22mm", "pipe foam 22mm", "insulation lagging 22mm"],
+      "trade": "plumber",
+      "prices": [
+        { "supplier": "Screwfix", "price": 1.49, "sku": "55502", "verified": false },
+        { "supplier": "Toolstation", "price": 1.29, "sku": "66602", "verified": false },
+        { "supplier": "B&Q", "price": 1.69, "sku": "77702", "verified": false }
+      ]
+    },
+    {
+      "name": "Jubilee clip 25-35mm",
+      "aliases": ["hose clip 25-35mm", "worm drive clip 25-35mm", "hose clamp", "jubilee clip"],
+      "trade": "plumber",
+      "prices": [
+        { "supplier": "Screwfix", "price": 0.79, "sku": "55503", "verified": false },
+        { "supplier": "Toolstation", "price": 0.69, "sku": "66603", "verified": false },
+        { "supplier": "B&Q", "price": 0.99, "sku": "77703", "verified": false }
+      ]
+    },
+    {
+      "name": "Floor adhesive 5L",
+      "aliases": ["flooring adhesive 5L", "LVT adhesive 5L", "carpet adhesive 5L", "floor fix 5L", "vinyl adhesive 5L"],
+      "trade": "flooring-fitter",
+      "prices": [
+        { "supplier": "Screwfix", "price": 19.99, "sku": "78101", "verified": false },
+        { "supplier": "Toolstation", "price": 17.99, "sku": "89201", "verified": false },
+        { "supplier": "B&Q", "price": 21.99, "sku": "90301", "verified": false }
+      ]
+    },
+    {
+      "name": "Carpet gripper rod 1m",
+      "aliases": ["carpet gripper 1m", "gripper strip 1m", "carpet grippers", "tack strip"],
+      "trade": "flooring-fitter",
+      "prices": [
+        { "supplier": "Screwfix", "price": 1.29, "sku": "78102", "verified": false },
+        { "supplier": "Toolstation", "price": 1.09, "sku": "89202", "verified": false },
+        { "supplier": "B&Q", "price": 1.49, "sku": "90302", "verified": false }
+      ]
+    },
+    {
+      "name": "9.5mm plasterboard 1200x2400mm",
+      "aliases": ["9.5mm plasterboard", "plasterboard 9.5mm", "thin plasterboard", "ceiling board 9.5mm"],
+      "trade": "builder",
+      "prices": [
+        { "supplier": "Screwfix", "price": 6.99, "sku": "11102", "verified": false },
+        { "supplier": "Toolstation", "price": 6.49, "sku": "22202", "verified": false },
+        { "supplier": "B&Q", "price": 7.49, "sku": "33302", "verified": false }
+      ]
+    },
+    {
+      "name": "PVA bonding agent 5L",
+      "aliases": ["PVA 5L", "PVA primer 5L", "bonding PVA", "bonding agent 5L", "PVA adhesive 5L"],
+      "trade": "plasterer",
+      "prices": [
+        { "supplier": "Screwfix", "price": 9.99, "sku": "44103", "verified": false },
+        { "supplier": "Toolstation", "price": 8.99, "sku": "55203", "verified": false },
+        { "supplier": "B&Q", "price": 10.99, "sku": "66303", "verified": false }
+      ]
+    },
+    {
+      "name": "47x100mm timber joist 3m",
+      "aliases": ["floor joist 3m", "roof joist 3m", "47x100 timber", "joist 3m timber", "structural timber 3m"],
+      "trade": "builder",
+      "prices": [
+        { "supplier": "Screwfix", "price": 8.49, "sku": "23103", "verified": false },
+        { "supplier": "Toolstation", "price": 7.99, "sku": "34203", "verified": false },
+        { "supplier": "B&Q", "price": 8.99, "sku": "45303", "verified": false }
+      ]
+    }
+  ]
+}
