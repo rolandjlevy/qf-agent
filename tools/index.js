@@ -8,7 +8,7 @@ export const TOOL_DEFINITIONS = [
   {
     name: 'ask_user',
     description:
-      'Ask the user a single clarifying question in the terminal and wait for their answer. Use this ONLY when the job description is genuinely too vague to proceed — missing critical information such as scope, quantities, or property type. Do not use this as a default first step. Ask one focused question at a time, two at most for the entire job.',
+      'Ask the user a single clarifying question in the terminal and wait for their answer. Use when the job description is missing context that would materially change the scope, materials, or assumptions. Ask one focused question per call; you may call this up to four times before proceeding. Stop asking as soon as you have enough to produce an accurate quote — do not ask for information you can reasonably assume.',
     input_schema: {
       type: 'object',
       properties: {
@@ -93,7 +93,7 @@ export const TOOL_DEFINITIONS = [
   {
     name: 'save_quote',
     description:
-      'Write the completed quote to a markdown file in the output directory. Call this once all seven sections have been drafted. Pass all drafted sections as the sections object. Returns the file path of the saved quote. This is the final tool call — after it succeeds, provide a one-sentence summary to the user.',
+      'Write the completed quote to a markdown file in the output directory. Call this once all seven sections have been drafted. Pass all drafted sections as the sections object, and pass trade and job_description in metadata for filename generation. Returns the file path of the saved quote. This is the final tool call — after it succeeds, provide a one-sentence summary to the user.',
     input_schema: {
       type: 'object',
       properties: {
@@ -110,16 +110,12 @@ export const TOOL_DEFINITIONS = [
             disclaimers: { type: 'string' },
           },
         },
-        filename: {
-          type: 'string',
-          description: 'Optional filename for the output file (e.g. "quote-electrician-consumer-unit.md"). If omitted, a timestamped filename is generated automatically.',
-        },
         metadata: {
           type: 'object',
-          description: 'Optional metadata used for filename generation. Include trade to produce a descriptive filename.',
+          description: 'Metadata used for filename generation. Include trade and job_description.',
           properties: {
             trade: { type: 'string' },
-            tone: { type: 'string' },
+            job_description: { type: 'string' },
           },
         },
       },

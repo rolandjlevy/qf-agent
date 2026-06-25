@@ -1,7 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
 export async function runAgent({
   systemPrompt,
   tools,
@@ -10,6 +8,7 @@ export async function runAgent({
   maxTurns = 15,
   onStep,
 }) {
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   const messages = [{ role: 'user', content: initialMessage }]
 
   for (let turn = 0; turn < maxTurns; turn++) {

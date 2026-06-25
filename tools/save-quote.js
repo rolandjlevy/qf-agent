@@ -64,15 +64,14 @@ function assembleQuote(sections) {
   return parts.join('\n').trimEnd()
 }
 
-export function saveQuote({ sections, filename, metadata }) {
+export function saveQuote({ sections, metadata }) {
   mkdirSync(OUTPUT_DIR, { recursive: true })
 
   const trade = slugify(metadata?.trade || sections.trade || 'trade')
+  const jobSlug = slugify(metadata?.job_description || '').slice(0, 40) || 'quote'
   const dateStr = isoDate()
 
-  const resolvedFilename =
-    filename ||
-    `quote-${dateStr}-${trade}.md`
+  const resolvedFilename = `quote-${dateStr}-${trade}-${jobSlug}.md`
 
   const filePath = join(OUTPUT_DIR, resolvedFilename)
   const content = assembleQuote(sections)

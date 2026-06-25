@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import 'dotenv/config'
+import dotenv from 'dotenv'
+dotenv.config({ override: true })
 import chalk from 'chalk'
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'

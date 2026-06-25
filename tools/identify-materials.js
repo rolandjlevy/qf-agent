@@ -1,8 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
 export async function identifyMaterials({ trade, job_description }) {
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   const prompt = `You are a UK trade materials expert. Analyse the following job description for a ${trade} and return a JSON list of the physical materials and equipment that will need to be purchased.
 
 Job description: ${job_description}

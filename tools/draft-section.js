@@ -1,7 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
 const SECTION_PROMPTS = {
   introduction: (ctx) => `Write the introduction section for a trade quote.
 
@@ -128,6 +126,7 @@ function buildMaterialLines(materialsWithPrices) {
 }
 
 export async function draftSection({ section, context }) {
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   const promptFn = SECTION_PROMPTS[section]
   if (!promptFn) {
     throw new Error(`Unknown section: ${section}. Valid sections: ${Object.keys(SECTION_PROMPTS).join(', ')}`)
