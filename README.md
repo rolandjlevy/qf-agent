@@ -31,7 +31,7 @@ node qf.js --trade=<trade> --tone=<tone> "<job description>"
 node qf.js --trade=electrician --tone=professional \
   "Replace consumer unit in 3-bed semi, including 8 new MCBs and surge protection"
 
-# Test 2 — vague job, agent should use ask_user once
+# Test 2 — vague job, agent should ask several targeted follow-up questions
 node qf.js --trade=plumber --tone=friendly "Sort out my boiler"
 
 # Test 3 — decorator job with light materials
@@ -45,17 +45,19 @@ node qf.js --trade=builder --tone=formal \
 
 The tool call sequence differs between jobs — that is how you verify the agent is actually deciding, not following a hardcoded script.
 
+For vague jobs (e.g. "Sort out my boiler") the agent will ask up to four targeted follow-up questions before proceeding. Which questions it asks depends on the trade — a plumber job prompts for boiler type and pipework material; a decorator job asks about surface condition and number of coats.
+
 ## Prices
 
-Prices are stored in `data/sample-prices.json`. All entries start with `verified: false`.
+Prices are stored in `data/sample-prices.json`. All entries start with `verified: false` (indicative estimates only).
 
-After running the agent, open `data/sample-prices.json` and update the top 10–15 entries with real prices from Screwfix, Toolstation, or B&Q. Set `verified: true` for entries you have personally checked.
+To verify a price: find the entry in `sample-prices.json`, update the `price` against a live Screwfix or Toolstation listing, and set `verified: true`. The agent displays `(unverified)` next to unconfirmed prices and the quote includes a note that prices are indicative.
 
-The agent displays `(unverified)` next to prices that have not been confirmed, and the quote itself includes a note on indicative prices.
+Phase 3 will replace the static file with a live Playwright scraper using the same `lookup_price` interface.
 
 ## Output
 
-Generated quotes are saved to the `output/` directory as `.md` files. The filename includes the date and trade (e.g. `quote-2026-06-24-electrician.md`).
+Generated quotes are saved to the `output/` directory as `.md` files. Filenames follow the format `quote-YYYY-MM-DD-trade-job-slug.md` (e.g. `quote-2026-06-24-electrician-replace-consumer-unit.md`).
 
 ## Architecture
 
