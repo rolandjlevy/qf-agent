@@ -2,6 +2,7 @@
 import dotenv from 'dotenv'
 dotenv.config({ override: true })
 import chalk from 'chalk'
+import ora from 'ora'
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
 import { runAgent } from './agent.js'
@@ -121,10 +122,19 @@ Job description: ${jobDescription}
 
 Today's date is ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.`
 
+let spinner = null
+
 function onStep(step) {
   switch (step.type) {
     case 'turn_start':
       console.log(chalk.yellow.bold(`🔄 Turn ${step.turn}`))
+      break
+    case 'api_start':
+      spinner = ora({ text: chalk.gray('Thinking…'), color: 'cyan' }).start()
+      break
+    case 'api_end':
+      spinner?.stop()
+      spinner = null
       break
     case 'tool_call':
       console.log(chalk.cyan.bold(`🔧 ${step.tool}`))

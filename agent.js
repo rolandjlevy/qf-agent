@@ -14,6 +14,7 @@ export async function runAgent({
   for (let turn = 0; turn < maxTurns; turn++) {
     onStep({ type: 'turn_start', turn: turn + 1 })
 
+    onStep({ type: 'api_start' })
     const response = await anthropic.messages.create({
       model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-6',
       max_tokens: 4096,
@@ -21,6 +22,7 @@ export async function runAgent({
       tools,
       messages,
     })
+    onStep({ type: 'api_end' })
 
     if (response.stop_reason === 'tool_use') {
       const toolBlocks = response.content.filter((b) => b.type === 'tool_use')
