@@ -5,6 +5,7 @@ An agentic CLI tool that turns a rough trade job description into a professional
 ## Setup
 
 ```bash
+npm i @anthropic-ai/claude-code -g
 npm install
 cp .env.example .env
 # Add your ANTHROPIC_API_KEY to .env

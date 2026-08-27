@@ -1,4 +1,4 @@
-import { writeFileSync, mkdirSync } from 'fs'
+import { writeFileSync, mkdirSync, existsSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 
@@ -71,9 +71,15 @@ export function saveQuote({ sections, metadata }) {
   const jobSlug = slugify(metadata?.job_description || '').slice(0, 40) || 'quote'
   const dateStr = isoDate()
 
-  const resolvedFilename = `quote-${dateStr}-${trade}-${jobSlug}.md`
+  const baseFilename = `quote-${dateStr}-${trade}-${jobSlug}`
 
-  const filePath = join(OUTPUT_DIR, resolvedFilename)
+  let resolvedFilename = `${baseFilename}.md`
+  let filePath = join(OUTPUT_DIR, resolvedFilename)
+  for (let suffix = 2; existsSync(filePath) && suffix <= 20; suffix++) {
+    resolvedFilename = `${baseFilename}-${suffix}.md`
+    filePath = join(OUTPUT_DIR, resolvedFilename)
+  }
+
   const content = assembleQuote(sections)
 
   writeFileSync(filePath, content, 'utf8')
