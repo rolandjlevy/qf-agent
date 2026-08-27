@@ -50,6 +50,14 @@ function scoreMatch(material, searchTerm) {
 }
 
 export function lookupPrice({ material_name }) {
+  if (typeof material_name !== 'string' || !material_name.trim()) {
+    return {
+      material: material_name ?? null,
+      found: false,
+      message: 'material_name must be a non-empty string',
+    }
+  }
+
   let bestScore = 0
   let bestMatch = null
 
@@ -61,8 +69,8 @@ export function lookupPrice({ material_name }) {
     }
   }
 
-  // Require a minimum match quality
-  if (bestScore < 40 || !bestMatch) {
+  // Require a minimum match quality, and a non-empty price list to report on
+  if (bestScore < 40 || !bestMatch || !Array.isArray(bestMatch.prices) || bestMatch.prices.length === 0) {
     return {
       material: material_name,
       found: false,

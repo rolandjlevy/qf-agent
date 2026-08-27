@@ -124,19 +124,78 @@ export const TOOL_DEFINITIONS = [
   },
 ]
 
-export async function executeTool(name, input) {
+const SECTION_NAMES = ['introduction', 'scope', 'materials', 'assumptions', 'exclusions', 'next_steps', 'disclaimers']
+
+function isNonEmptyString(v) {
+  return typeof v === 'string' && v.trim().length > 0
+}
+
+// Minimal shape checks so a malformed/hallucinated tool call fails fast with a
+// clear message instead of crashing deep inside a tool implementation.
+function validateInput(name, input) {
   switch (name) {
     case 'ask_user':
-      return askUser(input)
+      if (!isNonEmptyString(input?.question)) return 'ask_user requires a non-empty "question" string'
+      return null
     case 'identify_materials':
-      return identifyMaterials(input)
+      if (!isNonEmptyString(input?.trade)) return 'identify_materials requires a non-empty "trade" string'
+      if (!isNonEmptyString(input?.job_description)) return 'identify_materials requires a non-empty "job_description" string'
+      return null
     case 'lookup_price':
-      return lookupPrice(input)
+      if (!isNonEmptyString(input?.material_name)) return 'lookup_price requires a non-empty "material_name" string'
+      return null
     case 'draft_section':
-      return draftSection(input)
+      if (!SECTION_NAMES.includes(input?.section)) {
+        return `draft_section "section" must be one of: ${SECTION_NAMES.join(', ')}`
+      }
+      if (!input?.context || typeof input.context !== 'object') {
+        return 'draft_section requires a "context" object'
+      }
+      for (const field of ['trade', 'tone', 'job_description']) {
+        if (!isNonEmptyString(input.context[field])) {
+          return `draft_section "context" is missing required field: ${field}`
+        }
+      }
+      return null
     case 'save_quote':
-      return saveQuote(input)
+      if (!input?.sections || typeof input.sections !== 'object') {
+        return 'save_quote requires a "sections" object'
+      }
+      return null
     default:
-      throw new Error(`Unknown tool: ${name}`)
+      return null
+  }
+}
+
+// Auth/permission failures can't be resolved by the model retrying — let those
+// propagate to the top-level handler instead of feeding them back as a tool_result.
+function isFatal(err) {
+  return err?.status === 401 || err?.status === 403
+}
+
+export async function executeTool(name, input) {
+  const validationError = validateInput(name, input)
+  if (validationError) {
+    return { error: true, message: validationError }
+  }
+
+  try {
+    switch (name) {
+      case 'ask_user':
+        return await askUser(input)
+      case 'identify_materials':
+        return await identifyMaterials(input)
+      case 'lookup_price':
+        return lookupPrice(input)
+      case 'draft_section':
+        return await draftSection(input)
+      case 'save_quote':
+        return saveQuote(input)
+      default:
+        throw new Error(`Unknown tool: ${name}`)
+    }
+  } catch (err) {
+    if (isFatal(err)) throw err
+    return { error: true, message: err.message }
   }
 }
