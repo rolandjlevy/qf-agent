@@ -7,8 +7,18 @@ import { formatTraderContext } from '../../../lib/trader-context.js';
 import { waitForAnswer } from '../../../lib/quote-runs.js';
 
 export const runtime = 'nodejs';
+// Vercel's function timeout for this project defaults to 300s (confirmed via
+// a production "Task timed out after 300 seconds" log). Declared explicitly
+// so the margin below is against a known value, not an account default that
+// could silently change.
+export const maxDuration = 300;
 
-const ASK_USER_TIMEOUT_MS = 5 * 60 * 1000;
+// Must leave enough margin under maxDuration for the rest of the pipeline
+// (remaining draft_section calls, save_quote, the DB write) to finish after
+// the fallback fires — it previously matched maxDuration exactly, so on an
+// unanswered question Vercel's hard kill could win the race and the
+// connection would die with no done/error event ever sent to the client.
+const ASK_USER_TIMEOUT_MS = 3.5 * 60 * 1000;
 
 function buildInitialMessage({ trade, tone, jobDescription, customerName }) {
   const customerLine = customerName ? `\nCustomer name: ${customerName}` : '';
@@ -44,10 +54,31 @@ export async function POST(request) {
   const runId = randomUUID();
   const encoder = new TextEncoder();
 
+  // If the client disconnects (navigates away, closes the tab) the runtime
+  // calls cancel() and the controller becomes unusable — later enqueue()/
+  // close() calls throw "Invalid state: Controller is already closed",
+  // which was surfacing as an unhandled rejection in production. closed
+  // tracks that so sendEvent/safeClose become no-ops instead of throwing.
+  let closed = false;
+
   const stream = new ReadableStream({
     start(controller) {
       function sendEvent(event, data) {
-        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        } catch {
+          closed = true;
+        }
+      }
+      function safeClose() {
+        if (closed) return;
+        closed = true;
+        try {
+          controller.close();
+        } catch {
+          // already closed — nothing to do
+        }
       }
 
       (async () => {
@@ -107,9 +138,12 @@ export async function POST(request) {
         } catch (err) {
           sendEvent('error', { message: err.message });
         } finally {
-          controller.close();
+          safeClose();
         }
       })();
+    },
+    cancel() {
+      closed = true;
     },
   });
 
