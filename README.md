@@ -1,8 +1,6 @@
-# QuoteFetch Agent — Phase 1 (CLI)
+# QuoteFetch Agent
 
-An agentic CLI tool that turns a rough trade job description into a professional written quote. Claude drives the sequence using tools — it decides whether to ask follow-up questions, which materials to look up, and in what order to draft sections.
-
-> **Note (2026-08-27):** Phase 2a work — `node qf.js profile`, `node qf.js import <path>`, and trader-price-aware quotes with auto-filled business details — exists in the working tree on branch `development-phase-2` but is **not yet committed**, so it isn't reflected below. This README still documents the committed Phase 1 CLI.
+An agentic tool that turns a rough trade job description into a professional written quote. Claude drives the sequence using tools — it decides whether to ask follow-up questions, which materials to look up, and in what order to draft sections. Available as a CLI and as a web UI, both built on the same agent loop and tools.
 
 ## Setup
 
@@ -50,6 +48,19 @@ The tool call sequence differs between jobs — that is how you verify the agent
 
 For vague jobs (e.g. "Sort out my boiler") the agent will ask up to four targeted follow-up questions before proceeding. Which questions it asks depends on the trade — a plumber job prompts for boiler type and pipework material; a decorator job asks about surface condition and number of coats.
 
+## Web UI (Phase 2)
+
+```bash
+npm run web:dev     # http://localhost:3000
+```
+
+- `/profile` — trader identity (business name, contact details, hourly rate, T&Cs), plus upload past quotes so the agent learns your own material prices
+- `/quote/new` — generate a quote with a live streaming progress feed; answers any clarifying question inline, in the browser
+- `/quotes` — list of past quotes
+- `/quote/[id]` — view one
+
+`npm run web:build` / `npm run web:start` for a production build. This is not a separate implementation — it reuses the exact same agent loop and tools as the CLI above.
+
 ## Prices
 
 Prices are stored in `data/sample-prices.json`. All entries start with `verified: false` (indicative estimates only).
@@ -82,7 +93,7 @@ data/
 
 ## Phase roadmap
 
-- **Phase 1** (this) — CLI, mock prices, all logic working end-to-end
-- **Phase 2** — Next.js frontend with streaming agent feed
+- **Phase 1** — CLI, mock prices, all logic working end-to-end. Done.
+- **Phase 2** — Trader identity persistence (SQLite profile, price history from imported past quotes) + Next.js frontend with streaming agent feed. Done.
 - **Phase 3** — Real Playwright scraper replaces `lookup-price.js` (same tool interface)
-- **Phase 4** — Optional: auth, database, quote history
+- **Phase 4** — Optional: multi-tenant auth/database
