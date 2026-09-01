@@ -10,7 +10,8 @@
     "web:build": "node scripts/web-env.mjs build",
     "web:start": "node scripts/web-env.mjs start",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:impact": "node .claude/skills/test-impact/scan.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",

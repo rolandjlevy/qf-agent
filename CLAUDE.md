@@ -124,7 +124,26 @@ Next.js 15 (App Router), plain JS, `app/` tree. `qf.js` itself is not imported b
 
 **Single-tenant, no auth, by design** (per the Phase 2 brief — do not add login/JWT/bcrypt here, that's Phase 4): there's one `trader_profile` row and one flat `generated_quotes` table with no user/session column. Every page shows the same data to anyone who can reach the server. That's fine while "the server" means `localhost` on the trader's own machine; it stops being fine the moment this is exposed on a network, since nothing currently isolates one visitor from another.
 
-**No test coverage yet** for either the CLI or the web UI — explicitly deferred by the Phase 2 brief as a separate follow-on, not skipped by oversight.
+## Testing
+
+Vitest + React Testing Library. `npm test` (single run) / `npm run test:watch`. Tests are co-located as `*.test.js` next to the file under test.
+
+**Isolation — tests must never touch real trader data.** Three env var overrides exist for exactly this: `QF_DB_PATH` (`lib/db.js`), `QF_OUTPUT_DIR` (`tools/save-quote.js`), `QF_UPLOADS_DIR` (`app/api/import/route.js`). Every test that exercises code touching the DB, `output/`, or `data/uploads/` sets these (typically `':memory:'` or a `mkdtempSync` temp dir) *before* importing the module under test. This exists because manual browser/curl testing earlier polluted the real `data/qf.db` and required a manual cleanup pass — the whole point of these overrides is that it can't happen again via the test suite.
+
+**Three layers:**
+- `agent.test.js` — the core loop (`agent.js`) with `lib/anthropic-client.js` mocked. Covers the load-bearing invariants from the Architecture section above: multiple-tool-calls-per-turn, `onStep` sequencing and defensive error handling, max-turns, `toolContext` passthrough.
+- `app/api/**/route.test.js` — each API route's exported `GET`/`POST` called directly with a real `Request` object, no server needed. `lib/anthropic-client.js` is mocked wherever a route indirectly triggers a sub-LLM call (`/api/import`, `/api/quote`).
+- `app/**/page.test.js` — React Testing Library, `fetch` mocked via `msw` (`test/msw-server.js`), no real backend. `/quote/new`'s test scripts a raw SSE-formatted `ReadableStream` (deliberately splitting one event across two chunks) to exercise the page's own stream-parsing/buffering code.
+
+**Two Vitest/Vite-version-specific gotchas, easy to lose in a config refactor:**
+- This project keeps JSX in plain `.js` files (no `.jsx` extension). Vite 8 (pulled in transitively by Vitest 4) defaults to an `oxc` transform that only recognizes JSX by extension, with no working config override for `.js`. `vitest.config.js` works around it with a custom `enforce: 'pre'` plugin that calls `transformWithOxc` itself with `lang: 'jsx'`, converting the file to plain JS before Vite's own built-in oxc plugin ever sees the raw JSX.
+- `vitest.config.js` sets `globals: false`, which means `@testing-library/react`'s automatic `afterEach(cleanup)` never registers (it depends on a global `afterEach`). `vitest.setup.js` calls `cleanup()` explicitly instead — removing that silently leaks rendered components between tests in the same file.
+
+**Explicitly out of scope for now**: the CLI's own interactive commands (`qf.js`, `commands/profile.js`, `commands/import.js`) and `tools/*.js` business logic (fuzzy matching, the materials post-filter). Real gaps, not oversights — a natural follow-on.
+
+## `test-impact` skill
+
+`.claude/skills/test-impact/` — `npm run test:impact` (or ask Claude "what tests need checking"). Scans uncommitted changes (`git status --porcelain`), builds a reverse import graph across the repo's `.js`/`.mjs` files, and reports which test files are affected — directly or transitively — by each changed file, then runs them to show current pass/fail. A changed file with zero reachable tests is flagged separately as a coverage gap. Detect-and-report only — it never edits test files itself; see `SKILL.md` for what to do with its output.
 
 ## Phase roadmap (for context)
 
