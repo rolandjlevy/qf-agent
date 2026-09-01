@@ -54,7 +54,7 @@ export async function POST(request) {
         sendEvent('run_id', { runId });
 
         try {
-          const traderProfile = getTraderProfile();
+          const traderProfile = await getTraderProfile();
           const traderContext = formatTraderContext(traderProfile);
           const systemPrompt = traderContext ? `${SYSTEM_PROMPT}\n\n${traderContext}` : SYSTEM_PROMPT;
           const initialMessage = buildInitialMessage({ trade, tone, jobDescription, customerName });
@@ -93,7 +93,7 @@ export async function POST(request) {
 
           let quoteId = null;
           if (savedFilePath) {
-            quoteId = insertGeneratedQuote({
+            quoteId = await insertGeneratedQuote({
               job_description: jobDescription,
               output_path: savedFilePath,
               tool_call_log: toolCallLog,

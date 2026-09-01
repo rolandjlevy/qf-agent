@@ -2,7 +2,7 @@ import { scoreMatch, MATCH_THRESHOLD } from '../lib/fuzzy-match.js'
 import { findTraderPrice } from '../lib/db.js'
 import db from '../data/sample-prices.json' with { type: 'json' }
 
-export function lookupPrice({ material_name }) {
+export async function lookupPrice({ material_name }) {
   if (typeof material_name !== 'string' || !material_name.trim()) {
     return {
       material: material_name ?? null,
@@ -13,7 +13,7 @@ export function lookupPrice({ material_name }) {
 
   // The trader's own historical prices are what they actually paid — prefer
   // them over the placeholder sample DB whenever there's a good match.
-  const traderMatch = findTraderPrice(material_name)
+  const traderMatch = await findTraderPrice(material_name)
   if (traderMatch) {
     return {
       material: traderMatch.canonical_name || traderMatch.material_name,

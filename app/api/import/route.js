@@ -40,13 +40,13 @@ export async function POST(request) {
   const filePath = join(UPLOADS_DIR, `${Date.now()}-${sanitizeFilename(file.name)}`);
   writeFileSync(filePath, Buffer.from(await file.arrayBuffer()));
 
-  const quoteId = insertHistoricalQuote({ file_path: filePath, extraction_status: 'pending' });
+  const quoteId = await insertHistoricalQuote({ file_path: filePath, extraction_status: 'pending' });
 
   try {
     const { text, items } = await extractQuoteFile(filePath);
 
     if (items.length === 0) {
-      updateHistoricalQuoteStatus(quoteId, {
+      await updateHistoricalQuoteStatus(quoteId, {
         extraction_status: 'failed',
         extracted_text: text,
         notes: 'No priced material line items could be extracted',
@@ -55,7 +55,7 @@ export async function POST(request) {
     }
 
     for (const item of items) {
-      upsertTraderPrice({
+      await upsertTraderPrice({
         material_name: item.material_name,
         canonical_name: item.material_name,
         unit: item.unit || null,
@@ -65,7 +65,7 @@ export async function POST(request) {
       });
     }
 
-    updateHistoricalQuoteStatus(quoteId, {
+    await updateHistoricalQuoteStatus(quoteId, {
       extraction_status: 'success',
       extracted_text: text,
       notes: `Imported ${items.length} priced item${items.length === 1 ? '' : 's'}`,
@@ -73,7 +73,7 @@ export async function POST(request) {
 
     return Response.json({ imported: items });
   } catch (err) {
-    updateHistoricalQuoteStatus(quoteId, { extraction_status: 'failed', notes: err.message });
+    await updateHistoricalQuoteStatus(quoteId, { extraction_status: 'failed', notes: err.message });
     return Response.json({ error: true, message: err.message }, { status: 500 });
   }
 }

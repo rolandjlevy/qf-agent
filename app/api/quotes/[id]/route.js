@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 export async function GET(request, { params }) {
   try {
     const { id } = await params;
-    const quote = getGeneratedQuoteById(Number(id));
+    const quote = await getGeneratedQuoteById(Number(id));
 
     if (!quote) {
       return Response.json({ error: true, message: 'Quote not found' }, { status: 404 });

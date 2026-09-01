@@ -186,7 +186,7 @@ export async function executeTool(name, input, toolContext = {}) {
       case 'identify_materials':
         return await identifyMaterials(input)
       case 'lookup_price':
-        return lookupPrice(input)
+        return await lookupPrice(input)
       case 'draft_section':
         return await draftSection(input, toolContext.traderProfile)
       case 'save_quote':

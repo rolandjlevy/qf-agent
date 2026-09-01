@@ -9,8 +9,9 @@ vi.resetModules();
 const { GET } = await import('./route.js');
 const { getDb, insertGeneratedQuote } = await import('../../../../lib/db.js');
 
-beforeEach(() => {
-  getDb().prepare('DELETE FROM generated_quotes').run();
+beforeEach(async () => {
+  const db = await getDb();
+  await db.execute('DELETE FROM generated_quotes');
 });
 
 function paramsFor(id) {
@@ -30,7 +31,7 @@ describe('/api/quotes/[id]', () => {
     const filePath = join(dir, 'quote.md');
     writeFileSync(filePath, 'QUOTE CONTENT');
 
-    const id = insertGeneratedQuote({ job_description: 'job', output_path: filePath, tool_call_log: [] });
+    const id = await insertGeneratedQuote({ job_description: 'job', output_path: filePath, tool_call_log: [] });
 
     const res = await GET(null, paramsFor(String(id)));
     expect(res.status).toBe(200);
@@ -40,7 +41,7 @@ describe('/api/quotes/[id]', () => {
   });
 
   it('returns content: null (not an error) when the file is missing on disk', async () => {
-    const id = insertGeneratedQuote({ job_description: 'job', output_path: '/nonexistent/path.md', tool_call_log: [] });
+    const id = await insertGeneratedQuote({ job_description: 'job', output_path: '/nonexistent/path.md', tool_call_log: [] });
 
     const res = await GET(null, paramsFor(String(id)));
     expect(res.status).toBe(200);

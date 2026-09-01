@@ -4,7 +4,7 @@ export const runtime = 'nodejs';
 
 export async function GET() {
   try {
-    const profile = getTraderProfile();
+    const profile = await getTraderProfile();
     return Response.json({ profile });
   } catch (err) {
     return Response.json({ error: true, message: err.message }, { status: 500 });
@@ -23,7 +23,7 @@ export async function POST(request) {
       }
     }
 
-    const profile = upsertTraderProfile({
+    const profile = await upsertTraderProfile({
       business_name: body.business_name,
       contact_details: body.contact_details,
       hourly_rate: hourlyRate,

@@ -6,8 +6,9 @@ vi.resetModules();
 const { GET } = await import('./route.js');
 const { getDb, insertGeneratedQuote } = await import('../../../lib/db.js');
 
-beforeEach(() => {
-  getDb().prepare('DELETE FROM generated_quotes').run();
+beforeEach(async () => {
+  const db = await getDb();
+  await db.execute('DELETE FROM generated_quotes');
 });
 
 describe('/api/quotes', () => {
@@ -18,9 +19,9 @@ describe('/api/quotes', () => {
   });
 
   it('returns all rows ordered by generated_at DESC', async () => {
-    insertGeneratedQuote({ job_description: 'first', output_path: '/a.md', tool_call_log: [] });
+    await insertGeneratedQuote({ job_description: 'first', output_path: '/a.md', tool_call_log: [] });
     await new Promise((r) => setTimeout(r, 5));
-    insertGeneratedQuote({ job_description: 'second', output_path: '/b.md', tool_call_log: [] });
+    await insertGeneratedQuote({ job_description: 'second', output_path: '/b.md', tool_call_log: [] });
 
     const res = await GET();
     const json = await res.json();

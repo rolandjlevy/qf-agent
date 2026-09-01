@@ -139,7 +139,7 @@ Today's date is ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month
   // Loaded once per run and threaded through to the tools that need it
   // (draft_section, save_quote) via runAgent's toolContext — not re-read
   // from the DB inside each tool.
-  const traderProfile = getTraderProfile();
+  const traderProfile = await getTraderProfile();
   const traderContext = formatTraderContext(traderProfile);
   const systemPrompt = traderContext ? `${SYSTEM_PROMPT}\n\n${traderContext}` : SYSTEM_PROMPT;
 
@@ -198,7 +198,7 @@ Today's date is ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month
     });
 
     if (savedFilePath) {
-      insertGeneratedQuote({
+      await insertGeneratedQuote({
         job_description: jobDescription,
         output_path: savedFilePath,
         tool_call_log: toolCallLog,

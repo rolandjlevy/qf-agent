@@ -8,3 +8,4 @@ data/qf.db-shm
 data/uploads/
 .next/
 .vercel
+.env*

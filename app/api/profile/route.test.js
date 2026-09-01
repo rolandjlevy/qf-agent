@@ -6,8 +6,9 @@ vi.resetModules();
 const { GET, POST } = await import('./route.js');
 const { getDb } = await import('../../../lib/db.js');
 
-beforeEach(() => {
-  getDb().prepare('DELETE FROM trader_profile').run();
+beforeEach(async () => {
+  const db = await getDb();
+  await db.execute('DELETE FROM trader_profile');
 });
 
 function postRequest(body) {
@@ -42,9 +43,8 @@ describe('/api/profile', () => {
   });
 
   it('GET returns 500 with a structured error if the DB throws', async () => {
-    vi.spyOn(getDb(), 'prepare').mockImplementation(() => {
-      throw new Error('disk is full');
-    });
+    const db = await getDb();
+    vi.spyOn(db, 'execute').mockRejectedValue(new Error('disk is full'));
 
     const res = await GET();
     expect(res.status).toBe(500);

@@ -19,8 +19,9 @@ const { POST } = await import('./route.js');
 const { POST: answerPOST } = await import('./[runId]/answer/route.js');
 const { getDb } = await import('../../../lib/db.js');
 
-beforeEach(() => {
-  getDb().prepare('DELETE FROM generated_quotes').run();
+beforeEach(async () => {
+  const db = await getDb();
+  await db.execute('DELETE FROM generated_quotes');
   createMessage.mockReset();
 });
 
@@ -113,8 +114,9 @@ describe('POST /api/quote', () => {
     expect(doneEvent.data.quoteId).not.toBeNull();
     expect(readdirSync(process.env.QF_OUTPUT_DIR).length).toBeGreaterThan(0);
 
-    const rows = getDb().prepare('SELECT * FROM generated_quotes').all();
-    expect(rows).toHaveLength(1);
+    const db = await getDb();
+    const result = await db.execute('SELECT * FROM generated_quotes');
+    expect(result.rows).toHaveLength(1);
   });
 
   it('regression: the ask_user question/answer round trip resolves across route modules via globalThis', async () => {
