@@ -66,30 +66,42 @@ function assembleQuote(sections, traderProfile) {
   return parts.join('\n').trimEnd()
 }
 
+// The returned content is the source of truth (persisted to the DB by the
+// caller); the local file write is a best-effort convenience for CLI/local
+// use and is skipped silently if the filesystem isn't writable (e.g. Vercel's
+// serverless functions), rather than failing the whole tool call.
 export function saveQuote({ sections, metadata }, traderProfile) {
-  mkdirSync(OUTPUT_DIR, { recursive: true })
+  const content = assembleQuote(sections, traderProfile)
 
   const trade = slugify(metadata?.trade || sections.trade || 'trade')
   const jobSlug = slugify(metadata?.job_description || '').slice(0, 40) || 'quote'
   const dateStr = isoDate()
-
   const baseFilename = `quote-${dateStr}-${trade}-${jobSlug}`
 
-  let resolvedFilename = `${baseFilename}.md`
-  let filePath = join(OUTPUT_DIR, resolvedFilename)
-  for (let suffix = 2; existsSync(filePath) && suffix <= 20; suffix++) {
-    resolvedFilename = `${baseFilename}-${suffix}.md`
-    filePath = join(OUTPUT_DIR, resolvedFilename)
+  let filePath = null
+  let filename = null
+  try {
+    mkdirSync(OUTPUT_DIR, { recursive: true })
+
+    let resolvedFilename = `${baseFilename}.md`
+    let candidatePath = join(OUTPUT_DIR, resolvedFilename)
+    for (let suffix = 2; existsSync(candidatePath) && suffix <= 20; suffix++) {
+      resolvedFilename = `${baseFilename}-${suffix}.md`
+      candidatePath = join(OUTPUT_DIR, resolvedFilename)
+    }
+
+    writeFileSync(candidatePath, content, 'utf8')
+    filePath = candidatePath
+    filename = resolvedFilename
+  } catch {
+    // Filesystem not writable — content is still returned below.
   }
-
-  const content = assembleQuote(sections, traderProfile)
-
-  writeFileSync(filePath, content, 'utf8')
 
   return {
     success: true,
     file_path: filePath,
-    filename: resolvedFilename,
+    filename,
+    content,
     char_count: content.length,
   }
 }

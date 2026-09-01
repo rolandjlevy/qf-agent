@@ -60,6 +60,7 @@ export async function POST(request) {
           const initialMessage = buildInitialMessage({ trade, tone, jobDescription, customerName });
 
           let savedFilePath = null;
+          let savedContent = null;
           const toolCallLog = [];
 
           function onStep(step) {
@@ -68,6 +69,7 @@ export async function POST(request) {
             }
             if (step.type === 'tool_result' && step.tool === 'save_quote' && step.result?.success) {
               savedFilePath = step.result.file_path;
+              savedContent = step.result.content;
             }
             sendEvent(step.type, step);
           }
@@ -92,10 +94,11 @@ export async function POST(request) {
           });
 
           let quoteId = null;
-          if (savedFilePath) {
+          if (savedContent) {
             quoteId = await insertGeneratedQuote({
               job_description: jobDescription,
               output_path: savedFilePath,
+              content: savedContent,
               tool_call_log: toolCallLog,
             });
           }

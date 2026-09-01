@@ -145,6 +145,7 @@ Today's date is ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month
 
   let spinner = null;
   let savedFilePath = null;
+  let savedContent = null;
   const toolCallLog = [];
 
   function onStep(step) {
@@ -170,6 +171,7 @@ Today's date is ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month
         toolCallLog.push({ type: 'tool_result', tool: step.tool, result: step.result });
         if (step.tool === 'save_quote' && step.result?.success) {
           savedFilePath = step.result.file_path;
+          savedContent = step.result.content;
         }
         break;
       case 'final_answer':
@@ -197,10 +199,11 @@ Today's date is ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month
       toolContext: { traderProfile, askUser },
     });
 
-    if (savedFilePath) {
+    if (savedContent) {
       await insertGeneratedQuote({
         job_description: jobDescription,
         output_path: savedFilePath,
+        content: savedContent,
         tool_call_log: toolCallLog,
       });
     }
