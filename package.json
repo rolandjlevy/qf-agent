@@ -5,7 +5,13 @@
   "type": "module",
   "main": "qf.js",
   "scripts": {
-    "start": "node qf.js"
+    "start": "node qf.js",
+    "web:dev": "node scripts/web-env.mjs dev",
+    "web:build": "node scripts/web-env.mjs build",
+    "web:start": "node scripts/web-env.mjs start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:impact": "node .claude/skills/test-impact/scan.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
@@ -14,11 +20,23 @@
     "dotenv": "^16.4.5",
     "inquirer": "^9.2.23",
     "mammoth": "^1.12.1",
+    "next": "^15.5.25",
     "ora": "^9.4.1",
     "pdf-parse": "^2.4.5",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "yargs": "^17.7.2"
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.6",
+    "@vitejs/plugin-react": "^6.1.1",
+    "jsdom": "^29.1.1",
+    "msw": "^2.15.0",
+    "vitest": "^4.1.11"
   }
 }
