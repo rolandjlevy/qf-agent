@@ -8,6 +8,9 @@ function describeStep(step) {
     case 'turn_start':
       return `Turn ${step.turn}`;
     case 'tool_call':
+      if (step.tool === 'lookup_price' && step.input?.material_name) {
+        return `Calling lookup_price for ${step.input.material_name}…`;
+      }
       return `Calling ${step.tool}…`;
     case 'tool_result':
       return step.result?.error
@@ -183,7 +186,7 @@ export default function NewQuotePage() {
         <div style={{ marginTop: '1.5rem' }}>
           {result.quoteId ? (
             <p>
-              Quote saved. <a href={`/quote/${result.quoteId}`}>View it</a>.
+              <a href={`/quote/${result.quoteId}`}>Your quote has been saved</a>.
             </p>
           ) : (
             <p>Run finished after {result.turns} turn{result.turns === 1 ? '' : 's'}, but no quote was saved.</p>

@@ -3,7 +3,9 @@ import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const OUTPUT_DIR = join(__dirname, '../output')
+// Override lets tests write to a throwaway directory instead of the real
+// output/ folder — never unset in normal CLI/web usage.
+const OUTPUT_DIR = process.env.QF_OUTPUT_DIR || join(__dirname, '../output')
 
 function formatDate() {
   const d = new Date()

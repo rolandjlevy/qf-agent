@@ -9,7 +9,9 @@ import {
 } from '../../../lib/db.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const UPLOADS_DIR = join(__dirname, '../../../data/uploads');
+// Override lets tests write to a throwaway directory instead of the real
+// data/uploads/ folder — never unset in normal web usage.
+const UPLOADS_DIR = process.env.QF_UPLOADS_DIR || join(__dirname, '../../../data/uploads');
 const ALLOWED_EXTENSIONS = new Set(['.md', '.txt', '.pdf', '.docx']);
 
 export const runtime = 'nodejs';
