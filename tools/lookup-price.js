@@ -1,11 +1,6 @@
-import { readFileSync } from 'fs'
-import { fileURLToPath } from 'url'
-import { dirname, join } from 'path'
 import { scoreMatch, MATCH_THRESHOLD } from '../lib/fuzzy-match.js'
 import { findTraderPrice } from '../lib/db.js'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const db = JSON.parse(readFileSync(join(__dirname, '../data/sample-prices.json'), 'utf8'))
+import db from '../data/sample-prices.json' with { type: 'json' }
 
 export function lookupPrice({ material_name }) {
   if (typeof material_name !== 'string' || !material_name.trim()) {
