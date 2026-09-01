@@ -1,24 +1,12 @@
-import inquirer from 'inquirer'
-
-// toolContext.askUser lets a caller other than the terminal CLI (e.g. a web
-// route with no TTY to prompt) supply its own way of asking the question —
-// defaults to the original inquirer prompt when absent, so CLI behavior is
-// unchanged.
+// Every caller (CLI and web) must supply toolContext.askUser — this file has
+// no direct prompt implementation of its own. Keeping it that way means
+// nothing under app/ ever pulls in the CLI's `inquirer` prompt dependency:
+// a static `import inquirer` here previously got traced into the
+// /api/quote serverless function's bundle and broke Vercel's build-output
+// packaging step (confirmed by isolating the route in a bare Next.js app —
+// removing the inquirer import was the only change that fixed it). The CLI
+// now supplies its inquirer-backed handler itself (see qf.js).
 export async function askUser({ question, context }, toolContext = {}) {
-  if (toolContext.askUser) {
-    const answer = await toolContext.askUser(question, context)
-    return { answer }
-  }
-
-  const message = context ? `${context}\n\n${question}` : question
-
-  const { answer } = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'answer',
-      message,
-    },
-  ])
-
+  const answer = await toolContext.askUser(question, context)
   return { answer }
 }

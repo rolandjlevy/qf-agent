@@ -11,6 +11,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+import inquirer from 'inquirer';
 import { runAgent } from './agent.js';
 import { TOOL_DEFINITIONS, executeTool } from './tools/index.js';
 import { SYSTEM_PROMPT } from './prompts/system.js';
@@ -179,6 +180,12 @@ Today's date is ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month
     }
   }
 
+  const askUser = async (question, context) => {
+    const message = context ? `${context}\n\n${question}` : question;
+    const { answer } = await inquirer.prompt([{ type: 'input', name: 'answer', message }]);
+    return answer;
+  };
+
   try {
     const { turns } = await runAgent({
       systemPrompt,
@@ -187,7 +194,7 @@ Today's date is ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month
       initialMessage,
       maxTurns: 20,
       onStep,
-      toolContext: { traderProfile },
+      toolContext: { traderProfile, askUser },
     });
 
     if (savedFilePath) {

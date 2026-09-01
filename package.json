@@ -5,6 +5,7 @@
   "type": "module",
   "main": "qf.js",
   "scripts": {
+    "vercel-build": "next build",
     "start": "node qf.js",
     "web:dev": "node scripts/web-env.mjs dev",
     "web:build": "node scripts/web-env.mjs build",
