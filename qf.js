@@ -14,6 +14,10 @@ import { hideBin } from 'yargs/helpers';
 import { runAgent } from './agent.js';
 import { TOOL_DEFINITIONS, executeTool } from './tools/index.js';
 import { SYSTEM_PROMPT } from './prompts/system.js';
+import { runProfileCommand } from './commands/profile.js';
+import { runImportCommand } from './commands/import.js';
+import { getTraderProfile, insertGeneratedQuote } from './lib/db.js';
+import { formatTraderContext } from './lib/trader-context.js';
 
 const VALID_TRADES = [
   'bathroom-fitter',
@@ -42,60 +46,6 @@ const VALID_TONES = [
   'persuasive',
   'professional',
 ];
-
-// Parse command-line arguments
-const argv = yargs(hideBin(process.argv))
-  .usage('Usage: node qf.js --trade=<trade> --tone=<tone> "<job description>"')
-  .option('trade', {
-    type: 'string',
-    demandOption: true,
-    choices: VALID_TRADES,
-    description: `Trade category. Valid: ${VALID_TRADES.join(', ')}`,
-  })
-  .option('tone', {
-    type: 'string',
-    demandOption: true,
-    choices: VALID_TONES,
-    description: `Quote tone. Valid: ${VALID_TONES.join(', ')}`,
-  })
-  .example(
-    'node qf.js --trade=electrician --tone=professional "Replace consumer unit, 8 MCBs, surge protection"',
-  )
-  .help().argv;
-
-// Get the job description from positional arguments
-const jobDescription = argv._.join(' ').trim();
-
-if (!jobDescription) {
-  console.error(
-    chalk.red('Error: job description is required as a positional argument'),
-  );
-  console.error(
-    chalk.gray(
-      '  node qf.js --trade=electrician --tone=professional "Replace consumer unit..."',
-    ),
-  );
-  process.exit(1);
-}
-
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.error(chalk.red('Error: ANTHROPIC_API_KEY is not set'));
-  console.error(chalk.gray('  Copy .env.example to .env and add your key'));
-  process.exit(1);
-}
-
-const trade = argv.trade;
-const tone = argv.tone;
-
-// Header
-console.log();
-console.log(chalk.bold('🛠  QuoteFetch Agent'));
-console.log(chalk.gray('─────────────────────────────────────────'));
-console.log(chalk.cyan('Trade: ') + chalk.white(trade));
-console.log(chalk.cyan('Tone:  ') + chalk.white(tone));
-console.log(chalk.cyan('Job:   ') + chalk.white(jobDescription));
-console.log(chalk.gray('─────────────────────────────────────────'));
-console.log();
 
 // Format the initial message for the agent
 function formatToolInput(toolName, input) {
@@ -165,7 +115,42 @@ function formatToolResult(toolName, result) {
   }
 }
 
-const initialMessage = `Generate a complete professional quote for the following job.
+async function runQuoteCommand(argv) {
+  // Job description comes from whatever positional arguments are left over.
+  const jobDescription = argv._.join(' ').trim();
+
+  if (!jobDescription) {
+    console.error(
+      chalk.red('Error: job description is required as a positional argument'),
+    );
+    console.error(
+      chalk.gray(
+        '  node qf.js --trade=electrician --tone=professional "Replace consumer unit..."',
+      ),
+    );
+    process.exit(1);
+  }
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.error(chalk.red('Error: ANTHROPIC_API_KEY is not set'));
+    console.error(chalk.gray('  Copy .env.example to .env and add your key'));
+    process.exit(1);
+  }
+
+  const trade = argv.trade;
+  const tone = argv.tone;
+
+  // Header
+  console.log();
+  console.log(chalk.bold('🛠  QuoteFetch Agent'));
+  console.log(chalk.gray('─────────────────────────────────────────'));
+  console.log(chalk.cyan('Trade: ') + chalk.white(trade));
+  console.log(chalk.cyan('Tone:  ') + chalk.white(tone));
+  console.log(chalk.cyan('Job:   ') + chalk.white(jobDescription));
+  console.log(chalk.gray('─────────────────────────────────────────'));
+  console.log();
+
+  const initialMessage = `Generate a complete professional quote for the following job.
 
 Trade: ${trade}
 Tone: ${tone}
@@ -177,51 +162,114 @@ ${jobDescription}
 
 Today's date is ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.`;
 
-let spinner = null;
+  // Loaded once per run and threaded through to the tools that need it
+  // (draft_section, save_quote) via runAgent's toolContext — not re-read
+  // from the DB inside each tool.
+  const traderProfile = getTraderProfile();
+  const traderContext = formatTraderContext(traderProfile);
+  const systemPrompt = traderContext ? `${SYSTEM_PROMPT}\n\n${traderContext}` : SYSTEM_PROMPT;
 
-function onStep(step) {
-  switch (step.type) {
-    case 'turn_start':
-      console.log(chalk.yellow.bold(`🔄 Turn ${step.turn}`));
-      break;
-    case 'api_start':
-      spinner = ora({ text: chalk.gray('Thinking…'), color: 'cyan' }).start();
-      break;
-    case 'api_end':
-      spinner?.stop();
-      spinner = null;
-      break;
-    case 'tool_call':
-      console.log(chalk.cyan.bold(`🔧 ${step.tool}`));
-      console.log(formatToolInput(step.tool, step.input));
-      break;
-    case 'tool_result':
-      console.log(formatToolResult(step.tool, step.result));
-      console.log();
-      break;
-    case 'final_answer':
-      console.log(chalk.gray('─────────────────────────────────────────'));
-      console.log(chalk.white.bold('💬 ' + step.text));
-      console.log();
-      break;
+  let spinner = null;
+  let savedFilePath = null;
+  const toolCallLog = [];
+
+  function onStep(step) {
+    switch (step.type) {
+      case 'turn_start':
+        console.log(chalk.yellow.bold(`🔄 Turn ${step.turn}`));
+        break;
+      case 'api_start':
+        spinner = ora({ text: chalk.gray('Thinking…'), color: 'cyan' }).start();
+        break;
+      case 'api_end':
+        spinner?.stop();
+        spinner = null;
+        break;
+      case 'tool_call':
+        console.log(chalk.cyan.bold(`🔧 ${step.tool}`));
+        console.log(formatToolInput(step.tool, step.input));
+        toolCallLog.push({ type: 'tool_call', tool: step.tool, input: step.input });
+        break;
+      case 'tool_result':
+        console.log(formatToolResult(step.tool, step.result));
+        console.log();
+        toolCallLog.push({ type: 'tool_result', tool: step.tool, result: step.result });
+        if (step.tool === 'save_quote' && step.result?.success) {
+          savedFilePath = step.result.file_path;
+        }
+        break;
+      case 'final_answer':
+        console.log(chalk.gray('─────────────────────────────────────────'));
+        console.log(chalk.white.bold('💬 ' + step.text));
+        console.log();
+        break;
+    }
+  }
+
+  try {
+    const { turns } = await runAgent({
+      systemPrompt,
+      tools: TOOL_DEFINITIONS,
+      executeTool,
+      initialMessage,
+      maxTurns: 20,
+      onStep,
+      toolContext: { traderProfile },
+    });
+
+    if (savedFilePath) {
+      insertGeneratedQuote({
+        job_description: jobDescription,
+        output_path: savedFilePath,
+        tool_call_log: toolCallLog,
+      });
+    }
+
+    console.log(
+      chalk.gray(`Completed in ${turns} turn${turns === 1 ? '' : 's'}.`),
+    );
+  } catch (err) {
+    console.error();
+    console.error(chalk.red.bold('Error: ' + err.message));
+    process.exit(1);
   }
 }
 
-try {
-  const { turns } = await runAgent({
-    systemPrompt: SYSTEM_PROMPT,
-    tools: TOOL_DEFINITIONS,
-    executeTool,
-    initialMessage,
-    maxTurns: 20,
-    onStep,
-  });
-
-  console.log(
-    chalk.gray(`Completed in ${turns} turn${turns === 1 ? '' : 's'}.`),
-  );
-} catch (err) {
-  console.error();
-  console.error(chalk.red.bold('Error: ' + err.message));
-  process.exit(1);
-}
+await yargs(hideBin(process.argv))
+  .usage('Usage: node qf.js --trade=<trade> --tone=<tone> "<job description>"')
+  .command(
+    '$0',
+    'Generate a professional quote from a job description',
+    (y) =>
+      y
+        .option('trade', {
+          type: 'string',
+          demandOption: true,
+          choices: VALID_TRADES,
+          description: `Trade category. Valid: ${VALID_TRADES.join(', ')}`,
+        })
+        .option('tone', {
+          type: 'string',
+          demandOption: true,
+          choices: VALID_TONES,
+          description: `Quote tone. Valid: ${VALID_TONES.join(', ')}`,
+        })
+        .example(
+          'node qf.js --trade=electrician --tone=professional "Replace consumer unit, 8 MCBs, surge protection"',
+        ),
+    runQuoteCommand,
+  )
+  .command(
+    'profile',
+    'View or edit your trader profile (business name, contact details, rate, T&Cs)',
+    () => {},
+    runProfileCommand,
+  )
+  .command(
+    'import <path>',
+    'Import a past quote (.md, .txt, .pdf, .docx) to learn your own material prices',
+    (y) => y.positional('path', { type: 'string', describe: 'Path to the quote file to import' }),
+    runImportCommand,
+  )
+  .help()
+  .parseAsync();

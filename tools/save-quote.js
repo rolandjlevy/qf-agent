@@ -25,7 +25,7 @@ function slugify(str) {
     .slice(0, 30)
 }
 
-function assembleQuote(sections) {
+function assembleQuote(sections, traderProfile) {
   const s = (key, fallback = '') => {
     // Accept both snake_case (tool API) and camelCase (KB format)
     const camelMap = { scope: 'scopeOfWork', next_steps: 'nextSteps' }
@@ -35,8 +35,8 @@ function assembleQuote(sections) {
   const customerLine = sections.customer_name ? `Dear ${sections.customer_name},\n\n` : ''
 
   const parts = [
-    '[YOUR BUSINESS NAME]',
-    '[YOUR CONTACT DETAILS]',
+    traderProfile?.business_name || '[YOUR BUSINESS NAME]',
+    traderProfile?.contact_details || '[YOUR CONTACT DETAILS]',
     '',
     `Date: ${formatDate()}`,
     '',
@@ -64,7 +64,7 @@ function assembleQuote(sections) {
   return parts.join('\n').trimEnd()
 }
 
-export function saveQuote({ sections, metadata }) {
+export function saveQuote({ sections, metadata }, traderProfile) {
   mkdirSync(OUTPUT_DIR, { recursive: true })
 
   const trade = slugify(metadata?.trade || sections.trade || 'trade')
@@ -80,7 +80,7 @@ export function saveQuote({ sections, metadata }) {
     filePath = join(OUTPUT_DIR, resolvedFilename)
   }
 
-  const content = assembleQuote(sections)
+  const content = assembleQuote(sections, traderProfile)
 
   writeFileSync(filePath, content, 'utf8')
 

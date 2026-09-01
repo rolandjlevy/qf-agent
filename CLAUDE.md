@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **Checkpoint marker (2026-08-27, branch `development-phase-2`):** Phase 2a from `prompts/05_QF_PHASE_2.md` (steps 1–4: SQLite trader profile in `lib/db.js`, trader-price-first `lookup_price`, trader context wired into the system prompt/`draft_section`/`save_quote`, and `node qf.js import <path>`) is implemented and verified in the working tree, but **not committed**. Everything else in this file still describes the last-committed (Phase 1) state until that lands. Phase 2b (web UI) has not been started — checkpoint reached per the brief's own instruction to pause after Phase 2a.
+
 ## Running the agent
 
 ```bash

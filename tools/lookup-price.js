@@ -1,53 +1,11 @@
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
+import { scoreMatch, MATCH_THRESHOLD } from '../lib/fuzzy-match.js'
+import { findTraderPrice } from '../lib/db.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const db = JSON.parse(readFileSync(join(__dirname, '../data/sample-prices.json'), 'utf8'))
-
-function normalize(str) {
-  return str
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-function wordSet(str) {
-  return new Set(normalize(str).split(' ').filter((w) => w.length > 2))
-}
-
-function scoreMatch(material, searchTerm) {
-  const normSearch = normalize(searchTerm)
-  const normName = normalize(material.name)
-
-  if (normName === normSearch) return 100
-
-  const allTerms = [material.name, ...(material.aliases || [])]
-
-  for (const term of allTerms) {
-    const normTerm = normalize(term)
-    if (normTerm === normSearch) return 95
-    if (normTerm.includes(normSearch) && normSearch.length > 5) return 85
-    if (normSearch.includes(normTerm) && normTerm.length > 5) return 80
-  }
-
-  // Word overlap scoring across name + aliases
-  const searchWords = wordSet(searchTerm)
-  if (searchWords.size === 0) return 0
-
-  let bestWordScore = 0
-  for (const term of allTerms) {
-    const termWords = wordSet(term)
-    const overlap = [...searchWords].filter((w) => termWords.has(w)).length
-    if (overlap > 0) {
-      const score = (overlap / Math.max(searchWords.size, termWords.size)) * 65
-      if (score > bestWordScore) bestWordScore = score
-    }
-  }
-
-  return bestWordScore
-}
 
 export function lookupPrice({ material_name }) {
   if (typeof material_name !== 'string' || !material_name.trim()) {
@@ -55,6 +13,26 @@ export function lookupPrice({ material_name }) {
       material: material_name ?? null,
       found: false,
       message: 'material_name must be a non-empty string',
+    }
+  }
+
+  // The trader's own historical prices are what they actually paid — prefer
+  // them over the placeholder sample DB whenever there's a good match.
+  const traderMatch = findTraderPrice(material_name)
+  if (traderMatch) {
+    return {
+      material: traderMatch.canonical_name || traderMatch.material_name,
+      found: true,
+      match_score: traderMatch.match_score,
+      cheapest: traderMatch.unit_price,
+      cheapest_supplier: 'Your price history',
+      cheapest_sku: null,
+      verified: true,
+      any_verified: true,
+      all_prices: [
+        { supplier: 'Your price history', price: traderMatch.unit_price, sku: null, verified: true },
+      ],
+      source: 'trader_history',
     }
   }
 
@@ -70,7 +48,7 @@ export function lookupPrice({ material_name }) {
   }
 
   // Require a minimum match quality, and a non-empty price list to report on
-  if (bestScore < 40 || !bestMatch || !Array.isArray(bestMatch.prices) || bestMatch.prices.length === 0) {
+  if (bestScore < MATCH_THRESHOLD || !bestMatch || !Array.isArray(bestMatch.prices) || bestMatch.prices.length === 0) {
     return {
       material: material_name,
       found: false,
@@ -98,5 +76,6 @@ export function lookupPrice({ material_name }) {
       sku: p.sku || null,
       verified: p.verified,
     })),
+    source: 'sample_db',
   }
 }

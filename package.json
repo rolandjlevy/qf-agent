@@ -9,10 +9,13 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
+    "better-sqlite3": "^13.0.3",
     "chalk": "^5.3.0",
     "dotenv": "^16.4.5",
     "inquirer": "^9.2.23",
+    "mammoth": "^1.12.1",
     "ora": "^9.4.1",
+    "pdf-parse": "^2.4.5",
     "yargs": "^17.7.2"
   },
   "engines": {

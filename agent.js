@@ -8,6 +8,7 @@ export async function runAgent({
   initialMessage,
   maxTurns = 15,
   onStep,
+  toolContext = {},
 }) {
   const anthropic = createClient();
   const messages = [{ role: 'user', content: initialMessage }];
@@ -44,7 +45,7 @@ export async function runAgent({
           tool: toolBlock.name,
           input: toolBlock.input,
         });
-        const result = await executeTool(toolBlock.name, toolBlock.input);
+        const result = await executeTool(toolBlock.name, toolBlock.input, toolContext);
         safeOnStep({ type: 'tool_result', tool: toolBlock.name, result });
         toolResults.push({ tool_use_id: toolBlock.id, result });
       }

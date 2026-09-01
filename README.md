@@ -2,6 +2,8 @@
 
 An agentic CLI tool that turns a rough trade job description into a professional written quote. Claude drives the sequence using tools — it decides whether to ask follow-up questions, which materials to look up, and in what order to draft sections.
 
+> **Note (2026-08-27):** Phase 2a work — `node qf.js profile`, `node qf.js import <path>`, and trader-price-aware quotes with auto-filled business details — exists in the working tree on branch `development-phase-2` but is **not yet committed**, so it isn't reflected below. This README still documents the committed Phase 1 CLI.
+
 ## Setup
 
 ```bash

@@ -173,7 +173,7 @@ function isFatal(err) {
   return err?.status === 401 || err?.status === 403
 }
 
-export async function executeTool(name, input) {
+export async function executeTool(name, input, toolContext = {}) {
   const validationError = validateInput(name, input)
   if (validationError) {
     return { error: true, message: validationError }
@@ -188,9 +188,9 @@ export async function executeTool(name, input) {
       case 'lookup_price':
         return lookupPrice(input)
       case 'draft_section':
-        return await draftSection(input)
+        return await draftSection(input, toolContext.traderProfile)
       case 'save_quote':
-        return saveQuote(input)
+        return saveQuote(input, toolContext.traderProfile)
       default:
         throw new Error(`Unknown tool: ${name}`)
     }
