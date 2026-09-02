@@ -97,7 +97,10 @@ These rules are enforced two ways, not just by prompt instruction: `NEVER_DO_RUL
 ANTHROPIC_API_KEY=    # required
 CLAUDE_MODEL=         # optional, defaults to claude-sonnet-4-6
 REQUEST_TIMEOUT_MS=   # optional, defaults to 60000; Anthropic client request timeout (lib/anthropic-client.js)
+DATABASE_URL=         # required; Neon Postgres connection string (lib/db.js)
 ```
+
+`DATABASE_URL` is required in every environment — local dev, tests, and production — with no local/embedded fallback (Neon is a remote-only Postgres service; there's no SQLite-style `file:` escape hatch). Use a dedicated Neon branch for local dev, separate from whatever branch production points at. `lib/db.js` reads it lazily inside `getClient()`, not into a module-level `const`: ES modules hoist and fully evaluate a file's static imports before its own top-level statements run, so a module-level read would execute — and permanently capture `undefined` — before `qf.js`'s own `dotenv.config()` call, even though that call appears earlier in `qf.js`'s source. This bug existed in the pre-Neon Turso code in the same shape but was invisible, because the local-dev fallback back then was a hardcoded `file:` path needing no env var at all.
 
 `qf.js` treats an empty-string `ANTHROPIC_API_KEY`/`CLAUDE_MODEL` as unset before calling `dotenv.config()` — this devcontainer's `remoteEnv` pre-sets both to `""` when the host has no value, which would otherwise make `dotenv` skip loading the real value from `.env` (its default `override: false` treats an existing-but-empty var as "already set"). This still means a real operator/CI-supplied value is never silently overridden by a stray local `.env`.
 
@@ -128,7 +131,9 @@ Next.js 15 (App Router), plain JS, `app/` tree. `qf.js` itself is not imported b
 
 Vitest + React Testing Library. `npm test` (single run) / `npm run test:watch`. Tests are co-located as `*.test.js` next to the file under test.
 
-**Isolation — tests must never touch real trader data.** Three env var overrides exist for exactly this: `QF_DB_PATH` (`lib/db.js`), `QF_OUTPUT_DIR` (`tools/save-quote.js`), `QF_UPLOADS_DIR` (`app/api/import/route.js`). Every test that exercises code touching the DB, `output/`, or `data/uploads/` sets these (typically `':memory:'` or a `mkdtempSync` temp dir) *before* importing the module under test. This exists because manual browser/curl testing earlier polluted the real `data/qf.db` and required a manual cleanup pass — the whole point of these overrides is that it can't happen again via the test suite.
+**Isolation — tests must never touch real trader data.** `QF_OUTPUT_DIR` (`tools/save-quote.js`) and `QF_UPLOADS_DIR` (`app/api/import/route.js`) are env var overrides set to a `mkdtempSync` temp dir before importing the module under test, so tests never write into the real `output/`/`data/uploads/`. This exists because manual browser/curl testing earlier polluted real state and required a manual cleanup pass — the whole point of these overrides is that it can't happen again via the test suite.
+
+DB-touching tests have no equivalent override — Neon has no in-memory/embedded mode, so `DATABASE_URL` must point at a real branch even in tests (`vitest.setup.js` calls `dotenv.config()` so `.env`'s `DATABASE_URL` reaches the test process; nothing else loads `.env` there, since tests import route files directly rather than going through `qf.js`). Point it at a dedicated Neon branch, not production — tests call the exported DB functions directly (`db.query(...)`, matching the Neon client's method name, not libsql's `db.execute(...)`) and wipe their own tables in `beforeEach`, but that cleanup assumes exclusive use of the branch. This is a real, accepted gap from the pre-Neon `QF_DB_PATH=':memory:'` isolation story — not a design goal, a trade-off made when migrating off Turso.
 
 **Three layers:**
 - `agent.test.js` — the core loop (`agent.js`) with `lib/anthropic-client.js` mocked. Covers the load-bearing invariants from the Architecture section above: multiple-tool-calls-per-turn, `onStep` sequencing and defensive error handling, max-turns, `toolContext` passthrough.

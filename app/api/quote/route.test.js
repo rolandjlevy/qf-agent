@@ -3,7 +3,6 @@ import { mkdtempSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
-process.env.QF_DB_PATH = ':memory:';
 process.env.QF_OUTPUT_DIR = mkdtempSync(join(tmpdir(), 'qf-output-'));
 
 vi.mock('../../../lib/anthropic-client.js', () => ({
@@ -21,7 +20,7 @@ const { getDb } = await import('../../../lib/db.js');
 
 beforeEach(async () => {
   const db = await getDb();
-  await db.execute('DELETE FROM generated_quotes');
+  await db.query('DELETE FROM generated_quotes');
   createMessage.mockReset();
 });
 
@@ -115,8 +114,8 @@ describe('POST /api/quote', () => {
     expect(readdirSync(process.env.QF_OUTPUT_DIR).length).toBeGreaterThan(0);
 
     const db = await getDb();
-    const result = await db.execute('SELECT * FROM generated_quotes');
-    expect(result.rows).toHaveLength(1);
+    const rows = await db.query('SELECT * FROM generated_quotes');
+    expect(rows).toHaveLength(1);
   });
 
   it('regression: the ask_user question/answer round trip resolves across route modules via globalThis', async () => {
