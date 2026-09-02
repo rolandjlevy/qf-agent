@@ -3,7 +3,6 @@ import { writeFileSync, mkdtempSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
-process.env.QF_DB_PATH = ':memory:';
 vi.resetModules();
 
 const { GET } = await import('./route.js');
@@ -11,7 +10,7 @@ const { getDb, insertGeneratedQuote } = await import('../../../../lib/db.js');
 
 beforeEach(async () => {
   const db = await getDb();
-  await db.execute('DELETE FROM generated_quotes');
+  await db.query('DELETE FROM generated_quotes');
 });
 
 function paramsFor(id) {

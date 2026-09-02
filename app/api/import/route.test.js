@@ -3,7 +3,6 @@ import { mkdtempSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
-process.env.QF_DB_PATH = ':memory:';
 process.env.QF_UPLOADS_DIR = mkdtempSync(join(tmpdir(), 'qf-uploads-'));
 
 vi.mock('../../../lib/anthropic-client.js', () => ({
@@ -20,8 +19,8 @@ const { getDb } = await import('../../../lib/db.js');
 
 beforeEach(async () => {
   const db = await getDb();
-  await db.execute('DELETE FROM historical_quotes');
-  await db.execute('DELETE FROM trader_prices');
+  await db.query('DELETE FROM historical_quotes');
+  await db.query('DELETE FROM trader_prices');
   createMessage.mockReset();
 });
 
@@ -63,9 +62,9 @@ describe('/api/import', () => {
     expect(json.imported[0].material_name).toBe('Copper pipe 15mm');
 
     const db = await getDb();
-    const result = await db.execute('SELECT * FROM trader_prices');
-    expect(result.rows).toHaveLength(1);
-    expect(result.rows[0].source).toBe('historical_quote');
+    const rows = await db.query('SELECT * FROM trader_prices');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].source).toBe('historical_quote');
 
     // uploaded file actually landed in the isolated QF_UPLOADS_DIR, not the real one
     expect(readdirSync(process.env.QF_UPLOADS_DIR).length).toBeGreaterThan(0);
@@ -80,8 +79,8 @@ describe('/api/import', () => {
     expect(json.imported).toEqual([]);
 
     const db = await getDb();
-    const historical = await db.execute('SELECT extraction_status FROM historical_quotes');
-    expect(historical.rows[0].extraction_status).toBe('failed');
+    const historical = await db.query('SELECT extraction_status FROM historical_quotes');
+    expect(historical[0].extraction_status).toBe('failed');
   });
 
   it('returns a structured error and marks the row failed when extraction throws', async () => {
@@ -93,7 +92,7 @@ describe('/api/import', () => {
     expect(json).toEqual({ error: true, message: 'rate limited' });
 
     const db = await getDb();
-    const historical = await db.execute('SELECT extraction_status FROM historical_quotes');
-    expect(historical.rows[0].extraction_status).toBe('failed');
+    const historical = await db.query('SELECT extraction_status FROM historical_quotes');
+    expect(historical[0].extraction_status).toBe('failed');
   });
 });

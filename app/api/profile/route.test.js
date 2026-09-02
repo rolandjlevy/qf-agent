@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-process.env.QF_DB_PATH = ':memory:';
 vi.resetModules();
 
 const { GET, POST } = await import('./route.js');
@@ -8,7 +7,7 @@ const { getDb } = await import('../../../lib/db.js');
 
 beforeEach(async () => {
   const db = await getDb();
-  await db.execute('DELETE FROM trader_profile');
+  await db.query('DELETE FROM trader_profile');
 });
 
 function postRequest(body) {
@@ -44,7 +43,7 @@ describe('/api/profile', () => {
 
   it('GET returns 500 with a structured error if the DB throws', async () => {
     const db = await getDb();
-    vi.spyOn(db, 'execute').mockRejectedValue(new Error('disk is full'));
+    vi.spyOn(db, 'query').mockRejectedValue(new Error('disk is full'));
 
     const res = await GET();
     expect(res.status).toBe(500);
