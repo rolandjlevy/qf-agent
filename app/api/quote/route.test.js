@@ -144,6 +144,43 @@ describe('POST /api/quote', () => {
     expect(events[events.length - 1].event).toBe('done');
   });
 
+  it('regression: a second unanswered ask_user gets whatever budget is left, not a fresh 3.5-minute window', async () => {
+    // Two unanswered questions in a row, each given the full fixed
+    // ASK_USER_TIMEOUT_MS, once stacked past maxDuration and got the
+    // function killed mid-stream with no done/error sent (502 in the
+    // browser). Mock waitForAnswer and fake time to simulate that without
+    // really waiting minutes.
+    vi.useFakeTimers();
+    const quoteRuns = await import('../../../lib/quote-runs.js');
+    const timeouts = [];
+    const waitSpy = vi.spyOn(quoteRuns, 'waitForAnswer').mockImplementation((runId, timeoutMs, onTimeout) => {
+      timeouts.push(timeoutMs);
+      if (timeouts.length === 1) vi.advanceTimersByTime(250 * 1000); // most of the 300s budget
+      return Promise.resolve(onTimeout());
+    });
+
+    createMessage
+      .mockResolvedValueOnce(toolUseResponse('ask_user', { question: 'Q1?' }))
+      .mockResolvedValueOnce(toolUseResponse('ask_user', { question: 'Q2?' }))
+      .mockResolvedValueOnce(
+        toolUseResponse('save_quote', {
+          sections: { introduction: 'Hi.' },
+          metadata: { trade: 'plumber', job_description: 'job' },
+        }),
+      )
+      .mockResolvedValueOnce(finalResponse('done'));
+
+    const res = await POST(postQuoteRequest({ trade: 'plumber', tone: 'friendly', jobDescription: 'job' }));
+    await readSSE(res);
+
+    expect(timeouts).toHaveLength(2);
+    expect(timeouts[0]).toBeGreaterThan(200 * 1000); // first question: ~full 210s window
+    expect(timeouts[1]).toBeLessThan(60 * 1000); // second question: budget mostly spent already
+
+    waitSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
   it('answer route returns 404 for an unknown or already-resolved runId', async () => {
     const res = await answerPOST(
       new Request('http://localhost/api/quote/does-not-exist/answer', {

@@ -20,6 +20,17 @@ export const maxDuration = 300;
 // connection would die with no done/error event ever sent to the client.
 const ASK_USER_TIMEOUT_MS = 3.5 * 60 * 1000;
 
+// The margin above only holds if ask_user is called once per run. A vague
+// job description can make the agent ask a second (or third) clarifying
+// question in a later turn before the first one's fallback has even fired —
+// confirmed in production, where two unanswered questions stacked to 420s
+// and Vercel force-killed the function at exactly maxDuration (300s) with
+// no done/error event sent, surfacing to the browser as a bare 502. Each
+// ask_user call below gets whatever's left of the shared budget instead of
+// a fresh fixed timeout, so a later question degrades to an immediate
+// fallback rather than re-consuming the full 3.5 minutes.
+const PIPELINE_MARGIN_MS = 90 * 1000;
+
 function buildInitialMessage({ trade, tone, jobDescription, customerName }) {
   const customerLine = customerName ? `\nCustomer name: ${customerName}` : '';
   return `Generate a complete professional quote for the following job.
@@ -53,6 +64,7 @@ export async function POST(request) {
 
   const runId = randomUUID();
   const encoder = new TextEncoder();
+  const deadline = Date.now() + maxDuration * 1000 - PIPELINE_MARGIN_MS;
 
   // If the client disconnects (navigates away, closes the tab) the runtime
   // calls cancel() and the controller becomes unusable — later enqueue()/
@@ -60,6 +72,7 @@ export async function POST(request) {
   // which was surfacing as an unhandled rejection in production. closed
   // tracks that so sendEvent/safeClose become no-ops instead of throwing.
   let closed = false;
+  let heartbeat;
 
   const stream = new ReadableStream({
     start(controller) {
@@ -71,9 +84,27 @@ export async function POST(request) {
           closed = true;
         }
       }
+
+      // Some intermediate network layers (corporate proxies, VPNs, security
+      // software) don't see Vercel's own HTTP/2 keepalive PINGs and enforce
+      // their own idle-connection timeout — observed in production as a 502
+      // "Could not relay message upstream" whenever the stream goes quiet for
+      // ~30s+, which the ask_user wait (up to ASK_USER_TIMEOUT_MS) does by
+      // design. A periodic comment line keeps bytes flowing without being a
+      // real event (SSE comments start with ':' and are ignored by parsers).
+      heartbeat = setInterval(() => {
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(': heartbeat\n\n'));
+        } catch {
+          closed = true;
+        }
+      }, 15000);
+
       function safeClose() {
         if (closed) return;
         closed = true;
+        clearInterval(heartbeat);
         try {
           controller.close();
         } catch {
@@ -107,9 +138,10 @@ export async function POST(request) {
 
           const askUser = (question, context) => {
             sendEvent('question', { question, context });
+            const remainingMs = Math.max(0, deadline - Date.now());
             return waitForAnswer(
               runId,
-              ASK_USER_TIMEOUT_MS,
+              Math.min(ASK_USER_TIMEOUT_MS, remainingMs),
               () => 'No answer given — proceed with reasonable assumptions.',
             );
           };
@@ -144,6 +176,7 @@ export async function POST(request) {
     },
     cancel() {
       closed = true;
+      clearInterval(heartbeat);
     },
   });
 
