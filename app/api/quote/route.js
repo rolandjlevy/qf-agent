@@ -66,6 +66,15 @@ export async function POST(request) {
   const encoder = new TextEncoder();
   const deadline = Date.now() + maxDuration * 1000 - PIPELINE_MARGIN_MS;
 
+  // Without this, a disconnected client (closed tab, navigated away) left
+  // the agent loop — and its Anthropic API calls — running to completion
+  // regardless: confirmed in production, where a request the client gave up
+  // on at 30s kept executing server-side for the full 5-minute maxDuration,
+  // making 24 outbound API calls nobody was waiting for. cancel() aborts
+  // this so abandoned runs actually stop instead of quietly burning the
+  // full budget (and any shared concurrency capacity) in the background.
+  const abortController = new AbortController();
+
   // If the client disconnects (navigates away, closes the tab) the runtime
   // calls cancel() and the controller becomes unusable — later enqueue()/
   // close() calls throw "Invalid state: Controller is already closed",
@@ -143,6 +152,7 @@ export async function POST(request) {
               runId,
               Math.min(ASK_USER_TIMEOUT_MS, remainingMs),
               () => 'No answer given — proceed with reasonable assumptions.',
+              abortController.signal,
             );
           };
 
@@ -153,7 +163,8 @@ export async function POST(request) {
             initialMessage,
             maxTurns: 20,
             onStep,
-            toolContext: { traderProfile, askUser },
+            toolContext: { traderProfile, askUser, signal: abortController.signal },
+            signal: abortController.signal,
           });
 
           let quoteId = null;
@@ -177,6 +188,7 @@ export async function POST(request) {
     cancel() {
       closed = true;
       clearInterval(heartbeat);
+      abortController.abort();
     },
   });
 

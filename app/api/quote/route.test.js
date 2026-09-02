@@ -31,6 +31,14 @@ function finalResponse(text) {
   return { stop_reason: 'end_turn', content: [{ type: 'text', text }] };
 }
 
+async function waitUntil(conditionFn, { timeout = 2000, interval = 5 } = {}) {
+  const start = Date.now();
+  while (!conditionFn()) {
+    if (Date.now() - start > timeout) throw new Error('waitUntil timed out');
+    await new Promise((r) => setTimeout(r, interval));
+  }
+}
+
 function postQuoteRequest(body) {
   return new Request('http://localhost/api/quote', {
     method: 'POST',
@@ -179,6 +187,33 @@ describe('POST /api/quote', () => {
 
     waitSpy.mockRestore();
     vi.useRealTimers();
+  });
+
+  it('regression: disconnecting the client aborts the in-flight agent instead of letting it run to completion', async () => {
+    // A request the client gave up on at 30s kept running server-side for
+    // the full 5-minute maxDuration in production, making 24 outbound
+    // Anthropic calls nobody was waiting for. cancel() must actually stop
+    // the work, not just the SSE plumbing.
+    let capturedSignal;
+    let releaseFirstCall;
+    createMessage.mockImplementationOnce((client, params, options) => {
+      capturedSignal = options?.signal;
+      return new Promise((resolve) => {
+        releaseFirstCall = resolve;
+      });
+    });
+
+    const res = await POST(postQuoteRequest({ trade: 'plumber', tone: 'friendly', jobDescription: 'job' }));
+    await waitUntil(() => capturedSignal !== undefined);
+
+    await res.body.cancel(); // simulates the browser tab closing mid-request
+    expect(capturedSignal.aborted).toBe(true);
+
+    // Resolve the stalled call so nothing is left dangling — the agent loop
+    // must not make a second call once the signal is aborted.
+    releaseFirstCall(finalResponse('should not be used'));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(createMessage).toHaveBeenCalledTimes(1);
   });
 
   it('answer route returns 404 for an unknown or already-resolved runId', async () => {
