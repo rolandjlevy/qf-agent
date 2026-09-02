@@ -14,7 +14,7 @@ function isRejectedMaterial(m) {
   return false
 }
 
-export async function identifyMaterials({ trade, job_description }) {
+export async function identifyMaterials({ trade, job_description }, signal) {
   const anthropic = createClient()
   const prompt = `You are a UK trade materials expert. Analyse the following job description for a ${trade} and return a JSON list of the physical materials and equipment that will need to be purchased.
 
@@ -42,12 +42,16 @@ Return this exact JSON structure:
   ]
 }`
 
-  const response = await createMessage(anthropic, {
-    model: getModel(),
-    max_tokens: 1024,
-    system: NEVER_DO_RULES,
-    messages: [{ role: 'user', content: prompt }],
-  })
+  const response = await createMessage(
+    anthropic,
+    {
+      model: getModel(),
+      max_tokens: 1024,
+      system: NEVER_DO_RULES,
+      messages: [{ role: 'user', content: prompt }],
+    },
+    { signal },
+  )
 
   const raw = response.content.find((b) => b.type === 'text')?.text || ''
 
