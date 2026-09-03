@@ -19,34 +19,7 @@ import { runProfileCommand } from './commands/profile.js';
 import { runImportCommand } from './commands/import.js';
 import { getTraderProfile, insertGeneratedQuote } from './lib/db.js';
 import { formatTraderContext } from './lib/trader-context.js';
-
-const VALID_TRADES = [
-  'bathroom-fitter',
-  'builder',
-  'carpenter',
-  'driveway-specialist',
-  'electrician',
-  'flooring-fitter',
-  'gas-engineer',
-  'glazier',
-  'groundworker',
-  'handyman',
-  'kitchen-fitter',
-  'gardener-landscaper',
-  'decorator',
-  'plasterer',
-  'plumber',
-  'roofer',
-  'tiler',
-];
-
-const VALID_TONES = [
-  'friendly',
-  'formal',
-  'direct',
-  'persuasive',
-  'professional',
-];
+import { VALID_TRADES, VALID_TONES } from './lib/constants.js';
 
 // Terminal-specific ask_user transport, supplied to the agent via
 // toolContext.askUser — see tools/ask-user.js for why this lives here

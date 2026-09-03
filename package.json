@@ -6,7 +6,11 @@
   "main": "qf.js",
   "scripts": {
     "start": "node qf.js",
-    "db:migrate": "node scripts/migrate.mjs"
+    "db:migrate": "node scripts/migrate.mjs",
+    "vercel-build": "next build",
+    "web:dev": "node scripts/web-env.mjs dev",
+    "web:build": "node scripts/web-env.mjs build",
+    "web:start": "node scripts/web-env.mjs start"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
@@ -15,11 +19,14 @@
     "dotenv": "^16.4.5",
     "inquirer": "^9.2.23",
     "mammoth": "^1.12.1",
+    "next": "^15.5.25",
     "ora": "^9.4.1",
     "pdf-parse": "^2.4.5",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "yargs": "^17.7.2"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }
