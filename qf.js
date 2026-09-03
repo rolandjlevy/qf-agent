@@ -9,6 +9,7 @@ for (const key of ['ANTHROPIC_API_KEY', 'CLAUDE_MODEL']) {
 dotenv.config();
 import chalk from 'chalk';
 import ora from 'ora';
+import inquirer from 'inquirer';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { runAgent } from './agent.js';
@@ -46,6 +47,17 @@ const VALID_TONES = [
   'persuasive',
   'professional',
 ];
+
+// Terminal-specific ask_user transport, supplied to the agent via
+// toolContext.askUser — see tools/ask-user.js for why this lives here
+// rather than being imported directly by the tool.
+async function promptForAnswer(question, context) {
+  const message = context ? `${context}\n\n${question}` : question;
+  const { answer } = await inquirer.prompt([
+    { type: 'input', name: 'answer', message },
+  ]);
+  return answer;
+}
 
 // Format the initial message for the agent
 function formatToolInput(toolName, input) {
@@ -106,8 +118,11 @@ function formatToolResult(toolName, result) {
         `   Section "${result?.section ?? ''}" drafted (${result?.content?.length ?? 0} chars)`,
       );
     case 'save_quote':
-      if (result?.success) {
+      if (result?.success && result.file_written) {
         return chalk.green(`   Saved to ${result.file_path}`);
+      }
+      if (result?.success) {
+        return chalk.yellow(`   Quote assembled but not written to disk (${result.char_count} chars)`);
       }
       return chalk.red(`   Failed to save`);
     default:
@@ -170,7 +185,7 @@ Today's date is ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month
   const systemPrompt = traderContext ? `${SYSTEM_PROMPT}\n\n${traderContext}` : SYSTEM_PROMPT;
 
   let spinner = null;
-  let savedFilePath = null;
+  let savedQuote = null;
   const toolCallLog = [];
 
   function onStep(step) {
@@ -195,7 +210,7 @@ Today's date is ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month
         console.log();
         toolCallLog.push({ type: 'tool_result', tool: step.tool, result: step.result });
         if (step.tool === 'save_quote' && step.result?.success) {
-          savedFilePath = step.result.file_path;
+          savedQuote = { filePath: step.result.file_path, content: step.result.content };
         }
         break;
       case 'final_answer':
@@ -214,13 +229,14 @@ Today's date is ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month
       initialMessage,
       maxTurns: 20,
       onStep,
-      toolContext: { traderProfile },
+      toolContext: { traderProfile, askUser: promptForAnswer },
     });
 
-    if (savedFilePath) {
+    if (savedQuote) {
       await insertGeneratedQuote({
         job_description: jobDescription,
-        output_path: savedFilePath,
+        output_path: savedQuote.filePath ?? '',
+        content: savedQuote.content,
         tool_call_log: toolCallLog,
       });
     }

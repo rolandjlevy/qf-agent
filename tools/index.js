@@ -182,7 +182,7 @@ export async function executeTool(name, input, toolContext = {}) {
   try {
     switch (name) {
       case 'ask_user':
-        return await askUser(input)
+        return await askUser(input, toolContext)
       case 'identify_materials':
         return await identifyMaterials(input)
       case 'lookup_price':
