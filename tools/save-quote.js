@@ -65,29 +65,39 @@ function assembleQuote(sections, traderProfile) {
 }
 
 export function saveQuote({ sections, metadata }, traderProfile) {
-  mkdirSync(OUTPUT_DIR, { recursive: true })
-
   const trade = slugify(metadata?.trade || sections.trade || 'trade')
   const jobSlug = slugify(metadata?.job_description || '').slice(0, 40) || 'quote'
   const dateStr = isoDate()
 
   const baseFilename = `quote-${dateStr}-${trade}-${jobSlug}`
-
-  let resolvedFilename = `${baseFilename}.md`
-  let filePath = join(OUTPUT_DIR, resolvedFilename)
-  for (let suffix = 2; existsSync(filePath) && suffix <= 20; suffix++) {
-    resolvedFilename = `${baseFilename}-${suffix}.md`
-    filePath = join(OUTPUT_DIR, resolvedFilename)
-  }
-
   const content = assembleQuote(sections, traderProfile)
 
-  writeFileSync(filePath, content, 'utf8')
+  // Writing to the local output/ dir is best-effort: on Vercel the
+  // filesystem is read-only outside /tmp (and /tmp is ephemeral), so a
+  // failure here must not be fatal — content is always returned regardless,
+  // and is the caller's durable record (persisted to generated_quotes.content).
+  let resolvedFilename = `${baseFilename}.md`
+  let filePath = join(OUTPUT_DIR, resolvedFilename)
+  let fileWritten = false
+
+  try {
+    mkdirSync(OUTPUT_DIR, { recursive: true })
+    for (let suffix = 2; existsSync(filePath) && suffix <= 20; suffix++) {
+      resolvedFilename = `${baseFilename}-${suffix}.md`
+      filePath = join(OUTPUT_DIR, resolvedFilename)
+    }
+    writeFileSync(filePath, content, 'utf8')
+    fileWritten = true
+  } catch {
+    filePath = null
+  }
 
   return {
     success: true,
     file_path: filePath,
+    file_written: fileWritten,
     filename: resolvedFilename,
+    content,
     char_count: content.length,
   }
 }
