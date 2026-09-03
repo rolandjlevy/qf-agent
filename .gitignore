@@ -1,6 +1,11 @@
 node_modules/
 .env
 output/*.md
+data/qf.db
+data/qf.db-journal
+data/qf.db-wal
+data/qf.db-shm
 data/uploads/
 .next/
 .vercel
+.env*

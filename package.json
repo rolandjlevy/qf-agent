@@ -10,7 +10,10 @@
     "vercel-build": "next build",
     "web:dev": "node scripts/web-env.mjs dev",
     "web:build": "node scripts/web-env.mjs build",
-    "web:start": "node scripts/web-env.mjs start"
+    "web:start": "node scripts/web-env.mjs start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:impact": "node .claude/skills/test-impact/scan.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
@@ -27,6 +30,9 @@
     "yargs": "^17.7.2"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": "22.x"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11"
   }
 }

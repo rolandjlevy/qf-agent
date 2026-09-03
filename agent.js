@@ -9,6 +9,7 @@ export async function runAgent({
   maxTurns = 15,
   onStep,
   toolContext = {},
+  signal,
 }) {
   const anthropic = createClient();
   const messages = [{ role: 'user', content: initialMessage }];
@@ -24,15 +25,20 @@ export async function runAgent({
 
   // Run the agent for a maximum number of turns
   for (let turn = 0; turn < maxTurns; turn++) {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     safeOnStep({ type: 'turn_start', turn: turn + 1 });
     safeOnStep({ type: 'api_start' });
-    const response = await createMessage(anthropic, {
-      model: getModel(),
-      max_tokens: 4096,
-      system: systemPrompt,
-      tools,
-      messages,
-    });
+    const response = await createMessage(
+      anthropic,
+      {
+        model: getModel(),
+        max_tokens: 4096,
+        system: systemPrompt,
+        tools,
+        messages,
+      },
+      { signal },
+    );
     safeOnStep({ type: 'api_end' });
 
     if (response.stop_reason === 'tool_use') {

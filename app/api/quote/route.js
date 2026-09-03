@@ -5,22 +5,26 @@ import { SYSTEM_PROMPT, buildInitialMessage } from '../../../prompts/system.js'
 import { getTraderProfile, insertGeneratedQuote } from '../../../lib/db.js'
 import { formatTraderContext } from '../../../lib/trader-context.js'
 import { VALID_TRADES, VALID_TONES } from '../../../lib/constants.js'
-import { createRun, endRun, waitForAnswer } from '../../../lib/quote-runs.js'
+import { waitForAnswer } from '../../../lib/quote-runs.js'
 
 // save_quote (via tools/save-quote.js) uses Node's fs module — must run in
 // the Node runtime, not edge.
 export const runtime = 'nodejs'
-// Vercel serverless function duration cap for this route. Raise if your plan
-// allows and jobs with several ask_user round-trips need more headroom;
-// lower to match a Hobby-plan ceiling if deploying there.
+// Vercel's function timeout for this project defaults to 300s (confirmed via
+// a production "Task timed out after 300 seconds" log). Declared explicitly
+// so the margin below is against a known value, not an account default that
+// could silently change.
 export const maxDuration = 300
 
 const HEARTBEAT_INTERVAL_MS = 15000
-// Per-question cap, but never allowed to push the run past the shared
-// deadline below — avoids main's bug where two unanswered questions in one
-// run stacked past Vercel's hard maxDuration with no terminal event ever sent.
-const ASK_USER_TIMEOUT_MS = 120000
-const DEADLINE_MARGIN_MS = 5000
+
+// Must leave enough margin under maxDuration for the rest of the pipeline
+// (remaining draft_section calls, save_quote, the DB write) to finish after
+// the fallback fires — matching it exactly to maxDuration lets an unanswered
+// question's fallback lose the race against Vercel's hard kill, so the
+// connection dies with no done/error event ever sent to the client.
+const ASK_USER_TIMEOUT_MS = 3.5 * 60 * 1000
+const PIPELINE_MARGIN_MS = 90 * 1000
 
 export async function POST(request) {
   const body = await request.json().catch(() => null)
@@ -39,16 +43,28 @@ export async function POST(request) {
   }
 
   const runId = randomUUID()
-  createRun(runId)
-
   const encoder = new TextEncoder()
-  const deadline = Date.now() + maxDuration * 1000 - DEADLINE_MARGIN_MS
+  const deadline = Date.now() + maxDuration * 1000 - PIPELINE_MARGIN_MS
 
+  // Without this, a disconnected client (closed tab, navigated away) left
+  // the agent loop — and its Anthropic API calls — running to completion
+  // regardless: confirmed in production, where a request the client gave up
+  // on at 30s kept executing server-side for the full 5-minute maxDuration,
+  // making many outbound API calls nobody was waiting for. cancel() aborts
+  // this so abandoned runs actually stop instead of quietly burning the
+  // full budget in the background.
+  const abortController = new AbortController()
+
+  // If the client disconnects, the runtime calls cancel() and the
+  // controller becomes unusable — later enqueue()/close() calls throw
+  // "Invalid state: Controller is already closed", which surfaced as an
+  // unhandled rejection in production. `closed` makes send/finish no-ops
+  // instead of throwing once that's happened.
   let closed = false
   let heartbeat = null
 
   const stream = new ReadableStream({
-    async start(controller) {
+    start(controller) {
       function send(event, data) {
         if (closed) return
         try {
@@ -62,7 +78,6 @@ export async function POST(request) {
         if (closed) return
         closed = true
         if (heartbeat) clearInterval(heartbeat)
-        endRun(runId)
         try {
           controller.close()
         } catch {
@@ -70,6 +85,12 @@ export async function POST(request) {
         }
       }
 
+      // Some intermediate network layers (corporate proxies, VPNs, security
+      // software) don't see Vercel's own HTTP/2 keepalive PINGs and enforce
+      // their own idle-connection timeout — observed as a 502 whenever the
+      // stream goes quiet for ~30s+, which the ask_user wait does by design.
+      // A periodic comment line keeps bytes flowing without being a real
+      // event (SSE comments start with ':' and are ignored by parsers).
       heartbeat = setInterval(() => {
         if (closed) return
         try {
@@ -94,50 +115,57 @@ export async function POST(request) {
         }
       }
 
-      async function askUser(question, context) {
+      const askUser = (question, context) => {
         send('question', { question, context })
-        const remaining = Math.max(0, deadline - Date.now())
-        const timeoutMs = Math.min(ASK_USER_TIMEOUT_MS, remaining)
-        return waitForAnswer(runId, timeoutMs, 'No answer given — proceed with reasonable assumptions.')
+        const remainingMs = Math.max(0, deadline - Date.now())
+        return waitForAnswer(
+          runId,
+          Math.min(ASK_USER_TIMEOUT_MS, remainingMs),
+          () => 'No answer given — proceed with reasonable assumptions.',
+          abortController.signal,
+        )
       }
 
-      try {
-        const traderProfile = await getTraderProfile()
-        const traderContext = formatTraderContext(traderProfile)
-        const systemPrompt = traderContext ? `${SYSTEM_PROMPT}\n\n${traderContext}` : SYSTEM_PROMPT
-        const initialMessage = buildInitialMessage({ trade, tone, jobDescription })
+      ;(async () => {
+        try {
+          const traderProfile = await getTraderProfile()
+          const traderContext = formatTraderContext(traderProfile)
+          const systemPrompt = traderContext ? `${SYSTEM_PROMPT}\n\n${traderContext}` : SYSTEM_PROMPT
+          const initialMessage = buildInitialMessage({ trade, tone, jobDescription })
 
-        const { turns } = await runAgent({
-          systemPrompt,
-          tools: TOOL_DEFINITIONS,
-          executeTool,
-          initialMessage,
-          maxTurns: 20,
-          onStep,
-          toolContext: { traderProfile, askUser },
-        })
-
-        let quoteId = null
-        if (savedQuote) {
-          quoteId = await insertGeneratedQuote({
-            job_description: jobDescription,
-            output_path: savedQuote.filePath ?? '',
-            content: savedQuote.content,
-            tool_call_log: toolCallLog,
+          const { turns } = await runAgent({
+            systemPrompt,
+            tools: TOOL_DEFINITIONS,
+            executeTool,
+            initialMessage,
+            maxTurns: 20,
+            onStep,
+            toolContext: { traderProfile, askUser, signal: abortController.signal },
+            signal: abortController.signal,
           })
-        }
 
-        send('done', { turns, quoteId })
-      } catch (err) {
-        send('error', { message: err.message })
-      } finally {
-        finish()
-      }
+          let quoteId = null
+          if (savedQuote) {
+            quoteId = await insertGeneratedQuote({
+              job_description: jobDescription,
+              output_path: savedQuote.filePath ?? '',
+              content: savedQuote.content,
+              tool_call_log: toolCallLog,
+            })
+          }
+
+          send('done', { turns, quoteId })
+        } catch (err) {
+          send('error', { message: err.message })
+        } finally {
+          finish()
+        }
+      })()
     },
     cancel() {
       closed = true
       if (heartbeat) clearInterval(heartbeat)
-      endRun(runId)
+      abortController.abort()
     },
   })
 

@@ -145,7 +145,7 @@ function buildMaterialLines(materialsWithPrices) {
     .join('\n')
 }
 
-export async function draftSection({ section, context }, traderProfile) {
+export async function draftSection({ section, context }, traderProfile, signal) {
   const promptFn = SECTION_PROMPTS[section]
   if (!promptFn) {
     throw new Error(`Unknown section: ${section}. Valid sections: ${Object.keys(SECTION_PROMPTS).join(', ')}`)
@@ -163,12 +163,16 @@ export async function draftSection({ section, context }, traderProfile) {
   const anthropic = createClient()
   const prompt = promptFn(context, formatTraderContext(traderProfile))
 
-  const response = await createMessage(anthropic, {
-    model: getModel(),
-    max_tokens: 1024,
-    system: NEVER_DO_RULES,
-    messages: [{ role: 'user', content: prompt }],
-  })
+  const response = await createMessage(
+    anthropic,
+    {
+      model: getModel(),
+      max_tokens: 1024,
+      system: NEVER_DO_RULES,
+      messages: [{ role: 'user', content: prompt }],
+    },
+    { signal },
+  )
 
   const content = response.content.find((b) => b.type === 'text')?.text?.trim() || ''
 

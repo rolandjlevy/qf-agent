@@ -184,11 +184,11 @@ export async function executeTool(name, input, toolContext = {}) {
       case 'ask_user':
         return await askUser(input, toolContext)
       case 'identify_materials':
-        return await identifyMaterials(input)
+        return await identifyMaterials(input, toolContext.signal)
       case 'lookup_price':
-        return lookupPrice(input)
+        return await lookupPrice(input)
       case 'draft_section':
-        return await draftSection(input, toolContext.traderProfile)
+        return await draftSection(input, toolContext.traderProfile, toolContext.signal)
       case 'save_quote':
         return saveQuote(input, toolContext.traderProfile)
       default:

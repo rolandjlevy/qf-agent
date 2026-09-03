@@ -1,12 +1,19 @@
-import { answerRun } from '../../../../../lib/quote-runs.js'
+import { resolveAnswer } from '../../../../../lib/quote-runs.js'
 
 export const runtime = 'nodejs'
 
 export async function POST(request, { params }) {
-  const { runId } = await params
-  const body = await request.json().catch(() => null)
-  const answer = typeof body?.answer === 'string' ? body.answer : ''
+  try {
+    const { runId } = await params
+    const body = await request.json()
+    const resolved = resolveAnswer(runId, body.answer ?? '')
 
-  const delivered = answerRun(runId, answer)
-  return Response.json({ delivered })
+    if (!resolved) {
+      return Response.json({ error: true, message: 'No pending question for this run' }, { status: 404 })
+    }
+
+    return Response.json({ success: true })
+  } catch (err) {
+    return Response.json({ error: true, message: err.message }, { status: 500 })
+  }
 }

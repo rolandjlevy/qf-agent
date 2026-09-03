@@ -1,6 +1,6 @@
 # QuoteFetch Agent
 
-An agentic tool that turns a rough trade job description into a professional written quote. Claude drives the sequence using tools — it decides whether to ask follow-up questions, which materials to look up, and in what order to draft sections. Available both as a CLI and as a web app.
+An agentic tool that turns a rough trade job description into a professional written quote. Claude drives the sequence using tools — it decides whether to ask follow-up questions, which materials to look up, and in what order to draft sections. Available both as a CLI and as a web app, both built on the same agent loop and tools.
 
 ## Setup
 
@@ -38,7 +38,7 @@ npm run web:dev     # http://localhost:3000
 - `/quotes` — browse quotes you've generated
 - `/quote/[id]` — view one saved quote
 
-Deploys to Vercel as-is (`npm run vercel-build` runs `next build`); set `ANTHROPIC_API_KEY` and `DATABASE_URL` as environment variables there too.
+Not a separate implementation — it reuses the exact same agent loop and tools as the CLI above. `npm run web:build`/`npm run web:start` for a production build. Deploys to Vercel as-is (`npm run vercel-build` runs `next build`); set `ANTHROPIC_API_KEY` and `DATABASE_URL` as environment variables there too.
 
 ## Test cases
 
@@ -107,11 +107,12 @@ data/
 scripts/
   migrate.mjs            — one-off Neon schema migration
   web-env.mjs             — devcontainer env workaround wrapping `next`
+agent.test.js           — vitest coverage of agent.js's core loop
 ```
 
 ## Phase roadmap
 
-- **Phase 1** — CLI, mock prices, all logic working end-to-end
-- **Phase 2** (this) — trader profile/price persistence on Neon Postgres, plus a Next.js web UI reusing the same agent loop
+- **Phase 1** — CLI, mock prices, all logic working end-to-end. Done.
+- **Phase 2** (this) — trader profile/price persistence on Neon Postgres, plus a Next.js web UI reusing the same agent loop. Done.
 - **Phase 3** — Real Playwright scraper replaces the sample-DB fallback in `lookup-price.js` (same tool interface)
 - **Phase 4** — Optional: auth, multi-tenant support
