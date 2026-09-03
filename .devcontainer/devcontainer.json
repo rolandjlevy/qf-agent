@@ -5,6 +5,13 @@
   "remoteEnv": {
     "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}"
   },
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "QuoteFetch web UI",
+      "onAutoForward": "notify"
+    }
+  },
   "customizations": {
     "vscode": {
       "extensions": [

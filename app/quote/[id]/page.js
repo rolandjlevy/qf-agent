@@ -1,39 +1,47 @@
-'use client';
+import { notFound } from 'next/navigation'
+import { getGeneratedQuoteById } from '../../../lib/db.js'
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+// Belt-and-braces alongside app/quotes/page.js's force-dynamic — this route
+// is already dynamic due to its [id] param, but explicit costs nothing.
+export const dynamic = 'force-dynamic'
 
-export default function QuotePage() {
-  const { id } = useParams();
-  const [quote, setQuote] = useState(null);
-  const [error, setError] = useState(null);
+function formatDate(iso) {
+  return new Date(iso).toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
 
-  useEffect(() => {
-    fetch(`/api/quotes/${id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.error) setError(data.message);
-        else setQuote(data.quote);
-      })
-      .catch((err) => setError(err.message));
-  }, [id]);
+export default async function QuotePage({ params }) {
+  const { id } = await params
+  const idNum = Number(id)
+  if (!Number.isInteger(idNum)) notFound()
 
-  if (error) return <p style={{ color: 'crimson' }}>Error: {error}</p>;
-  if (!quote) return <p>Loading quote…</p>;
+  const quote = await getGeneratedQuoteById(idNum)
+  if (!quote) notFound()
 
   return (
     <div>
-      <h1>Quote</h1>
-      <p style={{ color: '#666' }}>
-        {quote.job_description} — {new Date(quote.generated_at).toLocaleString('en-GB')}
-      </p>
-      {quote.content === null ? (
-        <p style={{ color: 'crimson' }}>The saved file could not be found on disk ({quote.output_path}).</p>
-      ) : (
-        <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', border: '1px solid #ddd', borderRadius: '6px', padding: '1rem' }}>
+      <h1>{quote.job_description}</h1>
+      <p style={{ color: '#666' }}>Generated {formatDate(quote.generated_at)}</p>
+      {quote.content ? (
+        <pre
+          style={{
+            whiteSpace: 'pre-wrap',
+            fontFamily: 'inherit',
+            border: '1px solid #ddd',
+            borderRadius: 6,
+            padding: '1rem 1.25rem',
+          }}
+        >
           {quote.content}
         </pre>
+      ) : (
+        <p>No content was saved for this quote.</p>
       )}
     </div>
-  );
+  )
 }

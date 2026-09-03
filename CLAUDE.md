@@ -2,30 +2,31 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> **Checkpoint marker (2026-09-01, branch `development-creating-front-end`):** Phase 2a (trader identity persistence) is implemented, integrated, and **committed** as of `7af5504` on `development-phase-2`. Phase 2b (the Next.js web UI described below) is implemented and verified in the working tree on this branch, but **not committed** — commits on this project are made only when explicitly requested, not automatically per step. The rest of this file describes the full Phase 2a + 2b state as built.
+> **Checkpoint marker (2026-09-03):** `development-phase-2-rebuild` restarted the Phase 2 web UI from the Phase 2a SQLite checkpoint after heavy DB-migration churn on `main`'s original Phase 2b attempt (which bounced through better-sqlite3 → Turso/libSQL → Neon/Postgres mid-project). This rebuild went straight to **Neon Postgres from the first commit**, specifically to avoid repeating that churn. It has since been merged with `main`, which had continued forward independently and — through real production deploys — found and fixed several genuine bugs (an `AbortController`-based cancel-on-disconnect fix, a corrected `ask_user` timeout margin, SSE heartbeat/closed-guards) that this merge adopted. `main` had also built a parallel JSON API (`app/api/import`, `app/api/profile`, `app/api/quotes`, `app/api/quotes/[id]`) and a fuller test suite; the JSON API was dropped as redundant (this rebuild's `/quotes`, `/quote/[id]`, and `/profile` read the database directly, no API layer), and only `agent.test.js` (architecture-agnostic — it tests `agent.js` directly) was kept from the test suite. Everything below describes this merged, current state.
 
 ## Running the agent
 
+CLI:
 ```bash
 node qf.js --trade=<trade> --tone=<tone> "<job description>"
 ```
-
-Pass CLI args through npm if preferred:
 ```bash
 npm start -- --trade=electrician --tone=professional "Replace consumer unit, 8 MCBs"
 ```
 
-There are no build, lint, or test steps for the CLI — it's a plain ESM Node.js project with no compilation. The Next.js web UI (below) does have its own build step, scoped entirely to `app/`.
-
-## Running the web UI
-
+Web UI:
 ```bash
-npm run web:dev     # dev server, http://localhost:3000
-npm run web:build   # production build
-npm run web:start   # serve the production build
+npm run db:migrate  # one-off: apply lib/schema.sql to DATABASE_URL, only needed once per database
+npm run web:dev      # http://localhost:3000
+npm run web:build    # production build (also runs as Vercel's build command, see package.json's vercel-build)
+npm run web:start
 ```
 
-Always go through these (not `next dev`/`next build`/`next start` directly) — see the Environment section for why. Pages: `/profile` (trader identity + import), `/quotes` (list), `/quote/[id]` (view one), `/quote/new` (generate one, with live progress and inline clarifying questions).
+Tests:
+```bash
+npm test        # vitest run
+npm run test:watch
+```
 
 ## Architecture
 
@@ -34,12 +35,14 @@ This is a **true agent** — Claude drives the sequence via tools. There is no h
 **Data flow:**
 
 ```
-qf.js  →  runAgent()  →  Claude API  →  tool call(s)
-               ↑                              ↓
-         messages[]  ←  tool_result  ←  executeTool()
+qf.js / app/api/quote/route.js  →  runAgent()  →  Claude API  →  tool call(s)
+                     ↑                                                ↓
+               messages[]  ←  tool_result  ←  executeTool()
 ```
 
-**Key separation:** `agent.js` is a generic reusable loop with zero QuoteFetch-specific logic. All domain logic lives in `tools/` and `prompts/system.js`. This is what made the Phase 2b web UI's reuse of `runAgent()` and `executeTool()` a straight import with zero changes to `agent.js` itself — see "Web UI" below.
+**Key separation:** `agent.js` is a generic reusable loop with zero QuoteFetch-specific logic, and is genuinely reused as-is by both surfaces — `qf.js` (CLI) and `app/api/quote/route.js` (web). All domain logic lives in `tools/` and `prompts/system.js`. `prompts/system.js`'s `buildInitialMessage({ trade, tone, jobDescription })` is shared by both callers too, so the untrusted-data wrapping around the job description can't drift between them.
+
+`agent.js` and `lib/anthropic-client.js` both accept an optional `signal` (`AbortSignal`), threaded through every `createMessage` call and checked at the top of each turn. `app/api/quote/route.js` wires this to a `ReadableStream`'s `cancel()` hook — without it, a disconnected client (closed tab, navigated away) left the agent loop running to completion regardless, confirmed in production making many outbound API calls nobody was waiting for.
 
 `lib/anthropic-client.js` centralizes all Anthropic API access — `agent.js`, `tools/identify-materials.js`, and `tools/draft-section.js` all call through it instead of constructing their own client. It provides a shared client (with a request timeout), retry with exponential backoff on `429`/`5xx`/network errors (immediate fail on `401`/`403` since retrying a bad key never helps), and detection of `stop_reason === 'max_tokens'` (thrown as `TruncatedResponseError` rather than silently treated as a complete response).
 
@@ -47,35 +50,68 @@ qf.js  →  runAgent()  →  Claude API  →  tool call(s)
 
 | Tool | Implementation | Notes |
 |---|---|---|
-| `ask_user` | inquirer prompt, or an injected handler | Used only when job description is genuinely too vague. `tools/ask-user.js` accepts an optional `toolContext.askUser(question, context)` — if absent it falls back to the original `inquirer.prompt()` (CLI behaviour unchanged); the web UI supplies one backed by SSE + a pending-answer map (see "Web UI" below) since there's no TTY to prompt in a web request |
+| `ask_user` | transport supplied via `toolContext.askUser` | `tools/ask-user.js` has no `inquirer` import — the CLI (`qf.js`) supplies an inquirer-backed callback, the web UI (`app/api/quote/route.js`) supplies an SSE-question/wait-for-answer callback (`lib/quote-runs.js`). This split exists because a static `inquirer` import anywhere reachable from the API route's module graph breaks Vercel's build bundling |
 | `identify_materials` | sub-LLM call | Returns `{ materials: [{name, quantity, notes}] }`; results are post-filtered to drop entries that are missing/non-string, too short, contain "or"/multiple commas, or match a skip-keyword list — a code-level backstop for the never-do rules below |
-| `lookup_price` | fuzzy match on `data/sample-prices.json` | Returns `found`, `cheapest`, `cheapest_supplier`, `verified`; returns `found: false` gracefully for a non-string/empty `material_name` or a matched entry with no prices, instead of throwing |
+| `lookup_price` | trader history first, then fuzzy match on `data/sample-prices.json` | See "Trader profile & pricing" below. Returns `found`, `cheapest`, `cheapest_supplier`, `verified`, `source`; returns `found: false` gracefully for a non-string/empty `material_name` or a matched entry with no prices, instead of throwing |
 | `draft_section` | sub-LLM call per section | Seven sections: introduction, scope, materials, assumptions, exclusions, next_steps, disclaimers |
-| `save_quote` | fs.writeFileSync | Assembles sections in fixed order, saves to `output/`; if a same-day file for the same trade/job already exists, appends `-2`, `-3`, ... rather than overwriting it |
+| `save_quote` | assembles + best-effort `fs.writeFileSync` | Assembles sections in fixed order; returns the assembled `content` plus `file_path`/`filename` (both `null` when the local write didn't happen). The local write to `output/` is wrapped in try/catch (non-fatal) since Vercel's filesystem is read-only outside `/tmp` — `content` is the durable record, persisted to `generated_quotes.content` in Neon by the caller. If a same-day local file for the same trade/job already exists, appends `-2`, `-3`, ... rather than overwriting it |
 
 **Multiple tool calls per turn:** Claude may return several `tool_use` blocks in a single response (e.g. batching all `lookup_price` calls). The loop in `agent.js` handles this correctly — it processes all blocks and returns all `tool_result` entries in one message. If you modify the loop, preserve this behaviour or the API will return a 400.
 
+## Trader profile & pricing (Phase 2a)
+
+Trader identity (business name, contact details, hourly rate, standard T&Cs, voice sample) is a single-row Postgres table (`trader_profile`) via `lib/db.js`. Loaded once per run — in `qf.js` for the CLI, in `app/api/quote/route.js` for the web UI — and passed through `runAgent`'s `toolContext`, never re-read from the DB inside an individual tool.
+
+`lib/trader-context.js`'s `formatTraderContext(profile)` turns that row into a prompt-ready block, appended to `SYSTEM_PROMPT` and passed to `draft_section`'s sub-LLM calls; `save_quote` uses it to fill in the `[BUSINESS NAME]`/`[CONTACT DETAILS]` placeholders automatically. An empty profile degrades gracefully back to Phase 1 behaviour (placeholders, sample-DB prices only).
+
+`lookup_price` checks the trader's own `trader_prices` table first (fuzzy-matched with the same `scoreMatch`/`MATCH_THRESHOLD` logic as the sample DB — see `lib/fuzzy-match.js`). A hit there is `source: 'trader_history'` and always `verified: true`, since it's a price the trader actually paid. Only when there's no match does it fall back to `data/sample-prices.json`.
+
+Traders populate `trader_prices` by importing their own past quotes — two entry points, same underlying logic:
+- CLI: `node qf.js import <path>` (`.md`/`.txt`/`.pdf`/`.docx`)
+- Web: the `/profile` page's upload form (`lib/actions/profile.js`'s `importQuote` Server Action), accepting multiple files in one submission
+
+Both call the same `lib/extract-quote.js` sub-LLM extraction (same never-do rules, no guessed prices) and the same `lib/db.js` writes. They differ only in where the uploaded file physically lives: a real, permanent path on the trader's own machine for the CLI; a `/tmp` file for the lifetime of that one request on the web, since Vercel's filesystem is otherwise read-only. For web uploads, `historical_quotes.file_path` is therefore display-only (the original filename) rather than a working path — `extracted_text` and the derived `trader_prices` rows are the actual durable record.
+
+## Web UI (Phase 2b)
+
+Next.js 15 (App Router), reusing `agent.js` and `tools/index.js` directly. `/quotes`, `/quote/[id]`, and `/profile` read `lib/db.js` directly from a Server Component or Server Action — deliberately **no** separate JSON API for these (an earlier version of this had one; it was dropped as an unused, redundant layer once the direct-read pages existed). `/quote/new` + `app/api/quote/route.js` is the one place a real HTTP layer is unavoidable, since it needs a genuinely long-lived streaming connection.
+
+Pages:
+- `/profile` — trader identity form + past-quote upload
+- `/quote/new` — job description form; streams live progress via SSE
+- `/quote/[id]` — view a saved quote
+- `/quotes` — list of past quotes
+
+`/quotes`, `/quote/[id]`, and `/profile` set `export const dynamic = 'force-dynamic'`: without it, Next statically prerenders them at build time, which would freeze their data and never reflect a later update — including one made through the CLI, which shares this same Neon database but has no way to trigger Next's cache revalidation from outside a Server Action.
+
+**The `ask_user` bridge:** a single long-lived SSE `POST /api/quote` runs the whole agent loop for the lifetime of one request, streaming `onStep`-equivalent events to the client (which reads `response.body` manually via `getReader()` — not the native `EventSource`, since that's GET-only and this needs a POST body to start the run). When the agent calls `ask_user`, the route sends a `question` event and awaits an answer via `lib/quote-runs.js` — a `globalThis`-anchored `Map` (not module-scope; Next bundles each route as its own module graph) that a second, separate `POST /api/quote/[runId]/answer` resolves.
+
+Three protections in `app/api/quote/route.js`, each fixing a real production incident:
+- **`AbortController`, wired to the stream's `cancel()`.** A disconnected client previously left the agent loop (and its Anthropic API calls) running to completion regardless — confirmed making many outbound API calls nobody was waiting for. `lib/quote-runs.js`'s `waitForAnswer` also takes this signal, rejecting an in-flight wait immediately on disconnect instead of blocking for the full timeout.
+- **A 90-second pipeline margin (`PIPELINE_MARGIN_MS`), not just a per-question timeout.** An unanswered question's fallback previously raced Vercel's hard `maxDuration` kill and could lose — the fallback fires, but the *rest* of the pipeline (remaining `draft_section` calls, `save_quote`, the DB write) needs real time too. Each `ask_user` call gets `min(ASK_USER_TIMEOUT_MS, remaining-budget-under-the-margin)`, so a second or third clarifying question later in the run degrades to an immediate fallback rather than re-consuming a fresh full timeout each time (confirmed in production: two stacked unanswered questions hit exactly `maxDuration` with no terminal SSE event ever sent, surfacing as a bare 502).
+- **A periodic SSE heartbeat comment.** Some intermediate network layers (corporate proxies, VPNs, security software) enforce their own idle-connection timeout that Vercel's own HTTP/2 keepalive doesn't satisfy — observed as a 502 whenever the stream goes quiet for the length of an `ask_user` wait.
+
+`npm run db:migrate` (`scripts/migrate.mjs`) is the only place `lib/schema.sql` is ever read — run it once against a fresh `DATABASE_URL` before first use. `lib/db.js` never executes schema at runtime (a prior version inlined the schema and ran it lazily on first request per cold start, including an `ALTER TABLE ... ADD COLUMN` existence check on every invocation — this was itself a source of churn, replaced by the one-shot migration script).
+
 ## Error handling
 
-`tools/index.js`'s `executeTool` is the single choke point for all five tools: it validates required fields per tool before dispatch, then wraps the call in try/catch. A validation failure or caught exception becomes `{ error: true, message }`, returned as a normal tool result so Claude sees a recoverable failure and can adapt (skip an item, ask the user, retry) instead of the whole run crashing. The one exception is `401`/`403` auth errors, which propagate up to `qf.js`'s top-level handler and exit the process, since no amount of retrying or model adaptation fixes a bad API key.
+`tools/index.js`'s `executeTool` is the single choke point for all five tools: it validates required fields per tool before dispatch, then wraps the call in try/catch. A validation failure or caught exception becomes `{ error: true, message }`, returned as a normal tool result so Claude sees a recoverable failure and can adapt (skip an item, ask the user, retry) instead of the whole run crashing. The one exception is `401`/`403` auth errors, which propagate up (to `qf.js`'s top-level handler in the CLI, to a `done`/`error` SSE event in the web route) since no amount of retrying or model adaptation fixes a bad API key.
 
-`agent.js`'s `onStep` calls are also wrapped defensively — a bug in `qf.js`'s display/formatting code logs a warning instead of aborting the agent loop mid-turn.
+`agent.js`'s `onStep` calls are also wrapped defensively — a bug in the caller's display/formatting code (CLI console output, or the web route's `send()`) logs a warning instead of aborting the agent loop mid-turn.
 
-CLI input is validated up front too: `qf.js`'s `--trade` and `--tone` options use yargs `choices` against `VALID_TRADES`/`VALID_TONES` (now in `lib/constants.js`, imported by both `qf.js` and the web UI), so an invalid value fails fast instead of silently flowing into every prompt.
-
-The web UI's API routes (`app/api/**/route.js`) follow the same `{ error: true, message }` shape as `executeTool`, just adapted to HTTP status codes (400 for bad input, 404 for a missing resource, 500 for an unexpected failure) instead of a tool result — same philosophy, different transport.
+CLI input is validated up front too: `qf.js`'s `--trade` and `--tone` options use yargs `choices` against `VALID_TRADES`/`VALID_TONES` (in `lib/constants.js`, shared with the web UI), so an invalid value fails fast instead of silently flowing into every prompt. The web route validates the same way against a 400 response.
 
 ## Prices database
 
-`data/sample-prices.json` — 50 entries, all `verified: false` (placeholder prices).
+`data/sample-prices.json` — 50 entries, all `verified: false` (placeholder prices). Imported as a static JSON module (`import db from '../data/sample-prices.json' with { type: 'json' }` in `tools/lookup-price.js`), not read via `fs` at runtime, so it's safely bundled into the Vercel deployment.
 
-`lookup_price` uses word-overlap fuzzy matching with a score threshold of 40. Matches on `name` and `aliases[]`. The `verified` flag flows through to the agent's system prompt — unverified prices get a note added to the quote automatically.
+`lookup_price` uses word-overlap fuzzy matching with a score threshold of 40 (see `lib/fuzzy-match.js`; `MATCH_THRESHOLD`). Matches on `name` and `aliases[]`, checking the trader's own `trader_prices` first (see above) before this file. The `verified` flag flows through to the agent's system prompt — unverified prices get a note added to the quote automatically.
 
-To update prices: edit the entry in `sample-prices.json`, set `verified: true`. The top of the array is sorted priority-first (consumer units, MCBs, copper pipe, emulsion paint, plasterboard).
+To update a sample price: edit the entry in `sample-prices.json`, set `verified: true`. The top of the array is sorted priority-first (consumer units, MCBs, copper pipe, emulsion paint, plasterboard).
 
 ## Quote output
 
-Assembled quotes are written to `output/` as plain-text `.md` files. The format follows the knowledge bank spec: all-caps section headings, bullet points only, no markdown tables. Must paste cleanly into an email client.
+Assembled quotes are plain-text, following the knowledge bank spec: all-caps section headings, bullet points only, no markdown tables. Must paste cleanly into an email client. The CLI additionally writes this to `output/` as a `.md` file (best-effort — see `save_quote` above); both surfaces persist the same content to `generated_quotes.content` in Neon.
 
 Section order: `[BUSINESS NAME]` · `[CONTACT DETAILS]` · Date · introduction · SCOPE OF WORK · MATERIALS & EQUIPMENT · ASSUMPTIONS · EXCLUSIONS · NEXT STEPS · DISCLAIMERS.
 
@@ -97,62 +133,24 @@ These rules are enforced two ways, not just by prompt instruction: `NEVER_DO_RUL
 ANTHROPIC_API_KEY=    # required
 CLAUDE_MODEL=         # optional, defaults to claude-sonnet-4-6
 REQUEST_TIMEOUT_MS=   # optional, defaults to 60000; Anthropic client request timeout (lib/anthropic-client.js)
-DATABASE_URL=         # required; Neon Postgres connection string (lib/db.js)
+DATABASE_URL=         # required; Neon/Postgres connection string, used by lib/db.js and scripts/migrate.mjs
 ```
 
-`DATABASE_URL` is required in every environment — local dev, tests, and production — with no local/embedded fallback (Neon is a remote-only Postgres service; there's no SQLite-style `file:` escape hatch). Use a dedicated Neon branch for local dev, separate from whatever branch production points at. `lib/db.js` reads it lazily inside `getClient()`, not into a module-level `const`: ES modules hoist and fully evaluate a file's static imports before its own top-level statements run, so a module-level read would execute — and permanently capture `undefined` — before `qf.js`'s own `dotenv.config()` call, even though that call appears earlier in `qf.js`'s source. This bug existed in the pre-Neon Turso code in the same shape but was invisible, because the local-dev fallback back then was a hardcoded `file:` path needing no env var at all.
+`qf.js` treats an empty-string `ANTHROPIC_API_KEY`/`CLAUDE_MODEL` as unset before calling `dotenv.config()` — this devcontainer's `remoteEnv` pre-sets both to `""` when the host has no value, which would otherwise make `dotenv` skip loading the real value from `.env` (its default `override: false` treats an existing-but-empty var as "already set"). This still means a real operator/CI-supplied value is never silently overridden by a stray local `.env`. `scripts/web-env.mjs` applies the same clearing (plus `DATABASE_URL`) before spawning `next`, since Next's own `.env` loader has the identical behaviour.
 
-`qf.js` treats an empty-string `ANTHROPIC_API_KEY`/`CLAUDE_MODEL` as unset before calling `dotenv.config()` — this devcontainer's `remoteEnv` pre-sets both to `""` when the host has no value, which would otherwise make `dotenv` skip loading the real value from `.env` (its default `override: false` treats an existing-but-empty var as "already set"). This still means a real operator/CI-supplied value is never silently overridden by a stray local `.env`.
-
-The same workaround is needed for the Next.js web UI (Phase 2b) but can't live in `next.config.mjs` — Next's own `.env` loader runs before that file is evaluated, so it would already have skipped the real value by the time config code ran. Instead, `scripts/web-env.mjs` applies the same empty-string deletion before spawning the `next` binary, and `package.json`'s `web:dev`/`web:build`/`web:start` scripts go through it rather than calling `next` directly.
-
-## Web UI (Phase 2b)
-
-Next.js 15 (App Router), plain JS, `app/` tree. `qf.js` itself is not imported by any route — its yargs parsing and `process.exit` calls are CLI-only. Each route replicates the same orchestration lines `runQuoteCommand` uses (build initial message, load trader context, call `runAgent`, call `insertGeneratedQuote`) without the CLI's `chalk`/`ora` formatting.
-
-**Routes:**
-
-| Route | Purpose |
-|---|---|
-| `app/api/profile/route.js` | GET/POST trader profile |
-| `app/api/import/route.js` | POST multipart upload → `data/uploads/` → `extractQuoteFile` → `trader_prices` |
-| `app/api/quote/route.js` | POST → SSE stream of `onStep` events; runs the agent; saves the quote |
-| `app/api/quote/[runId]/answer/route.js` | POST → resolves a paused `ask_user` call for that run |
-| `app/api/quotes/route.js`, `app/api/quotes/[id]/route.js` | List / view generated quotes |
-
-**Two things worth knowing if you touch this:**
-
-- **`lib/quote-runs.js`'s pending-answer map is anchored on `globalThis`, not module scope.** Next.js bundles each route handler as its own module graph in dev, so a plain module-level `Map` shared via import is *not* actually the same object between `app/api/quote/route.js` and `app/api/quote/[runId]/answer/route.js` — `globalThis` is the one thing guaranteed shared across route bundles within the single Node process. Losing this breaks the whole interactive-question flow silently (the answer endpoint returns 404 "no pending question" even though one exists).
-- **A paused `ask_user` call times out after 5 minutes** (`ASK_USER_TIMEOUT_MS` in `app/api/quote/route.js`) and resolves with a synthetic "no answer given — proceed with reasonable assumptions" rather than hanging the request forever if the browser tab closes.
-
-**Single-tenant, no auth, by design** (per the Phase 2 brief — do not add login/JWT/bcrypt here, that's Phase 4): there's one `trader_profile` row and one flat `generated_quotes` table with no user/session column. Every page shows the same data to anyone who can reach the server. That's fine while "the server" means `localhost` on the trader's own machine; it stops being fine the moment this is exposed on a network, since nothing currently isolates one visitor from another.
+`lib/db.js` lazily creates its Neon client inside a `getClient()` function reading `process.env.DATABASE_URL` at call time, not at module load — a module-scope client would permanently capture `undefined` in the CLI, since ESM evaluates static imports (and top-level code in them) before `qf.js`'s own `dotenv.config()` runs.
 
 ## Testing
 
-Vitest + React Testing Library. `npm test` (single run) / `npm run test:watch`. Tests are co-located as `*.test.js` next to the file under test.
+`agent.test.js` (vitest) tests `agent.js`'s loop directly, mocking `lib/anthropic-client.js` — architecture-agnostic, so it applies regardless of how the CLI or web UI evolve. The `.claude/skills/test-impact` skill (`npm run test:impact`) diffs the working tree and reports which tests a change touches, or flags a change with no coverage at all — use it before wrapping up a feature. See its `SKILL.md` for the full workflow.
 
-**Isolation — tests must never touch real trader data.** `QF_OUTPUT_DIR` (`tools/save-quote.js`) and `QF_UPLOADS_DIR` (`app/api/import/route.js`) are env var overrides set to a `mkdtempSync` temp dir before importing the module under test, so tests never write into the real `output/`/`data/uploads/`. This exists because manual browser/curl testing earlier polluted real state and required a manual cleanup pass — the whole point of these overrides is that it can't happen again via the test suite.
+## Known caveats
 
-DB-touching tests have no equivalent override — Neon has no in-memory/embedded mode, so `DATABASE_URL` must point at a real branch even in tests (`vitest.setup.js` calls `dotenv.config()` so `.env`'s `DATABASE_URL` reaches the test process; nothing else loads `.env` there, since tests import route files directly rather than going through `qf.js`). Point it at a dedicated Neon branch, not production — tests call the exported DB functions directly (`db.query(...)`, matching the Neon client's method name, not libsql's `db.execute(...)`) and wipe their own tables in `beforeEach`, but that cleanup assumes exclusive use of the branch. This is a real, accepted gap from the pre-Neon `QF_DB_PATH=':memory:'` isolation story — not a design goal, a trade-off made when migrating off Turso.
-
-**Three layers:**
-- `agent.test.js` — the core loop (`agent.js`) with `lib/anthropic-client.js` mocked. Covers the load-bearing invariants from the Architecture section above: multiple-tool-calls-per-turn, `onStep` sequencing and defensive error handling, max-turns, `toolContext` passthrough.
-- `app/api/**/route.test.js` — each API route's exported `GET`/`POST` called directly with a real `Request` object, no server needed. `lib/anthropic-client.js` is mocked wherever a route indirectly triggers a sub-LLM call (`/api/import`, `/api/quote`).
-- `app/**/page.test.js` — React Testing Library, `fetch` mocked via `msw` (`test/msw-server.js`), no real backend. `/quote/new`'s test scripts a raw SSE-formatted `ReadableStream` (deliberately splitting one event across two chunks) to exercise the page's own stream-parsing/buffering code.
-
-**Two Vitest/Vite-version-specific gotchas, easy to lose in a config refactor:**
-- This project keeps JSX in plain `.js` files (no `.jsx` extension). Vite 8 (pulled in transitively by Vitest 4) defaults to an `oxc` transform that only recognizes JSX by extension, with no working config override for `.js`. `vitest.config.js` works around it with a custom `enforce: 'pre'` plugin that calls `transformWithOxc` itself with `lang: 'jsx'`, converting the file to plain JS before Vite's own built-in oxc plugin ever sees the raw JSX.
-- `vitest.config.js` sets `globals: false`, which means `@testing-library/react`'s automatic `afterEach(cleanup)` never registers (it depends on a global `afterEach`). `vitest.setup.js` calls `cleanup()` explicitly instead — removing that silently leaks rendered components between tests in the same file.
-
-**Explicitly out of scope for now**: the CLI's own interactive commands (`qf.js`, `commands/profile.js`, `commands/import.js`) and `tools/*.js` business logic (fuzzy matching, the materials post-filter). Real gaps, not oversights — a natural follow-on.
-
-## `test-impact` skill
-
-`.claude/skills/test-impact/` — `npm run test:impact` (or ask Claude "what tests need checking"). Scans uncommitted changes (`git status --porcelain`), builds a reverse import graph across the repo's `.js`/`.mjs` files, and reports which test files are affected — directly or transitively — by each changed file, then runs them to show current pass/fail. A changed file with zero reachable tests is flagged separately as a coverage gap. Detect-and-report only — it never edits test files itself; see `SKILL.md` for what to do with its output.
+- No test coverage for `tools/*.js`, `lib/db.js`, the CLI's interactive commands, or the `app/` web UI — deferred deliberately (originally per the Phase 2 brief, `prompts/05_QF_PHASE_2.md`), and a prior, more extensive suite covering some of this was dropped in the `main` merge since it tested a parallel JSON API that no longer exists. `agent.test.js` is the only test file today.
+- `next@15.5.25` pulls in a `postcss` version with published XSS/path-traversal advisories (`npm audit`), fixed only in `next@16` — a breaking bump deliberately not taken here since 15 is the version already proven to deploy correctly.
 
 ## Phase roadmap (for context)
 
-- **Phase 2a** — Trader identity persistence (SQLite profile, trader-price-first lookup, import). Done, committed.
-- **Phase 2b** — Next.js web UI reusing `agent.js`/`tools/` unchanged. Done, not yet committed.
-- **Phase 3** — Real Playwright scraper replaces `tools/lookup-price.js` (same interface, different implementation). Deliberately deferred — see `prompts/06_QF_ANALYSIS_FINDINGS.md` section 4 for why real prices from the trader's own history matter more than a scraper right now.
-- **Phase 4** — Multi-tenant auth/database. Not started; today's single-tenant, no-login design is deliberate, not a gap to quietly patch.
+- **Phase 2** (this) — Neon Postgres persistence (trader profile, trader prices, quote history) + Next.js web UI, reusing `agent.js`/`tools/` as-is
+- **Phase 3** — Real Playwright scraper replaces `tools/lookup-price.js`'s sample-DB fallback (same interface, different implementation)
+- **Phase 4** — Optional auth/multi-tenant support (Phase 2 is deliberately single-tenant — one trader per deployment, no login)

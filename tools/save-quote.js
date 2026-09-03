@@ -3,9 +3,7 @@ import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-// Override lets tests write to a throwaway directory instead of the real
-// output/ folder — never unset in normal CLI/web usage.
-const OUTPUT_DIR = process.env.QF_OUTPUT_DIR || join(__dirname, '../output')
+const OUTPUT_DIR = join(__dirname, '../output')
 
 function formatDate() {
   const d = new Date()
@@ -66,41 +64,39 @@ function assembleQuote(sections, traderProfile) {
   return parts.join('\n').trimEnd()
 }
 
-// The returned content is the source of truth (persisted to the DB by the
-// caller); the local file write is a best-effort convenience for CLI/local
-// use and is skipped silently if the filesystem isn't writable (e.g. Vercel's
-// serverless functions), rather than failing the whole tool call.
 export function saveQuote({ sections, metadata }, traderProfile) {
-  const content = assembleQuote(sections, traderProfile)
-
   const trade = slugify(metadata?.trade || sections.trade || 'trade')
   const jobSlug = slugify(metadata?.job_description || '').slice(0, 40) || 'quote'
   const dateStr = isoDate()
-  const baseFilename = `quote-${dateStr}-${trade}-${jobSlug}`
 
-  let filePath = null
-  let filename = null
+  const baseFilename = `quote-${dateStr}-${trade}-${jobSlug}`
+  const content = assembleQuote(sections, traderProfile)
+
+  // Writing to the local output/ dir is best-effort: on Vercel the
+  // filesystem is read-only outside /tmp (and /tmp is ephemeral), so a
+  // failure here must not be fatal — content is always returned regardless,
+  // and is the caller's durable record (persisted to generated_quotes.content).
+  let resolvedFilename = `${baseFilename}.md`
+  let filePath = join(OUTPUT_DIR, resolvedFilename)
+  let fileWritten = false
+
   try {
     mkdirSync(OUTPUT_DIR, { recursive: true })
-
-    let resolvedFilename = `${baseFilename}.md`
-    let candidatePath = join(OUTPUT_DIR, resolvedFilename)
-    for (let suffix = 2; existsSync(candidatePath) && suffix <= 20; suffix++) {
+    for (let suffix = 2; existsSync(filePath) && suffix <= 20; suffix++) {
       resolvedFilename = `${baseFilename}-${suffix}.md`
-      candidatePath = join(OUTPUT_DIR, resolvedFilename)
+      filePath = join(OUTPUT_DIR, resolvedFilename)
     }
-
-    writeFileSync(candidatePath, content, 'utf8')
-    filePath = candidatePath
-    filename = resolvedFilename
+    writeFileSync(filePath, content, 'utf8')
+    fileWritten = true
   } catch {
-    // Filesystem not writable — content is still returned below.
+    filePath = null
   }
 
   return {
     success: true,
     file_path: filePath,
-    filename,
+    file_written: fileWritten,
+    filename: resolvedFilename,
     content,
     char_count: content.length,
   }

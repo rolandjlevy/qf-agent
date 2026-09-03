@@ -1,30 +1,26 @@
 export const metadata = {
   title: 'QuoteFetch',
-  description: 'Agentic quote drafting for UK trades',
-};
-
-const navStyle = {
-  display: 'flex',
-  gap: '1.5rem',
-  padding: '1rem 1.5rem',
-  borderBottom: '1px solid #ddd',
-  fontFamily: 'system-ui, sans-serif',
-};
+  description: 'Agentic UK trade quote generator',
+}
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, fontFamily: 'system-ui, sans-serif', color: '#111' }}>
-        <nav style={navStyle}>
-          <strong>QuoteFetch</strong>
-          <a href="/quote/new">New quote</a>
-          <a href="/quotes">Past quotes</a>
+      <body style={{ fontFamily: 'system-ui, sans-serif', margin: 0 }}>
+        <nav
+          style={{
+            display: 'flex',
+            gap: '1.5rem',
+            padding: '1rem 1.5rem',
+            borderBottom: '1px solid #ddd',
+          }}
+        >
           <a href="/profile">Profile</a>
+          <a href="/quote/new">New quote</a>
+          <a href="/quotes">Quotes</a>
         </nav>
-        <main style={{ padding: '1.5rem', maxWidth: '760px', margin: '0 auto' }}>
-          {children}
-        </main>
+        <main style={{ padding: '1.5rem' }}>{children}</main>
       </body>
     </html>
-  );
+  )
 }

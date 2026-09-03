@@ -1,198 +1,217 @@
-'use client';
+'use client'
 
-import { useRef, useState } from 'react';
-import { VALID_TRADES, VALID_TONES } from '../../../lib/constants.js';
+import { useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { VALID_TRADES, VALID_TONES } from '../../../lib/constants.js'
+
+// Splits a buffer of one-or-more "event: X\ndata: Y\n\n" blocks (and bare
+// ": heartbeat\n\n" comments) into { events, rest } — rest is the trailing
+// partial block to prepend to the next chunk read from the stream.
+function parseSSEChunk(buffer) {
+  const blocks = buffer.split('\n\n')
+  const rest = blocks.pop() ?? ''
+  const events = []
+
+  for (const block of blocks) {
+    if (!block || block.startsWith(':')) continue
+    let event = 'message'
+    let data = ''
+    for (const line of block.split('\n')) {
+      if (line.startsWith('event: ')) event = line.slice(7)
+      else if (line.startsWith('data: ')) data = line.slice(6)
+    }
+    try {
+      events.push({ event, data: JSON.parse(data) })
+    } catch {
+      // ignore malformed block
+    }
+  }
+
+  return { events, rest }
+}
 
 function describeStep(step) {
   switch (step.type) {
     case 'turn_start':
-      return `Turn ${step.turn}`;
+      return `Turn ${step.turn}`
     case 'tool_call':
-      if (step.tool === 'lookup_price' && step.input?.material_name) {
-        return `Calling lookup_price for ${step.input.material_name}…`;
-      }
-      return `Calling ${step.tool}…`;
+      return `Calling ${step.tool}…`
     case 'tool_result':
-      return step.result?.error
-        ? `${step.tool} failed: ${step.result.message}`
-        : `${step.tool} done`;
+      if (step.result?.error) return `${step.tool} failed: ${step.result.message}`
+      return `${step.tool} done`
     case 'final_answer':
-      return step.text;
+      return step.text
     default:
-      return null;
+      return null
   }
 }
 
 export default function NewQuotePage() {
-  const [trade, setTrade] = useState(VALID_TRADES[0]);
-  const [tone, setTone] = useState(VALID_TONES[0]);
-  const [customerName, setCustomerName] = useState('');
-  const [jobDescription, setJobDescription] = useState('');
-  const [running, setRunning] = useState(false);
-  const [log, setLog] = useState([]);
-  const [question, setQuestion] = useState(null);
-  const [answer, setAnswer] = useState('');
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
-  const runIdRef = useRef(null);
+  const router = useRouter()
+  const [trade, setTrade] = useState(VALID_TRADES[0])
+  const [tone, setTone] = useState(VALID_TONES[0])
+  const [jobDescription, setJobDescription] = useState('')
+  const [running, setRunning] = useState(false)
+  const [log, setLog] = useState([])
+  const [question, setQuestion] = useState(null)
+  const [answerText, setAnswerText] = useState('')
+  const [error, setError] = useState(null)
+  const runIdRef = useRef(null)
 
   function appendLog(line) {
-    setLog((l) => [...l, line]);
+    setLog((prev) => [...prev, line])
+  }
+
+  function handleEvent(event, data) {
+    switch (event) {
+      case 'run_started':
+        runIdRef.current = data.runId
+        break
+      case 'question':
+        setQuestion(data)
+        break
+      case 'done':
+        setRunning(false)
+        if (data.quoteId) {
+          router.push(`/quote/${data.quoteId}`)
+        } else {
+          appendLog('Completed, but no quote was saved.')
+        }
+        break
+      case 'error':
+        setRunning(false)
+        setError(data.message)
+        break
+      default: {
+        const line = describeStep(data)
+        if (line) appendLog(line)
+      }
+    }
   }
 
   async function handleSubmit(e) {
-    e.preventDefault();
-    setRunning(true);
-    setLog([]);
-    setQuestion(null);
-    setResult(null);
-    setError(null);
-    runIdRef.current = null;
+    e.preventDefault()
+    setRunning(true)
+    setLog([])
+    setQuestion(null)
+    setError(null)
+    runIdRef.current = null
 
-    try {
-      const res = await fetch('/api/quote', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trade, tone, jobDescription, customerName: customerName || undefined }),
-      });
+    const response = await fetch('/api/quote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trade, tone, jobDescription }),
+    })
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
+    if (!response.ok || !response.body) {
+      const errorBody = await response.json().catch(() => null)
+      setError(errorBody?.error || `Request failed (${response.status})`)
+      setRunning(false)
+      return
+    }
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
 
-        let idx;
-        while ((idx = buffer.indexOf('\n\n')) >= 0) {
-          const raw = buffer.slice(0, idx);
-          buffer = buffer.slice(idx + 2);
-
-          let event = 'message';
-          let dataStr = '';
-          for (const line of raw.split('\n')) {
-            if (line.startsWith('event: ')) event = line.slice(7);
-            if (line.startsWith('data: ')) dataStr += line.slice(6);
-          }
-          const data = dataStr ? JSON.parse(dataStr) : null;
-
-          if (event === 'run_id') {
-            runIdRef.current = data.runId;
-          } else if (event === 'question') {
-            setQuestion(data);
-          } else if (event === 'done') {
-            setResult(data);
-          } else if (event === 'error') {
-            setError(data.message);
-          } else {
-            const line = describeStep({ type: event, ...data });
-            if (line) appendLog(line);
-          }
-        }
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const { events, rest } = parseSSEChunk(buffer)
+      buffer = rest
+      for (const { event, data } of events) {
+        handleEvent(event, data)
       }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setRunning(false);
     }
   }
 
   async function handleAnswerSubmit(e) {
-    e.preventDefault();
-    if (!runIdRef.current) return;
+    e.preventDefault()
+    if (!runIdRef.current) return
     await fetch(`/api/quote/${runIdRef.current}/answer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answer }),
-    });
-    appendLog(`You answered: "${answer}"`);
-    setQuestion(null);
-    setAnswer('');
+      body: JSON.stringify({ answer: answerText }),
+    })
+    appendLog(`You answered: ${answerText}`)
+    setQuestion(null)
+    setAnswerText('')
   }
 
   return (
-    <div>
+    <div style={{ maxWidth: 640 }}>
       <h1>New quote</h1>
+
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <label>
           Trade
           <select value={trade} onChange={(e) => setTrade(e.target.value)} disabled={running}>
             {VALID_TRADES.map((t) => (
-              <option key={t} value={t}>{t}</option>
+              <option key={t} value={t}>
+                {t}
+              </option>
             ))}
           </select>
         </label>
+
         <label>
           Tone
           <select value={tone} onChange={(e) => setTone(e.target.value)} disabled={running}>
             {VALID_TONES.map((t) => (
-              <option key={t} value={t}>{t}</option>
+              <option key={t} value={t}>
+                {t}
+              </option>
             ))}
           </select>
         </label>
-        <label>
-          Customer name (optional)
-          <input
-            type="text"
-            value={customerName}
-            onChange={(e) => setCustomerName(e.target.value)}
-            disabled={running}
-          />
-        </label>
+
         <label>
           Job description
           <textarea
-            rows={4}
-            required
+            rows={5}
             value={jobDescription}
             onChange={(e) => setJobDescription(e.target.value)}
             disabled={running}
+            required
           />
         </label>
-        <button type="submit" disabled={running}>
+
+        <button type="submit" disabled={running || !jobDescription.trim()}>
           {running ? 'Generating…' : 'Generate quote'}
         </button>
       </form>
 
-      {log.length > 0 && (
-        <div style={{ marginTop: '1.5rem' }}>
-          <h2>Progress</h2>
-          <ul>
-            {log.map((line, i) => <li key={i}>{line}</li>)}
-          </ul>
-        </div>
-      )}
+      {error && <p style={{ color: 'crimson' }}>{error}</p>}
 
       {question && (
-        <form onSubmit={handleAnswerSubmit} style={{ marginTop: '1rem', border: '1px solid #ddd', borderRadius: '6px', padding: '1rem' }}>
-          <p><strong>{question.question}</strong></p>
-          {question.context && <p style={{ color: '#666' }}>{question.context}</p>}
-          <input
-            type="text"
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            autoFocus
-            style={{ width: '100%' }}
-          />
-          <button type="submit" style={{ marginTop: '0.5rem' }}>Answer</button>
+        <form
+          onSubmit={handleAnswerSubmit}
+          style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
+        >
+          <p>
+            <strong>{question.question}</strong>
+            {question.context && (
+              <>
+                <br />
+                <span style={{ color: '#666' }}>{question.context}</span>
+              </>
+            )}
+          </p>
+          <input type="text" value={answerText} onChange={(e) => setAnswerText(e.target.value)} autoFocus />
+          <button type="submit">Answer</button>
         </form>
       )}
 
-      {error && <p style={{ color: 'crimson' }}>Error: {error}</p>}
-
-      {result && (
-        <div style={{ marginTop: '1.5rem' }}>
-          {result.quoteId ? (
-            <p>
-              <a href={`/quote/${result.quoteId}`}>Your quote has been saved</a>.
-            </p>
-          ) : (
-            <p>Run finished after {result.turns} turn{result.turns === 1 ? '' : 's'}, but no quote was saved.</p>
-          )}
-        </div>
+      {log.length > 0 && (
+        <ul style={{ marginTop: '1.5rem', color: '#444' }}>
+          {log.map((line, i) => (
+            // eslint-disable-next-line react/no-array-index-key
+            <li key={i}>{line}</li>
+          ))}
+        </ul>
       )}
     </div>
-  );
+  )
 }

@@ -5,8 +5,9 @@
   "type": "module",
   "main": "qf.js",
   "scripts": {
-    "vercel-build": "next build",
     "start": "node qf.js",
+    "db:migrate": "node scripts/migrate.mjs",
+    "vercel-build": "next build",
     "web:dev": "node scripts/web-env.mjs dev",
     "web:build": "node scripts/web-env.mjs build",
     "web:start": "node scripts/web-env.mjs start",
@@ -32,12 +33,6 @@
     "node": "22.x"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^7.0.1",
-    "@testing-library/react": "^16.3.3",
-    "@testing-library/user-event": "^14.6.6",
-    "@vitejs/plugin-react": "^6.1.1",
-    "jsdom": "^29.1.1",
-    "msw": "^2.15.0",
     "vitest": "^4.1.11"
   }
 }
