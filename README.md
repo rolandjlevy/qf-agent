@@ -5,6 +5,7 @@ An agentic tool that turns a rough trade job description into a professional wri
 ## Setup
 
 ```bash
+npm i @anthropic-ai/claude-code -g
 npm install
 cp .env.example .env
 # Add your ANTHROPIC_API_KEY and DATABASE_URL (a Neon/Postgres connection string) to .env
