@@ -3,7 +3,7 @@ import inquirer from 'inquirer'
 import { getTraderProfile, upsertTraderProfile } from '../lib/db.js'
 
 export async function runProfileCommand() {
-  const existing = getTraderProfile()
+  const existing = await getTraderProfile()
 
   console.log()
   console.log(chalk.bold('🛠  QuoteFetch Trader Profile'))
@@ -48,7 +48,7 @@ export async function runProfileCommand() {
     },
   ])
 
-  const profile = upsertTraderProfile(answers)
+  const profile = await upsertTraderProfile(answers)
 
   console.log()
   console.log(chalk.green('Profile saved.'))
