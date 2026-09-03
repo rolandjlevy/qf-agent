@@ -37,3 +37,14 @@ CREATE TABLE IF NOT EXISTS generated_quotes (
   generated_at TEXT NOT NULL,
   tool_call_log TEXT
 );
+
+-- Bridges an in-flight ask_user wait (in one Vercel Lambda instance) to the
+-- /api/quote/[runId]/answer POST that resolves it (routinely a *different*
+-- instance, since Vercel's Node.js functions have no session affinity) — see
+-- lib/quote-runs.js. An in-memory Map cannot cross that instance boundary,
+-- this table can.
+CREATE TABLE IF NOT EXISTS pending_answers (
+  run_id TEXT PRIMARY KEY,
+  answer TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
