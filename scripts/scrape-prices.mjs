@@ -12,7 +12,7 @@ import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { chromium } from 'playwright'
-import { upsertScrapedPrice } from '../lib/db.js'
+import { upsertScrapedPrice, deleteScrapedPrice } from '../lib/db.js'
 import { scoreMatch, MATCH_THRESHOLD } from '../lib/fuzzy-match.js'
 import { search as searchScrewfix } from './scrapers/screwfix.mjs'
 import { search as searchToolstation } from './scrapers/toolstation.mjs'
@@ -81,6 +81,12 @@ async function main() {
           }
 
           if (!best || bestScore < MATCH_THRESHOLD) {
+            // A skip means "no confident current match" — clear any row a
+            // previous run left behind rather than silently keeping it.
+            // Otherwise a stale or since-corrected match could linger
+            // indefinitely just because a later run didn't happen to find
+            // (and overwrite it with) a new one.
+            await deleteScrapedPrice(material.name, supplier.name)
             console.log(
               `[skip] ${supplier.name}: no confident match for "${material.name}"` +
                 (best ? ` (best candidate "${best.name}" scored ${Math.round(bestScore)}, below threshold ${MATCH_THRESHOLD})` : ''),
