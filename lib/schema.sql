@@ -73,3 +73,22 @@ CREATE TABLE IF NOT EXISTS quote_runs (
   updated_at TEXT NOT NULL,
   last_polled_at TEXT NOT NULL
 );
+
+-- Scraped-price cache populated out of band by scripts/scrape-prices.mjs
+-- (run on a schedule via GitHub Actions, not inside the live agent request
+-- path — Playwright doesn't fit Vercel's serverless functions, and
+-- app/api/quote/route.js already fights a tight maxDuration budget).
+-- lookup_price reads this before falling back to the static
+-- data/sample-prices.json placeholder catalog. material_name matches
+-- sample-prices.json's canonical "name" field exactly — that file remains
+-- the single source of truth for which materials exist and their aliases,
+-- this table only supplies real current prices for names it already knows.
+CREATE TABLE IF NOT EXISTS scraped_prices (
+  id SERIAL PRIMARY KEY,
+  material_name TEXT NOT NULL,
+  supplier TEXT NOT NULL,
+  price DOUBLE PRECISION NOT NULL,
+  sku TEXT,
+  product_url TEXT,
+  scraped_at TEXT NOT NULL
+);

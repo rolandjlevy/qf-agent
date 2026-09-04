@@ -1,0 +1,30 @@
+name: Scrape supplier prices
+
+# Populates the scraped_prices Postgres cache (see lib/schema.sql) from live
+# Screwfix/Toolstation/B&Q search results, out of band from the live agent
+# request path — see scripts/scrape-prices.mjs for why. Runs nightly, plus
+# on-demand via the Actions tab (workflow_dispatch) for testing or an
+# immediate refresh after changing data/sample-prices.json's catalog.
+on:
+  schedule:
+    - cron: '17 2 * * *' # ~02:17 UTC daily — off-peak, avoids a round-number time every job hits at once
+  workflow_dispatch: {}
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run scrape:prices
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
