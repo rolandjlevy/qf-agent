@@ -1,6 +1,13 @@
 import { scoreMatch, MATCH_THRESHOLD } from '../lib/fuzzy-match.js'
-import { findTraderPrice } from '../lib/db.js'
+import { findTraderPrice, getScrapedPrices } from '../lib/db.js'
 import db from '../data/sample-prices.json' with { type: 'json' }
+
+// If scripts/scrape-prices.mjs's GitHub Actions schedule ever stops running
+// or breaks silently, scraped_prices rows just get older — this stops
+// lookup_price from serving an increasingly-wrong price while still
+// claiming verified: true. Past this age, treat the material as unscraped
+// and fall back to the sample-prices.json placeholder instead.
+const SCRAPED_PRICE_MAX_AGE_DAYS = 14
 
 export async function lookupPrice({ material_name }) {
   if (typeof material_name !== 'string' || !material_name.trim()) {
@@ -48,6 +55,33 @@ export async function lookupPrice({ material_name }) {
       material: material_name,
       found: false,
       message: 'No matching material found in price database',
+    }
+  }
+
+  // Real, currently-scraped prices for this exact canonical material beat
+  // the static placeholder catalog whenever they exist and aren't stale.
+  const scrapedRows = await getScrapedPrices(bestMatch.name)
+  const maxAgeMs = SCRAPED_PRICE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000
+  const freshScraped = scrapedRows.filter((row) => Date.now() - new Date(row.scraped_at).getTime() < maxAgeMs)
+
+  if (freshScraped.length > 0) {
+    const cheapestScraped = freshScraped[0]
+    return {
+      material: bestMatch.name,
+      found: true,
+      match_score: Math.round(bestScore),
+      cheapest: cheapestScraped.price,
+      cheapest_supplier: cheapestScraped.supplier,
+      cheapest_sku: cheapestScraped.sku || null,
+      verified: true,
+      any_verified: true,
+      all_prices: freshScraped.map((row) => ({
+        supplier: row.supplier,
+        price: row.price,
+        sku: row.sku || null,
+        verified: true,
+      })),
+      source: 'scraped',
     }
   }
 

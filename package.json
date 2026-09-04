@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node qf.js",
     "db:migrate": "node scripts/migrate.mjs",
+    "scrape:prices": "node scripts/scrape-prices.mjs",
     "vercel-build": "next build",
     "web:dev": "node scripts/web-env.mjs dev",
     "web:build": "node scripts/web-env.mjs build",
@@ -30,6 +31,7 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
+    "playwright": "^1.62.1",
     "vitest": "^4.1.11"
   }
 }

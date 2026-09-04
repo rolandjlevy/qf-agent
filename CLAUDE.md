@@ -104,11 +104,15 @@ CLI input is validated up front too: `qf.js`'s `--trade` and `--tone` options us
 
 ## Prices database
 
-`data/sample-prices.json` — 50 entries, all `verified: false` (placeholder prices). Imported as a static JSON module (`import db from '../data/sample-prices.json' with { type: 'json' }` in `tools/lookup-price.js`), not read via `fs` at runtime, so it's safely bundled into the Vercel deployment.
+`data/sample-prices.json` — 50 entries, the catalog's canonical `name`/`aliases`/`trade` taxonomy. Imported as a static JSON module (`import db from '../data/sample-prices.json' with { type: 'json' }` in `tools/lookup-price.js`), not read via `fs` at runtime, so it's safely bundled into the Vercel deployment. It remains the single source of truth for *which materials exist and what they're called* — Phase 3 (below) changed where their *prices* come from, not this catalog.
 
-`lookup_price` uses word-overlap fuzzy matching with a score threshold of 40 (see `lib/fuzzy-match.js`; `MATCH_THRESHOLD`). Matches on `name` and `aliases[]`, checking the trader's own `trader_prices` first (see above) before this file. The `verified` flag flows through to the agent's system prompt — unverified prices get a note added to the quote automatically.
+`lookup_price` uses word-overlap fuzzy matching with a score threshold of 40 (see `lib/fuzzy-match.js`; `MATCH_THRESHOLD`) to find the canonical material, checking three sources in order: the trader's own `trader_prices` (see above), then the scraped-price cache (below), then `sample-prices.json`'s own `prices` array as the final placeholder fallback (`verified: false`, `source: 'sample_db'`). The `verified` flag flows through to the agent's system prompt — unverified prices get a note added to the quote automatically.
 
-To update a sample price: edit the entry in `sample-prices.json`, set `verified: true`. The top of the array is sorted priority-first (consumer units, MCBs, copper pipe, emulsion paint, plasterboard).
+**Scraped prices (Phase 3):** `scripts/scrape-prices.mjs` populates a `scraped_prices` Postgres table (see `lib/schema.sql`) with real, current prices from Screwfix/Toolstation/B&Q, run out of band via GitHub Actions (`.github/workflows/scrape-prices.yml`, nightly + manual `workflow_dispatch`) — never inside the live agent request path, since Playwright doesn't fit Vercel's serverless functions and `app/api/quote/route.js` already fights a tight `maxDuration` budget (see below). `lookup_price` reads this cache (`source: 'scraped'`, `verified: true`) ahead of the static JSON fallback, ignoring rows older than `SCRAPED_PRICE_MAX_AGE_DAYS` (14 days) so a stalled scrape schedule degrades to the honest placeholder rather than serving an increasingly stale "verified" price.
+
+Each supplier gets its own module in `scripts/scrapers/` (`screwfix.mjs`, `toolstation.mjs`, `bq.mjs`), each returning several top search-result candidates rather than trusting the first one — confirmed necessary in testing, where a literal top result mismatched the target spec (e.g. searching "MCB Type B 6A" ranked a Type A product first; "Consumer unit 10-way RCBO" ranked an 8-way unit first). `scrape-prices.mjs` scores every candidate against the canonical material's `name`/`aliases` with the same `scoreMatch`/`MATCH_THRESHOLD` used everywhere else, and only caches the best match if it clears the threshold — a low-confidence result is skipped, not cached as if verified. Toolstation additionally fronts a Cloudflare JS challenge ("Just a moment…") that a real headless Chromium session clears on its own with an 8s wait (vs. 3s for the other two) — no stealth plugin or proxy needed; confirmed via manual probing that plain Playwright from a datacenter IP isn't blocked by any of the three suppliers.
+
+To update the catalog itself (add/remove a material, change aliases): edit `sample-prices.json` directly, then either wait for the next scheduled scrape or trigger `.github/workflows/scrape-prices.yml` manually to pick it up immediately. The top of the array is sorted priority-first (consumer units, MCBs, copper pipe, emulsion paint, plasterboard).
 
 ## Quote output
 
@@ -137,6 +141,8 @@ REQUEST_TIMEOUT_MS=   # optional, defaults to 60000; Anthropic client request ti
 DATABASE_URL=         # required; Neon/Postgres connection string, used by lib/db.js and scripts/migrate.mjs
 ```
 
+The same `DATABASE_URL` value must also be set as a GitHub Actions repository secret (Settings → Secrets and variables → Actions) for `.github/workflows/scrape-prices.yml` to write to `scraped_prices` — it isn't read from `.env` in that context.
+
 `qf.js` treats an empty-string `ANTHROPIC_API_KEY`/`CLAUDE_MODEL` as unset before calling `dotenv.config()` — this devcontainer's `remoteEnv` pre-sets both to `""` when the host has no value, which would otherwise make `dotenv` skip loading the real value from `.env` (its default `override: false` treats an existing-but-empty var as "already set"). This still means a real operator/CI-supplied value is never silently overridden by a stray local `.env`. `scripts/web-env.mjs` applies the same clearing (plus `DATABASE_URL`) before spawning `next`, since Next's own `.env` loader has the identical behaviour.
 
 `lib/db.js` lazily creates its Neon client inside a `getClient()` function reading `process.env.DATABASE_URL` at call time, not at module load — a module-scope client would permanently capture `undefined` in the CLI, since ESM evaluates static imports (and top-level code in them) before `qf.js`'s own `dotenv.config()` runs.
@@ -152,6 +158,6 @@ DATABASE_URL=         # required; Neon/Postgres connection string, used by lib/d
 
 ## Phase roadmap (for context)
 
-- **Phase 2** (this) — Neon Postgres persistence (trader profile, trader prices, quote history) + Next.js web UI, reusing `agent.js`/`tools/` as-is
-- **Phase 3** — Real Playwright scraper replaces `tools/lookup-price.js`'s sample-DB fallback (same interface, different implementation)
+- **Phase 2** — Neon Postgres persistence (trader profile, trader prices, quote history) + Next.js web UI, reusing `agent.js`/`tools/` as-is
+- **Phase 3** (this) — Real Playwright scraper (`scripts/scrape-prices.mjs`, scheduled via GitHub Actions) replaces `tools/lookup-price.js`'s sample-DB fallback with a live-scraped Postgres cache (same tool interface, different price source — see "Prices database" above)
 - **Phase 4** — Optional auth/multi-tenant support (Phase 2 is deliberately single-tenant — one trader per deployment, no login)
