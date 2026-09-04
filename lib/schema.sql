@@ -48,3 +48,28 @@ CREATE TABLE IF NOT EXISTS pending_answers (
   answer TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
+
+-- Tracks one polling-driven agent run end-to-end (replaces the old SSE
+-- stream). POST /api/quote inserts this row and returns runId immediately,
+-- then the agent loop actually runs afterwards in a next/server `after()`
+-- callback in the same invocation, writing progress here as it goes (see
+-- app/api/quote/route.js). GET /api/quote/[runId]/status polls this row and
+-- stamps last_polled_at on every call — the background loop's watchdog
+-- reads that column to detect an abandoned client and stop making Anthropic
+-- API calls nobody is waiting on, since a short-polling transport has no
+-- socket-level disconnect signal the way the old stream's cancel() did.
+CREATE TABLE IF NOT EXISTS quote_runs (
+  run_id TEXT PRIMARY KEY,
+  status TEXT NOT NULL CHECK (status IN ('running', 'awaiting_answer', 'done', 'error', 'aborted')),
+  trade TEXT NOT NULL,
+  tone TEXT NOT NULL,
+  job_description TEXT NOT NULL,
+  steps TEXT NOT NULL DEFAULT '[]',
+  question TEXT,
+  quote_id INTEGER,
+  turns INTEGER,
+  error_message TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  last_polled_at TEXT NOT NULL
+);
