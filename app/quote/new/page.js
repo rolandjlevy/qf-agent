@@ -1,34 +1,14 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { VALID_TRADES, VALID_TONES } from '../../../lib/constants.js'
 
-// Splits a buffer of one-or-more "event: X\ndata: Y\n\n" blocks (and bare
-// ": heartbeat\n\n" comments) into { events, rest } — rest is the trailing
-// partial block to prepend to the next chunk read from the stream.
-function parseSSEChunk(buffer) {
-  const blocks = buffer.split('\n\n')
-  const rest = blocks.pop() ?? ''
-  const events = []
-
-  for (const block of blocks) {
-    if (!block || block.startsWith(':')) continue
-    let event = 'message'
-    let data = ''
-    for (const line of block.split('\n')) {
-      if (line.startsWith('event: ')) event = line.slice(7)
-      else if (line.startsWith('data: ')) data = line.slice(6)
-    }
-    try {
-      events.push({ event, data: JSON.parse(data) })
-    } catch {
-      // ignore malformed block
-    }
-  }
-
-  return { events, rest }
-}
+const POLL_INTERVAL_MS = 2000
+// Slack above the server's 300s maxDuration budget — a purely client-side
+// backstop so a genuinely stalled run (e.g. after() never firing, a
+// platform-level edge case) doesn't poll forever with no feedback.
+const MAX_POLL_MS = 6 * 60 * 1000
 
 function describeStep(step) {
   switch (step.type) {
@@ -52,79 +32,104 @@ export default function NewQuotePage() {
   const [tone, setTone] = useState(VALID_TONES[0])
   const [jobDescription, setJobDescription] = useState('')
   const [running, setRunning] = useState(false)
-  const [log, setLog] = useState([])
+  const [steps, setSteps] = useState([])
   const [question, setQuestion] = useState(null)
   const [answerText, setAnswerText] = useState('')
   const [error, setError] = useState(null)
   const runIdRef = useRef(null)
+  const pollTimerRef = useRef(null)
+  const pollStartRef = useRef(null)
 
-  function appendLog(line) {
-    setLog((prev) => [...prev, line])
+  function stopPolling() {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current)
+      pollTimerRef.current = null
+    }
   }
 
-  function handleEvent(event, data) {
-    switch (event) {
-      case 'run_started':
-        runIdRef.current = data.runId
-        break
-      case 'question':
-        setQuestion(data)
-        break
-      case 'done':
-        setRunning(false)
-        if (data.quoteId) {
-          router.push(`/quote/${data.quoteId}`)
-        } else {
-          appendLog('Completed, but no quote was saved.')
-        }
-        break
-      case 'error':
-        setRunning(false)
-        setError(data.message)
-        break
-      default: {
-        const line = describeStep(data)
-        if (line) appendLog(line)
+  useEffect(() => stopPolling, [])
+
+  async function pollStatus() {
+    if (!runIdRef.current) return
+    if (Date.now() - pollStartRef.current > MAX_POLL_MS) {
+      stopPolling()
+      setRunning(false)
+      setError('This is taking longer than expected — check your quotes list in a few minutes, or try again.')
+      return
+    }
+
+    let response
+    try {
+      response = await fetch(`/api/quote/${runIdRef.current}/status`)
+    } catch {
+      return // transient network blip — retry next tick
+    }
+
+    if (response.status === 404) {
+      stopPolling()
+      setRunning(false)
+      setError('This run could not be found.')
+      return
+    }
+    if (!response.ok) return // transient server error — retry next tick
+
+    const data = await response.json()
+    setSteps(data.steps ?? [])
+    setQuestion(data.question ?? null)
+
+    if (data.status === 'done') {
+      stopPolling()
+      setRunning(false)
+      if (data.quoteId) {
+        router.push(`/quote/${data.quoteId}`)
+      } else {
+        setError('Completed, but no quote was saved.')
       }
+    } else if (data.status === 'error') {
+      stopPolling()
+      setRunning(false)
+      setError(data.error || 'The run failed.')
+    } else if (data.status === 'aborted') {
+      stopPolling()
+      setRunning(false)
+      setError(data.error || 'This run was stopped.')
     }
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
     setRunning(true)
-    setLog([])
+    setSteps([])
     setQuestion(null)
     setError(null)
     runIdRef.current = null
+    stopPolling()
 
-    const response = await fetch('/api/quote', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ trade, tone, jobDescription }),
-    })
+    let response
+    try {
+      response = await fetch('/api/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trade, tone, jobDescription }),
+      })
+    } catch {
+      setError('Could not reach the server. Please try again.')
+      setRunning(false)
+      return
+    }
 
-    if (!response.ok || !response.body) {
+    if (!response.ok) {
       const errorBody = await response.json().catch(() => null)
       setError(errorBody?.error || `Request failed (${response.status})`)
       setRunning(false)
       return
     }
 
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      const { value, done } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-      const { events, rest } = parseSSEChunk(buffer)
-      buffer = rest
-      for (const { event, data } of events) {
-        handleEvent(event, data)
-      }
-    }
+    const { runId } = await response.json()
+    runIdRef.current = runId
+    pollStartRef.current = Date.now()
+    pollStatus()
+    pollTimerRef.current = setInterval(pollStatus, POLL_INTERVAL_MS)
   }
 
   async function handleAnswerSubmit(e) {
@@ -135,10 +140,11 @@ export default function NewQuotePage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ answer: answerText }),
     })
-    appendLog(`You answered: ${answerText}`)
     setQuestion(null)
     setAnswerText('')
   }
+
+  const log = steps.map(describeStep).filter(Boolean)
 
   return (
     <div style={{ maxWidth: 640 }}>
