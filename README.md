@@ -66,17 +66,42 @@ For vague jobs (e.g. "Sort out my boiler") the agent will ask up to four targete
 
 ## Prices
 
-`lookup_price` checks your own price history first — see "Learning your prices" below — then falls back to `data/sample-prices.json`, which starts with 50 entries all marked `verified: false` (indicative estimates only). To verify a sample price: find the entry, update it against a live Screwfix or Toolstation listing, and set `verified: true`. The agent displays `(unverified)` next to unconfirmed prices and the quote includes a note that prices are indicative.
-
-Phase 3 will replace the sample-DB fallback with a live Playwright scraper using the same `lookup_price` interface.
+`lookup_price` checks your own price history first — see "Learning your prices" below — then, if live scraping is available (see below), scrapes just the materials on this quote from Screwfix/Toolstation/B&Q directly. Otherwise it falls back to a nightly-scraped cache, then to `data/sample-prices.json`'s placeholder entries (indicative estimates only, `verified: false`). The agent displays `(unverified)` next to unconfirmed prices and the quote includes a note that prices are indicative.
 
 ### Learning your prices
 
-Run `node qf.js import <path>` (CLI) or upload past quotes on the `/profile` page (web) to extract real material prices from quotes you've actually sent. These are stored per-material and preferred automatically over the sample DB — a match there is always shown as verified, since it's a price you actually paid.
+Run `node qf.js import <path>` (CLI) or upload past quotes on the `/profile` page (web) to extract real material prices from quotes you've actually sent. These are stored per-material and preferred automatically over everything else — a match there is always shown as verified, since it's a price you actually paid.
+
+### Live scraping (optional)
+
+Both the CLI and the web app can scrape real, current prices for just the materials on a given quote — rather than relying on the cache/placeholder fallback.
+
+- **CLI** — works out of the box, no setup needed (launches a local Playwright browser).
+- **Web app** — needs a hosted browser endpoint, since Vercel's serverless functions can't launch a real browser themselves:
+  1. Sign up for a free account at [browserless.io](https://browserless.io) (free tier: 1,000 units/month, 2 concurrent browsers, no card required).
+  2. Log in and copy your API token from the Browserless dashboard.
+  3. Add to `.env` for local testing, and to your Vercel project's Environment Variables for production:
+     ```
+     BROWSERLESS_WS_ENDPOINT=wss://production-sfo.browserless.io?token=YOUR_TOKEN
+     ```
+     (swap the hostname for Browserless's EU region if that's closer to you — check their dashboard)
+  4. Restart `npm run web:dev` locally, or redeploy on Vercel, for the new variable to take effect.
+
+Leave `BROWSERLESS_WS_ENDPOINT` unset to keep the web app on the existing cached/placeholder prices — nothing else changes.
+
+### Web-search price fallback (optional, off by default)
+
+Screwfix/Toolstation/B&Q are general DIY retailers — they don't reliably stock specialist trade materials (confirmed: a roofer's EPDM roofing membrane, adhesive, and flashing tape all came back with no price, since none of the three either stocked it or sold it in the quantity a roofer actually orders). Set `ENABLE_WEB_SEARCH_PRICE_FALLBACK=true` to let a material that finds nothing anywhere else fall back to one Claude web-search call, covering any trade rather than only the suppliers with a dedicated scraper.
+
+**Set expectations before turning this on:** in real testing this only succeeded roughly 1 time in 6 attempts — the underlying search tool has its own internal retry/error behaviour that this app can't fully control, so it often declines rather than fabricate a price (matching the app's never-guess rule) even when a real listing likely exists. It also costs real API tokens per attempt (~$0.07-0.26 observed) whether it finds something or not. Worth trying if a real gap is costing you time, but don't expect it to close every gap.
 
 ## Output
 
 Every generated quote is persisted to the database (viewable at `/quote/[id]` or via `/quotes`). The CLI additionally writes a copy to the `output/` directory as a `.md` file, named `quote-YYYY-MM-DD-trade-job-slug.md`.
+
+## Cost: prompt caching
+
+`agent.js`'s main loop caches its system prompt + tool definitions (frozen for the life of one quote run) and the growing conversation history turn-to-turn, so a multi-turn run only pays full price for what's new each turn instead of reprocessing everything from scratch. Nothing to configure — it's on by default. Run a quote via the CLI and watch for a `cache: N read, N written, N uncached` line after the first couple of turns to confirm it's landing hits (the web app logs the same to the server console instead of the trader-facing progress log).
 
 ## Architecture
 
@@ -115,5 +140,5 @@ agent.test.js           — vitest coverage of agent.js's core loop
 
 - **Phase 1** — CLI, mock prices, all logic working end-to-end. Done.
 - **Phase 2** (this) — trader profile/price persistence on Neon Postgres, plus a Next.js web UI reusing the same agent loop. Done.
-- **Phase 3** — Real Playwright scraper replaces the sample-DB fallback in `lookup-price.js` (same tool interface)
+- **Phase 3** — Real Playwright scraper replaces the sample-DB fallback in `lookup-price.js` (same tool interface). Done — plus live per-quote scraping (see "Live scraping" above) on both the CLI and, optionally, the web app.
 - **Phase 4** — Optional: auth, multi-tenant support

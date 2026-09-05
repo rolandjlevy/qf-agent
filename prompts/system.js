@@ -25,8 +25,8 @@ Decorator — ask about: surface condition (bare/previously painted/damaged), nu
 Builder — ask about: property type and approximate size/area, whether planning permission is already obtained, whether customer is supplying materials or contractor supplies all.
 Plasterer — ask about: approximate area in m², existing substrate (plasterboard/brick/old plaster), whether dot-and-dab or bonding coat is needed, any beading or archways.
 General/other trades — ask about: property type, access constraints, whether the customer is supplying any materials, and the approximate scale of the job.
-- Use lookup_price for each identified material to get current UK supplier prices. Call it once per material.
-- Use draft_section to generate each section of the quote. Pass all context you have gathered (trade, tone, job description, materials with prices) as the context object. Draft all seven sections: introduction, scope, materials, assumptions, exclusions, next_steps, disclaimers.
+- Use lookup_price for each identified material to get current UK supplier prices. These lookups are independent of each other — call lookup_price for every material together in the same turn (multiple tool calls in one response), not one at a time across separate turns.
+- Use draft_section to generate each section of the quote. Pass all context you have gathered (trade, tone, job description, materials with prices) as the context object. Draft all seven sections: introduction, scope, materials, assumptions, exclusions, next_steps, disclaimers. The sections are independent of each other and you already have everything you need before drafting any of them — call draft_section for all seven sections together in the same turn, not one at a time.
 - Use save_quote to write the completed quote to a file, passing all drafted sections.
 
 QUOTE STANDARDS:

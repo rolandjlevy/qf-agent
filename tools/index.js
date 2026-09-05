@@ -46,7 +46,7 @@ export const TOOL_DEFINITIONS = [
   {
     name: 'lookup_price',
     description:
-      'Look up the current UK supplier price for a single named material. Returns the cheapest price found, which supplier offers it, and prices from all suppliers. Also returns a verified flag indicating whether the price has been manually confirmed against a live supplier listing. Call this once per material identified by identify_materials. If a material is not found, the response includes found:false — use "[Price TBC]" for that item in the quote.',
+      'Look up the current UK supplier price for a single named material. Returns the cheapest price found, which supplier offers it, and prices from all suppliers. Also returns a verified flag indicating whether the price has been manually confirmed against a live supplier listing. Call this once per material identified by identify_materials — these calls are independent of each other, so call it for every material together in one turn (multiple tool_use blocks in a single response) rather than one material per turn. If a material is not found, the response includes found:false — use "[Price TBC]" for that item in the quote.',
     input_schema: {
       type: 'object',
       properties: {
@@ -61,7 +61,7 @@ export const TOOL_DEFINITIONS = [
   {
     name: 'draft_section',
     description:
-      'Generate one named section of the quote document as clean prose. Call this once per section. All seven sections must be drafted before calling save_quote: introduction, scope, materials, assumptions, exclusions, next_steps, disclaimers. The materials section must use real prices from lookup_price where available, and "[Price TBC]" where not. No markdown tables anywhere in output.',
+      'Generate one named section of the quote document as clean prose. Call this once per section. All seven sections must be drafted before calling save_quote: introduction, scope, materials, assumptions, exclusions, next_steps, disclaimers. The sections are independent of each other — once you have gathered trade, tone, job description, and materials with prices, call draft_section for all seven sections together in one turn (multiple tool_use blocks in a single response) rather than one section per turn. The materials section must use real prices from lookup_price where available, and "[Price TBC]" where not. No markdown tables anywhere in output.',
     input_schema: {
       type: 'object',
       properties: {
@@ -186,7 +186,7 @@ export async function executeTool(name, input, toolContext = {}) {
       case 'identify_materials':
         return await identifyMaterials(input, toolContext.signal)
       case 'lookup_price':
-        return await lookupPrice(input)
+        return await lookupPrice(input, toolContext)
       case 'draft_section':
         return await draftSection(input, toolContext.traderProfile, toolContext.signal)
       case 'save_quote':

@@ -17,6 +17,7 @@ import {
 import { formatTraderContext } from '../../../lib/trader-context.js'
 import { VALID_TRADES, VALID_TONES } from '../../../lib/constants.js'
 import { waitForAnswer } from '../../../lib/quote-runs.js'
+import { createRemoteScraper } from '../../../lib/live-scrape-remote.js'
 
 // save_quote (via tools/save-quote.js) uses Node's fs module — must run in
 // the Node runtime, not edge.
@@ -36,6 +37,12 @@ export const maxDuration = 300
 // dies with no terminal status ever written.
 const ASK_USER_TIMEOUT_MS = 3.5 * 60 * 1000
 const PIPELINE_MARGIN_MS = 90 * 1000
+
+// Per-material cap on a live-price scrape (see lib/live-scrape-remote.js) —
+// generous enough to cover a hosted-browser connection plus Toolstation's
+// Cloudflare-challenge wait, but never allowed to eat into PIPELINE_MARGIN_MS
+// the way ASK_USER_TIMEOUT_MS is already bounded below.
+const LIVE_SCRAPE_TIMEOUT_MS = 20 * 1000
 
 // A short-polling transport has no socket-level disconnect signal the way
 // the old SSE stream's cancel() did — a client that closes the tab just
@@ -128,6 +135,19 @@ export async function POST(request) {
 
     function onStep(step) {
       if (finished) return
+      // Not surfaced in the polled progress log (the trader doesn't need
+      // raw token accounting) — just a server-side log line so cache hits
+      // (see agent.js) are visible in Vercel's function logs, since a
+      // silent caching regression shows up only as a bigger bill, not an error.
+      if (step.type === 'api_end' && step.usage) {
+        const u = step.usage
+        if (u.cache_read_input_tokens || u.cache_creation_input_tokens) {
+          console.log(
+            `[${runId}] cache: ${u.cache_read_input_tokens ?? 0} read, ${u.cache_creation_input_tokens ?? 0} written, ${u.input_tokens ?? 0} uncached`,
+          )
+        }
+        return
+      }
       if (!['turn_start', 'tool_call', 'tool_result', 'final_answer'].includes(step.type)) return
       steps.push(step)
       if (step.type === 'tool_result' && step.tool === 'save_quote' && step.result?.success) {
@@ -148,6 +168,17 @@ export async function POST(request) {
       )
     }
 
+    // No-ops (liveScrapePrice resolves to null immediately) unless
+    // BROWSERLESS_WS_ENDPOINT is set — see lib/live-scrape-remote.js.
+    const remoteScraper = createRemoteScraper()
+    const liveScrapePrice = (material) => {
+      const remainingMs = Math.max(0, deadline - Date.now())
+      return remoteScraper.liveScrapePrice(material, {
+        signal: abortController.signal,
+        timeoutMs: Math.min(LIVE_SCRAPE_TIMEOUT_MS, remainingMs),
+      })
+    }
+
     try {
       const traderProfile = await getTraderProfile()
       const traderContext = formatTraderContext(traderProfile)
@@ -161,7 +192,13 @@ export async function POST(request) {
         initialMessage,
         maxTurns: 20,
         onStep,
-        toolContext: { traderProfile, askUser, signal: abortController.signal },
+        toolContext: {
+          traderProfile,
+          askUser,
+          liveScrapePrice,
+          webSearchPriceEnabled: process.env.ENABLE_WEB_SEARCH_PRICE_FALLBACK === 'true',
+          signal: abortController.signal,
+        },
         signal: abortController.signal,
       })
 
@@ -184,6 +221,7 @@ export async function POST(request) {
         await enqueueWrite(() => failQuoteRun(runId, err.message))
       }
     } finally {
+      await remoteScraper.close()
       clearInterval(watchdog)
     }
   })

@@ -20,6 +20,7 @@ import { runImportCommand } from './commands/import.js';
 import { getTraderProfile, insertGeneratedQuote } from './lib/db.js';
 import { formatTraderContext } from './lib/trader-context.js';
 import { VALID_TRADES, VALID_TONES } from './lib/constants.js';
+import { liveScrapePrice, closeLiveScrapeBrowser } from './lib/live-scrape.js';
 
 // Terminal-specific ask_user transport, supplied to the agent via
 // toolContext.askUser — see tools/ask-user.js for why this lives here
@@ -74,6 +75,7 @@ function formatToolResult(toolName, result) {
         return chalk.yellow(`   Not found — will use [Price TBC]`);
       }
       const verifiedTag = result.verified ? '' : chalk.yellow(' (unverified)');
+      const liveTag = result.source === 'live_scraped' ? chalk.cyan(' (live)') : '';
       const others = (result.all_prices || [])
         .filter((p) => p.supplier !== result.cheapest_supplier)
         .map((p) => `${p.supplier} £${p.price?.toFixed?.(2) ?? p.price}`)
@@ -83,6 +85,7 @@ function formatToolResult(toolName, result) {
       return (
         chalk.green(`   Cheapest: ${result.cheapest_supplier} £${cheapest}`) +
         verifiedTag +
+        liveTag +
         (others ? chalk.gray(` (also: ${others})`) : '')
       );
     }
@@ -159,10 +162,23 @@ async function runQuoteCommand(argv) {
       case 'api_start':
         spinner = ora({ text: chalk.gray('Thinking…'), color: 'cyan' }).start();
         break;
-      case 'api_end':
+      case 'api_end': {
         spinner?.stop();
         spinner = null;
+        // Verifies prompt caching (see agent.js) is actually landing hits,
+        // not just configured — cache_read_input_tokens > 0 from turn 2
+        // onward is the ground truth, per the Anthropic API's own guidance
+        // that a silent regression here shows up as a bigger bill, not an error.
+        const usage = step.usage;
+        if (usage && (usage.cache_read_input_tokens || usage.cache_creation_input_tokens)) {
+          console.log(
+            chalk.gray(
+              `   cache: ${usage.cache_read_input_tokens ?? 0} read, ${usage.cache_creation_input_tokens ?? 0} written, ${usage.input_tokens ?? 0} uncached`,
+            ),
+          );
+        }
         break;
+      }
       case 'tool_call':
         console.log(chalk.cyan.bold(`🔧 ${step.tool}`));
         console.log(formatToolInput(step.tool, step.input));
@@ -192,7 +208,12 @@ async function runQuoteCommand(argv) {
       initialMessage,
       maxTurns: 20,
       onStep,
-      toolContext: { traderProfile, askUser: promptForAnswer },
+      toolContext: {
+        traderProfile,
+        askUser: promptForAnswer,
+        liveScrapePrice,
+        webSearchPriceEnabled: process.env.ENABLE_WEB_SEARCH_PRICE_FALLBACK === 'true',
+      },
     });
 
     if (savedQuote) {
@@ -210,7 +231,16 @@ async function runQuoteCommand(argv) {
   } catch (err) {
     console.error();
     console.error(chalk.red.bold('Error: ' + err.message));
+    // process.exit() below terminates immediately — it doesn't unwind to run
+    // a finally block — so the browser must be closed here explicitly too,
+    // not just on the success path.
+    await closeLiveScrapeBrowser();
     process.exit(1);
+  } finally {
+    // The live-scrape browser (if lookup_price ever launched one) must not
+    // outlive this run — Playwright keeps a Chromium process (and this
+    // Node process) alive until it's explicitly closed.
+    await closeLiveScrapeBrowser();
   }
 }
 

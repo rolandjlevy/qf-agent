@@ -33,13 +33,26 @@ export async function runAgent({
       {
         model: getModel(),
         max_tokens: 4096,
-        system: systemPrompt,
+        // Explicit breakpoint on the (only) system block — render order is
+        // tools -> system -> messages, so this caches the fixed tool
+        // definitions together with the system prompt. Both are frozen for
+        // the life of one quote run (system/tools are built once per run in
+        // qf.js/route.js and never mutated here), so every turn after the
+        // first re-reads this instead of reprocessing it.
+        system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
         tools,
+        // Top-level cache_control auto-places a breakpoint on the growing
+        // messages tail and moves it forward each turn — the recommended
+        // pairing with the explicit system/tools breakpoint above for an
+        // agent loop (see prompt-caching guidance). Same default 5-minute
+        // TTL as the system breakpoint, so the two can share one request
+        // without a TTL-mismatch error.
+        cache_control: { type: 'ephemeral' },
         messages,
       },
       { signal },
     );
-    safeOnStep({ type: 'api_end' });
+    safeOnStep({ type: 'api_end', usage: response.usage });
 
     if (response.stop_reason === 'tool_use') {
       const toolBlocks = response.content.filter((b) => b.type === 'tool_use');
