@@ -1,6 +1,5 @@
 import { askUser } from './ask-user.js'
 import { identifyMaterials } from './identify-materials.js'
-import { lookupPrice } from './lookup-price.js'
 import { draftSection } from './draft-section.js'
 import { saveQuote } from './save-quote.js'
 
@@ -27,7 +26,7 @@ export const TOOL_DEFINITIONS = [
   {
     name: 'identify_materials',
     description:
-      'Analyse a trade job description and return the list of physical materials and equipment likely needed. Returns structured JSON with material names, quantities where determinable, and notes. Each material is a single specific purchasable product — no alternatives, no bundles, no service items. Use this BEFORE drafting the materials section of the quote, and BEFORE calling lookup_price.',
+      'Analyse a trade job description and return the list of physical materials and equipment likely needed. Returns structured JSON with material names, quantities where determinable, and notes. Each material is a single specific purchasable product — no alternatives, no bundles, no service items. Use this BEFORE drafting the materials section of the quote.',
     input_schema: {
       type: 'object',
       properties: {
@@ -44,42 +43,27 @@ export const TOOL_DEFINITIONS = [
     },
   },
   {
-    name: 'lookup_price',
-    description:
-      'Look up the current UK supplier price for a single named material. Returns the cheapest price found, which supplier offers it, and prices from all suppliers. Also returns a verified flag indicating whether the price has been manually confirmed against a live supplier listing. Call this once per material identified by identify_materials. If a material is not found, the response includes found:false — use "[Price TBC]" for that item in the quote.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        material_name: {
-          type: 'string',
-          description: 'The specific material name to look up — use the exact name returned by identify_materials. Should be a single purchasable product, not a vague category.',
-        },
-      },
-      required: ['material_name'],
-    },
-  },
-  {
     name: 'draft_section',
     description:
-      'Generate one named section of the quote document as clean prose. Call this once per section. All seven sections must be drafted before calling save_quote: introduction, scope, materials, assumptions, exclusions, next_steps, disclaimers. The materials section must use real prices from lookup_price where available, and "[Price TBC]" where not. No markdown tables anywhere in output.',
+      'Generate one named section of the quote document as clean prose. Call this once per section. All seven sections must be drafted before calling save_quote: introduction, scope, materials, assumptions, exclusions, next_steps, disclaimers. Pricing is not available — the materials section always uses "[Price TBC]" for every item. No markdown tables anywhere in output.',
     input_schema: {
       type: 'object',
       properties: {
         section: {
           type: 'string',
           enum: ['introduction', 'scope', 'materials', 'assumptions', 'exclusions', 'next_steps', 'disclaimers'],
-          description: 'Which section to draft. introduction: greeting and job summary (max 50 words). scope: flat bullet list of tasks (6–8 items). materials: itemised list with prices. assumptions: what the quote assumes is true (3–4 points). exclusions: what is NOT included (3–4 points). next_steps: how to accept and book (2–3 points). disclaimers: legal/professional boilerplate.',
+          description: 'Which section to draft. introduction: greeting and job summary (max 50 words). scope: flat bullet list of tasks (6–8 items). materials: itemised list, each marked [Price TBC]. assumptions: what the quote assumes is true (3–4 points). exclusions: what is NOT included (3–4 points). next_steps: how to accept and book (2–3 points). disclaimers: legal/professional boilerplate.',
         },
         context: {
           type: 'object',
-          description: 'All context gathered so far. Should include: trade (string), tone (string), job_description (string), and for the materials section: materials_with_prices (array of objects each with name, quantity, notes, price_result from lookup_price). Optionally: customer_name, follow_up_answers.',
+          description: 'All context gathered so far. Should include: trade (string), tone (string), job_description (string), and for the materials section: materials (array of objects each with name, quantity, notes from identify_materials). Optionally: customer_name, follow_up_answers.',
           properties: {
             trade: { type: 'string' },
             tone: { type: 'string' },
             job_description: { type: 'string' },
             customer_name: { type: 'string' },
             follow_up_answers: { type: 'object' },
-            materials_with_prices: {
+            materials: {
               type: 'array',
               items: { type: 'object' },
             },
@@ -141,9 +125,6 @@ function validateInput(name, input) {
       if (!isNonEmptyString(input?.trade)) return 'identify_materials requires a non-empty "trade" string'
       if (!isNonEmptyString(input?.job_description)) return 'identify_materials requires a non-empty "job_description" string'
       return null
-    case 'lookup_price':
-      if (!isNonEmptyString(input?.material_name)) return 'lookup_price requires a non-empty "material_name" string'
-      return null
     case 'draft_section':
       if (!SECTION_NAMES.includes(input?.section)) {
         return `draft_section "section" must be one of: ${SECTION_NAMES.join(', ')}`
@@ -185,8 +166,6 @@ export async function executeTool(name, input, toolContext = {}) {
         return await askUser(input, toolContext)
       case 'identify_materials':
         return await identifyMaterials(input, toolContext.signal)
-      case 'lookup_price':
-        return await lookupPrice(input)
       case 'draft_section':
         return await draftSection(input, toolContext.traderProfile, toolContext.signal)
       case 'save_quote':

@@ -46,26 +46,24 @@ RULES:
 - Return plain text bullets only — no markdown headings, no tables.`,
 
   materials: (ctx) => {
-    const materialLines = buildMaterialLines(ctx.materials_with_prices || [])
+    const materialLines = buildMaterialLines(ctx.materials || ctx.materials_with_prices || [])
     return `Write the materials and equipment section for a trade quote.
 
 Trade: ${ctx.trade}
 Tone: ${ctx.tone}
 
-Materials identified for this job (with prices where available):
+Materials identified for this job:
 ${materialLines}
 
 RULES:
 - List each material on its own line starting with "•".
-- For each material: if a real price is available, include it as "£X.XX (Supplier)" after the item name.
-- If a price is marked verified:false, add "(price indicative — confirm before sending)" after the price.
-- If no price is available (found:false), write "[Price TBC]" after the item name.
+- Pricing is not available — every item ends with "[Price TBC]".
 - 4–6 items maximum. Each line = exactly one specific purchasable product.
 - No "or" alternatives. No bundling multiple products on one line.
 - No disposal fees, hire costs, or service items.
 - No markdown tables.
 - Return plain text bullets only.
-- At the end, add one line: "Price estimates sourced from UK trade suppliers — verify all prices before sending to client."`
+- At the end, add one line: "Prices to be confirmed — contact for a full material cost breakdown."`
   },
 
   assumptions: (ctx) => `Write the assumptions section for a trade quote.
@@ -125,22 +123,14 @@ RULES:
 - Return plain prose (not bullets) — clear, professional language.`,
 }
 
-function buildMaterialLines(materialsWithPrices) {
-  if (!materialsWithPrices.length) return '(No materials identified yet)'
+function buildMaterialLines(materials) {
+  if (!materials.length) return '(No materials identified yet)'
 
-  return materialsWithPrices
+  return materials
     .map((m) => {
       const qty = m.quantity ? ` (qty: ${m.quantity})` : ''
       const notes = m.notes ? ` — ${m.notes}` : ''
-      if (!m.price_result || !m.price_result.found) {
-        return `• ${m.name}${qty}${notes} — not found in price database`
-      }
-      const pr = m.price_result
-      if (typeof pr.cheapest !== 'number') {
-        return `• ${m.name}${qty}${notes} — not found in price database`
-      }
-      const verifiedNote = pr.verified ? '' : ' [unverified]'
-      return `• ${m.name}${qty}${notes} — £${pr.cheapest.toFixed(2)} at ${pr.cheapest_supplier}${verifiedNote}`
+      return `• ${m.name}${qty}${notes}`
     })
     .join('\n')
 }

@@ -1,18 +1,13 @@
 'use client'
 
 import { useActionState } from 'react'
-import { saveProfile, importQuote } from '../../lib/actions/profile.js'
+import { saveProfile } from '../../lib/actions/profile.js'
 
 const fieldStyle = { display: 'flex', flexDirection: 'column', gap: '0.25rem' }
 const inputStyle = { padding: '0.4rem 0.5rem', font: 'inherit' }
 
 export default function ProfileForm({ profile }) {
   const [saveState, saveAction, savePending] = useActionState(saveProfile, { success: false, error: null })
-  const [importState, importAction, importPending] = useActionState(importQuote, {
-    success: false,
-    error: null,
-    imported: [],
-  })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem', maxWidth: 480 }}>
@@ -55,28 +50,6 @@ export default function ProfileForm({ profile }) {
         </button>
         {saveState.success && <p style={{ color: 'green' }}>Profile saved.</p>}
         {saveState.error && <p style={{ color: 'crimson' }}>{saveState.error}</p>}
-      </form>
-
-      <form action={importAction} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <h2>Import past quotes</h2>
-        <p style={{ color: '#666', margin: 0 }}>
-          Upload a few past quotes (.md, .txt, .pdf, .docx) so QuoteFetch can learn your real material prices.
-        </p>
-
-        <input type="file" name="files" multiple accept=".md,.txt,.pdf,.docx" />
-
-        <button type="submit" disabled={importPending}>
-          {importPending ? 'Importing…' : 'Import'}
-        </button>
-
-        {importState.error && <p style={{ color: 'crimson' }}>{importState.error}</p>}
-        {importState.imported.length > 0 && (
-          <ul>
-            {importState.imported.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        )}
       </form>
     </div>
   )

@@ -1,4 +1,5 @@
 import { resolveAnswer } from '../../../../../lib/quote-runs.js'
+import { clearQuoteRunQuestion } from '../../../../../lib/db.js'
 
 export const runtime = 'nodejs'
 
@@ -12,6 +13,10 @@ export async function POST(request, { params }) {
     // Lambda instance). A late or orphaned answer is harmless: it just sits
     // until the waiter's poll claims it, or ages out of the table unclaimed.
     await resolveAnswer(runId, body.answer ?? '')
+    // Clear the pending question here, synchronously, rather than waiting for
+    // the agent loop to notice — see clearQuoteRunQuestion's comment for why
+    // that gap caused the answered question to flicker back on the page.
+    await clearQuoteRunQuestion(runId)
     return Response.json({ success: true })
   } catch (err) {
     return Response.json({ error: true, message: err.message }, { status: 500 })

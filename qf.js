@@ -16,7 +16,6 @@ import { runAgent } from './agent.js';
 import { TOOL_DEFINITIONS, executeTool } from './tools/index.js';
 import { SYSTEM_PROMPT, buildInitialMessage } from './prompts/system.js';
 import { runProfileCommand } from './commands/profile.js';
-import { runImportCommand } from './commands/import.js';
 import { getTraderProfile, insertGeneratedQuote } from './lib/db.js';
 import { formatTraderContext } from './lib/trader-context.js';
 import { VALID_TRADES, VALID_TONES } from './lib/constants.js';
@@ -43,8 +42,6 @@ function formatToolInput(toolName, input) {
         `   trade=${input?.trade ?? ''}, description="${desc.slice(0, 60)}${desc.length > 60 ? '...' : ''}"`,
       );
     }
-    case 'lookup_price':
-      return chalk.gray(`   material_name="${input?.material_name ?? ''}"`);
     case 'draft_section':
       return chalk.gray(`   section=${input?.section ?? ''}`);
     case 'save_quote': {
@@ -67,23 +64,6 @@ function formatToolResult(toolName, result) {
       const names = (result?.materials || []).map((m) => m.name).join(', ');
       return chalk.green(
         `   Found ${result?.materials?.length ?? 0} materials: ${names}`,
-      );
-    }
-    case 'lookup_price': {
-      if (!result?.found) {
-        return chalk.yellow(`   Not found — will use [Price TBC]`);
-      }
-      const verifiedTag = result.verified ? '' : chalk.yellow(' (unverified)');
-      const others = (result.all_prices || [])
-        .filter((p) => p.supplier !== result.cheapest_supplier)
-        .map((p) => `${p.supplier} £${p.price?.toFixed?.(2) ?? p.price}`)
-        .join(', ');
-      const cheapest =
-        typeof result.cheapest === 'number' ? result.cheapest.toFixed(2) : 'n/a';
-      return (
-        chalk.green(`   Cheapest: ${result.cheapest_supplier} £${cheapest}`) +
-        verifiedTag +
-        (others ? chalk.gray(` (also: ${others})`) : '')
       );
     }
     case 'draft_section':
@@ -243,12 +223,6 @@ await yargs(hideBin(process.argv))
     'View or edit your trader profile (business name, contact details, rate, T&Cs)',
     () => {},
     runProfileCommand,
-  )
-  .command(
-    'import <path>',
-    'Import a past quote (.md, .txt, .pdf, .docx) to learn your own material prices',
-    (y) => y.positional('path', { type: 'string', describe: 'Path to the quote file to import' }),
-    runImportCommand,
   )
   .help()
   .parseAsync();
