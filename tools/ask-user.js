@@ -4,7 +4,7 @@
 // callback in the web UI. This file stays transport-agnostic (no `inquirer`
 // import) so it can be safely reached from a Vercel API route's module
 // graph without inquirer getting bundled into it.
-export async function askUser({ question, context }, toolContext = {}) {
-  const answer = await toolContext.askUser(question, context)
+export async function askUser({ question, context, choices }, toolContext = {}) {
+  const answer = await toolContext.askUser(question, context, choices)
   return { answer }
 }

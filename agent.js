@@ -54,17 +54,22 @@ export async function runAgent({
     if (response.stop_reason === 'tool_use') {
       const toolBlocks = response.content.filter((b) => b.type === 'tool_use');
 
-      const toolResults = [];
+      // Run batched tool_use blocks concurrently — sequential awaits made a turn's cost the sum of every call's round-trip instead of the slowest one.
+      // tool_results stay in call order (Promise.all), but tool_result onStep events may now fire out of order as each call finishes.
       for (const toolBlock of toolBlocks) {
         safeOnStep({
           type: 'tool_call',
           tool: toolBlock.name,
           input: toolBlock.input,
         });
-        const result = await executeTool(toolBlock.name, toolBlock.input, toolContext);
-        safeOnStep({ type: 'tool_result', tool: toolBlock.name, result });
-        toolResults.push({ tool_use_id: toolBlock.id, result });
       }
+      const toolResults = await Promise.all(
+        toolBlocks.map(async (toolBlock) => {
+          const result = await executeTool(toolBlock.name, toolBlock.input, toolContext);
+          safeOnStep({ type: 'tool_result', tool: toolBlock.name, result });
+          return { tool_use_id: toolBlock.id, result };
+        }),
+      );
 
       // Add the tool results to the messages and continue to the next turn
       messages.push({ role: 'assistant', content: response.content });

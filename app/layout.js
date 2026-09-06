@@ -1,7 +1,7 @@
 export const metadata = {
   title: 'QuoteFetch',
   description: 'Agentic UK trade quote generator',
-}
+};
 
 export default function RootLayout({ children }) {
   return (
@@ -15,12 +15,13 @@ export default function RootLayout({ children }) {
             borderBottom: '1px solid #ddd',
           }}
         >
-          <a href="/profile">Profile</a>
+          <h3 style={{ margin: 0 }}>📝 QuoteFetch</h3>
           <a href="/quote/new">New quote</a>
           <a href="/quotes">Quotes</a>
+          <a href="/profile">Profile</a>
         </nav>
-        <main style={{ padding: '1.5rem' }}>{children}</main>
+        <main style={{ padding: '1rem 1.5rem' }}>{children}</main>
       </body>
     </html>
-  )
+  );
 }
