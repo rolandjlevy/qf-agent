@@ -67,6 +67,21 @@ For vague jobs (e.g. "Sort out my boiler") the agent will ask up to four targete
 
 Pricing is decommissioned in this build. The materials section of every quote lists each identified material with `[Price TBC]` — no price lookup, scraping, or price history is used.
 
+## Token cost
+
+Every quote drives several Claude API calls — the main agent loop plus stateless sub-LLM calls (`identify_materials`, one `draft_section` call per section). On the `cut-quote-token-spend` branch, the agent loop was audited for wasted tokens and now costs roughly **70% less per quote (~$0.169 → ~$0.05)**, with no change to quote content, wording, or quality:
+
+- **Prompt caching** (`agent.js`) — the system prompt + tool schemas, and the growing conversation history, are now cached (`cache_control: { type: 'ephemeral' }`) instead of being resent at full price on every turn of the loop. On a real run this took uncached input from a multi-thousand-token resend down to 1–3 tokens per turn from turn 2 onward.
+- **No more round-tripping content the model or host already has** — `identify_materials`/`draft_section` no longer require the model to retype `trade`/`tone`/`job_description`/`materials` on every call (they default from the run's own context, and the model can still override any of them, e.g. after a clarifying question); `save_quote` no longer requires the model to paste back the full text of all 7 already-drafted sections — it reads them from a server-side accumulator instead.
+
+| | Before | After (measured) |
+|---|---|---|
+| Per quote (representative job, no clarifying questions) | ~$0.169 | ~$0.05 |
+| Main-loop turns | ~10 (sequential) | 4 (Claude batches all 7 `draft_section` calls into a single turn) |
+| Main-loop cost | ~$0.143 | ~$0.024 |
+
+Figures are for `claude-sonnet-4-6` ($3 / $15 per MTok input/output); actual savings per job vary with job-description length and how many clarifying questions get asked. The sub-LLM calls (`identify_materials`, each `draft_section` generation) are unaffected by this change — they're small, single-shot calls below the cache-minimum prefix size, and now make up the majority of what's left, which is a reasonable floor since that's genuine per-job inference rather than overhead.
+
 ## Output
 
 Every generated quote is persisted to the database (viewable at `/quote/[id]` or via `/quotes`). The CLI additionally writes a copy to the `output/` directory as a `.md` file, named `quote-YYYY-MM-DD-trade-job-slug.md`.

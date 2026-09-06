@@ -5,6 +5,8 @@ import { dirname, join } from 'path'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const OUTPUT_DIR = join(__dirname, '../output')
 
+export const SECTION_NAMES = ['introduction', 'scope', 'materials', 'assumptions', 'exclusions', 'next_steps', 'disclaimers']
+
 function formatDate() {
   const d = new Date()
   const day = d.getDate()
@@ -64,9 +66,22 @@ function assembleQuote(sections, traderProfile) {
   return parts.join('\n').trimEnd()
 }
 
-export function saveQuote({ sections, metadata }, traderProfile) {
-  const trade = slugify(metadata?.trade || sections.trade || 'trade')
-  const jobSlug = slugify(metadata?.job_description || '').slice(0, 40) || 'quote'
+// `sections`/`metadata` in the tool call are optional overrides — the
+// authoritative drafted text lives in toolContext.sectionStore (populated by
+// draft_section as it runs) and toolContext.trade/jobDescription (set once
+// per run), so the model doesn't need to retype the full quote text or the
+// job context just to trigger the save.
+export function saveQuote({ sections: sectionsInput, metadata } = {}, toolContext = {}) {
+  const { traderProfile, sectionStore = {}, trade: ctxTrade, jobDescription: ctxJobDescription } = toolContext
+  const sections = { ...sectionStore, ...sectionsInput }
+
+  const missing = SECTION_NAMES.filter((name) => !sections[name])
+  if (missing.length) {
+    throw new Error(`Cannot save quote — missing drafted sections: ${missing.join(', ')}`)
+  }
+
+  const trade = slugify(metadata?.trade || ctxTrade || sections.trade || 'trade')
+  const jobSlug = slugify(metadata?.job_description || ctxJobDescription || '').slice(0, 40) || 'quote'
   const dateStr = isoDate()
 
   const baseFilename = `quote-${dateStr}-${trade}-${jobSlug}`
@@ -92,12 +107,16 @@ export function saveQuote({ sections, metadata }, traderProfile) {
     filePath = null
   }
 
+  // The full content/file_path is what callers (qf.js, app/api/quote/route.js)
+  // persist to Neon — stashed on toolContext so it never has to flow back
+  // through the model's own context a second time. The return value here is
+  // what the model actually sees as this tool's result.
+  toolContext.savedQuote = { file_path: filePath, file_written: fileWritten, filename: resolvedFilename, content, char_count: content.length }
+
   return {
     success: true,
-    file_path: filePath,
     file_written: fileWritten,
     filename: resolvedFilename,
-    content,
     char_count: content.length,
   }
 }

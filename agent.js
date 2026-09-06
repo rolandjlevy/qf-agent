@@ -33,13 +33,23 @@ export async function runAgent({
       {
         model: getModel(),
         max_tokens: 4096,
-        system: systemPrompt,
+        // Explicit breakpoint on the static system prompt (tools render
+        // before system, so this caches both together) plus a top-level
+        // automatic breakpoint on the growing messages tail — the prefix
+        // and every prior turn would otherwise be rebilled at full price on
+        // every turn of the loop.
+        system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
         tools,
+        cache_control: { type: 'ephemeral' },
         messages,
       },
       { signal },
     );
     safeOnStep({ type: 'api_end' });
+    // Surfaced so callers can verify caching is actually hitting
+    // (cache_read_input_tokens should dominate input_tokens after turn 1) —
+    // usage fields are the only ground truth for that, not code review.
+    if (response.usage) safeOnStep({ type: 'usage', turn: turn + 1, usage: response.usage });
 
     if (response.stop_reason === 'tool_use') {
       const toolBlocks = response.content.filter((b) => b.type === 'tool_use');

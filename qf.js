@@ -44,10 +44,8 @@ function formatToolInput(toolName, input) {
     }
     case 'draft_section':
       return chalk.gray(`   section=${input?.section ?? ''}`);
-    case 'save_quote': {
-      const keys = Object.keys(input?.sections || {});
-      return chalk.gray(`   sections=[${keys.join(', ')}]`);
-    }
+    case 'save_quote':
+      return chalk.gray(`   (saving all drafted sections)`);
     default:
       return chalk.gray(`   ${JSON.stringify(input).slice(0, 80)}`);
   }
@@ -68,11 +66,11 @@ function formatToolResult(toolName, result) {
     }
     case 'draft_section':
       return chalk.green(
-        `   Section "${result?.section ?? ''}" drafted (${result?.content?.length ?? 0} chars)`,
+        `   Section "${result?.section ?? ''}" drafted (${result?.words ?? 0} words)`,
       );
     case 'save_quote':
       if (result?.success && result.file_written) {
-        return chalk.green(`   Saved to ${result.file_path}`);
+        return chalk.green(`   Saved (${result.filename})`);
       }
       if (result?.success) {
         return chalk.yellow(`   Quote assembled but not written to disk (${result.char_count} chars)`);
@@ -128,7 +126,6 @@ async function runQuoteCommand(argv) {
   const systemPrompt = traderContext ? `${SYSTEM_PROMPT}\n\n${traderContext}` : SYSTEM_PROMPT;
 
   let spinner = null;
-  let savedQuote = null;
   const toolCallLog = [];
 
   function onStep(step) {
@@ -143,6 +140,17 @@ async function runQuoteCommand(argv) {
         spinner?.stop();
         spinner = null;
         break;
+      case 'usage': {
+        const u = step.usage;
+        const read = u.cache_read_input_tokens ?? 0;
+        const created = u.cache_creation_input_tokens ?? 0;
+        console.log(
+          chalk.gray(
+            `   tokens: in=${u.input_tokens} cache_read=${read} cache_write=${created} out=${u.output_tokens}`,
+          ),
+        );
+        break;
+      }
       case 'tool_call':
         console.log(chalk.cyan.bold(`🔧 ${step.tool}`));
         console.log(formatToolInput(step.tool, step.input));
@@ -152,9 +160,6 @@ async function runQuoteCommand(argv) {
         console.log(formatToolResult(step.tool, step.result));
         console.log();
         toolCallLog.push({ type: 'tool_result', tool: step.tool, result: step.result });
-        if (step.tool === 'save_quote' && step.result?.success) {
-          savedQuote = { filePath: step.result.file_path, content: step.result.content };
-        }
         break;
       case 'final_answer':
         console.log(chalk.gray('─────────────────────────────────────────'));
@@ -164,6 +169,12 @@ async function runQuoteCommand(argv) {
     }
   }
 
+  // trade/tone/jobDescription are known once for the whole run — supplied
+  // here so identify_materials/draft_section/save_quote don't need the model
+  // to retype them on every call. sectionStore accumulates drafted section
+  // text the same way; savedQuote is filled in by save_quote.
+  const toolContext = { traderProfile, askUser: promptForAnswer, trade, tone, jobDescription, sectionStore: {} };
+
   try {
     const { turns } = await runAgent({
       systemPrompt,
@@ -172,14 +183,14 @@ async function runQuoteCommand(argv) {
       initialMessage,
       maxTurns: 20,
       onStep,
-      toolContext: { traderProfile, askUser: promptForAnswer },
+      toolContext,
     });
 
-    if (savedQuote) {
+    if (toolContext.savedQuote) {
       await insertGeneratedQuote({
         job_description: jobDescription,
-        output_path: savedQuote.filePath ?? '',
-        content: savedQuote.content,
+        output_path: toolContext.savedQuote.file_path ?? '',
+        content: toolContext.savedQuote.content,
         tool_call_log: toolCallLog,
       });
     }

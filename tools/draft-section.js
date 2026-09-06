@@ -135,23 +135,33 @@ function buildMaterialLines(materials) {
     .join('\n')
 }
 
-export async function draftSection({ section, context }, traderProfile, signal) {
+// trade/tone/job_description/materials default from toolContext (known once
+// per run, already in the model's own initial message) — the model only
+// needs to pass `section`, plus any new information it gathered (e.g.
+// follow_up_answers, customer_name), overriding a default if it explicitly
+// supplies one.
+export async function draftSection({ section, context } = {}, toolContext = {}) {
   const promptFn = SECTION_PROMPTS[section]
   if (!promptFn) {
     throw new Error(`Unknown section: ${section}. Valid sections: ${Object.keys(SECTION_PROMPTS).join(', ')}`)
   }
 
-  if (!context || typeof context !== 'object') {
-    throw new Error('draft_section requires a context object')
+  const merged = {
+    trade: toolContext.trade,
+    tone: toolContext.tone,
+    job_description: toolContext.jobDescription,
+    materials: toolContext.materials,
+    ...context,
   }
+
   for (const field of ['trade', 'tone', 'job_description']) {
-    if (typeof context[field] !== 'string' || !context[field].trim()) {
-      throw new Error(`draft_section context is missing required field: ${field}`)
+    if (typeof merged[field] !== 'string' || !merged[field].trim()) {
+      throw new Error(`draft_section is missing required context: ${field}`)
     }
   }
 
   const anthropic = createClient()
-  const prompt = promptFn(context, formatTraderContext(traderProfile))
+  const prompt = promptFn(merged, formatTraderContext(toolContext.traderProfile))
 
   const response = await createMessage(
     anthropic,
@@ -161,10 +171,12 @@ export async function draftSection({ section, context }, traderProfile, signal) 
       system: NEVER_DO_RULES,
       messages: [{ role: 'user', content: prompt }],
     },
-    { signal },
+    { signal: toolContext.signal },
   )
 
   const content = response.content.find((b) => b.type === 'text')?.text?.trim() || ''
 
-  return { section, content }
+  if (toolContext.sectionStore) toolContext.sectionStore[section] = content
+
+  return { section, status: 'drafted', words: content ? content.split(/\s+/).filter(Boolean).length : 0 }
 }

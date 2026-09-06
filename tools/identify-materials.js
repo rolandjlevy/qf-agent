@@ -14,7 +14,16 @@ function isRejectedMaterial(m) {
   return false
 }
 
-export async function identifyMaterials({ trade, job_description }, signal) {
+// trade/job_description default from toolContext (known once per run) — the
+// model only needs to pass these explicitly when it has an updated
+// job_description (e.g. incorporating ask_user follow-up answers).
+export async function identifyMaterials({ trade, job_description } = {}, toolContext = {}) {
+  trade = trade || toolContext.trade
+  job_description = job_description || toolContext.jobDescription
+  if (!trade || !job_description) {
+    throw new Error('identify_materials requires a trade and job_description (from context or toolContext)')
+  }
+
   const anthropic = createClient()
   const prompt = `You are a UK trade materials expert. Analyse the following job description for a ${trade} and return a JSON list of the physical materials and equipment that will need to be purchased.
 
@@ -50,7 +59,7 @@ Return this exact JSON structure:
       system: NEVER_DO_RULES,
       messages: [{ role: 'user', content: prompt }],
     },
-    { signal },
+    { signal: toolContext.signal },
   )
 
   const raw = response.content.find((b) => b.type === 'text')?.text || ''
@@ -61,11 +70,16 @@ Return this exact JSON structure:
     return { materials: [] }
   }
 
+  let materials
   try {
     const parsed = JSON.parse(jsonMatch[0])
-    const materials = Array.isArray(parsed.materials) ? parsed.materials : []
-    return { materials: materials.filter((m) => !isRejectedMaterial(m)) }
+    materials = Array.isArray(parsed.materials) ? parsed.materials.filter((m) => !isRejectedMaterial(m)) : []
   } catch {
-    return { materials: [] }
+    materials = []
   }
+
+  // Available to draft_section's materials-section call without the model
+  // having to pass the list back explicitly.
+  toolContext.materials = materials
+  return { materials }
 }
