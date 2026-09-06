@@ -133,8 +133,8 @@ export async function POST(request) {
       enqueueWrite(() => updateQuoteRunProgress(runId, snapshot))
     }
 
-    const askUser = async (question, context) => {
-      if (!finished) await enqueueWrite(() => setQuoteRunQuestion(runId, { question, context }))
+    const askUser = async (question, context, choices) => {
+      if (!finished) await enqueueWrite(() => setQuoteRunQuestion(runId, { question, context, choices }))
       const remainingMs = Math.max(0, deadline - Date.now())
       return waitForAnswer(
         runId,

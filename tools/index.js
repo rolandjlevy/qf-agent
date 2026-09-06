@@ -7,7 +7,7 @@ export const TOOL_DEFINITIONS = [
   {
     name: 'ask_user',
     description:
-      'Ask the user a single clarifying question in the terminal and wait for their answer. Use when the job description is missing context that would materially change the scope, materials, or assumptions. Ask one focused question per call; you may call this up to four times before proceeding. Stop asking as soon as you have enough to produce an accurate quote — do not ask for information you can reasonably assume.',
+      'Ask the user a single clarifying question and wait for their answer. Use when the job description is missing context that would materially change the scope, materials, or assumptions. Ask one focused question per call; you may call this up to four times before proceeding. Stop asking as soon as you have enough to produce an accurate quote — do not ask for information you can reasonably assume. When the question has a natural set of discrete answers, provide "choices" so the user can pick rather than type — they can still add free-text notes alongside their selection.',
     input_schema: {
       type: 'object',
       properties: {
@@ -18,6 +18,27 @@ export const TOOL_DEFINITIONS = [
         context: {
           type: 'string',
           description: 'Optional context shown to the user above the question to help them understand what information is needed and why.',
+        },
+        choices: {
+          type: 'array',
+          description: 'Optional — omit entirely for open-ended questions with no natural discrete answers or sensible range. One entry per independent thing the question is asking (most questions need just one; a compound question like "is it X or Y, and do you already know or should we assess on-site?" needs two entries). Counts, lengths, areas, and other approximate quantities belong here too — bucket them into ranges (e.g. "Under 10", "10–20", "20+") rather than asking for an exact figure as free text.',
+          items: {
+            type: 'object',
+            properties: {
+              label: { type: 'string', description: 'Optional short label shown above this group of options (e.g. "Wall type").' },
+              type: {
+                type: 'string',
+                enum: ['radio', 'checkbox'],
+                description: '"radio" when exactly one option applies (OR) — the common case. "checkbox" when any number of options can apply at once (AND). Defaults to "radio" if omitted.',
+              },
+              options: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'The selectable options, as short plain-text labels. Do not include your own "Other"/"not sure"/catch-all option — the interface always appends one automatically with a free-text field for a custom answer.',
+              },
+            },
+            required: ['options'],
+          },
         },
       },
       required: ['question'],
@@ -115,6 +136,19 @@ function validateInput(name, input) {
   switch (name) {
     case 'ask_user':
       if (!isNonEmptyString(input?.question)) return 'ask_user requires a non-empty "question" string'
+      if (input?.choices !== undefined) {
+        if (!Array.isArray(input.choices) || input.choices.length === 0) {
+          return 'ask_user "choices" must be a non-empty array when provided'
+        }
+        for (const group of input.choices) {
+          if (!Array.isArray(group?.options) || group.options.length < 2 || !group.options.every(isNonEmptyString)) {
+            return 'ask_user each "choices" entry needs an "options" array of at least 2 non-empty strings'
+          }
+          if (group.type !== undefined && !['radio', 'checkbox'].includes(group.type)) {
+            return 'ask_user "choices" entry "type" must be "radio" or "checkbox"'
+          }
+        }
+      }
       return null
     case 'identify_materials':
       // trade/job_description may come from toolContext instead of input —

@@ -20,14 +20,57 @@ import { getTraderProfile, insertGeneratedQuote } from './lib/db.js';
 import { formatTraderContext } from './lib/trader-context.js';
 import { VALID_TRADES, VALID_TONES } from './lib/constants.js';
 
+const OTHER_OPTION = 'Other';
+
+function isOtherSelected(value) {
+  return Array.isArray(value) ? value.includes(OTHER_OPTION) : value === OTHER_OPTION;
+}
+
 // Terminal-specific ask_user transport, supplied to the agent via
 // toolContext.askUser — see tools/ask-user.js for why this lives here
-// rather than being imported directly by the tool.
-async function promptForAnswer(question, context) {
-  const message = context ? `${context}\n\n${question}` : question;
-  const { answer } = await inquirer.prompt([
-    { type: 'input', name: 'answer', message },
-  ]);
+// rather than being imported directly by the tool. When the model supplies
+// `choices`, each group becomes an inquirer `list` (radio/OR) or `checkbox`
+// (AND) prompt with an always-appended "Other" option (revealing a free-text
+// follow-up), plus a free-text notes prompt — answers are combined into the
+// single string the model expects back.
+async function promptForAnswer(question, context, choices) {
+  if (context) console.log(chalk.gray(context));
+
+  if (Array.isArray(choices) && choices.length) {
+    console.log(chalk.cyan.bold(question));
+    const prompts = [];
+    choices.forEach((group, i) => {
+      prompts.push({
+        type: group.type === 'checkbox' ? 'checkbox' : 'list',
+        name: `choice_${i}`,
+        message: group.label || 'Select an option:',
+        choices: [...group.options, OTHER_OPTION],
+      });
+      prompts.push({
+        type: 'input',
+        name: `choice_${i}_other`,
+        message: `Please specify (${group.label || 'other'}):`,
+        when: (answers) => isOtherSelected(answers[`choice_${i}`]),
+      });
+    });
+    prompts.push({ type: 'input', name: 'notes', message: 'Additional notes or comments (optional):' });
+
+    const result = await inquirer.prompt(prompts);
+    const parts = choices.map((group, i) => {
+      let value = result[`choice_${i}`];
+      const custom = result[`choice_${i}_other`];
+      if (custom !== undefined) {
+        const customValue = custom.trim() || OTHER_OPTION;
+        value = Array.isArray(value) ? value.map((v) => (v === OTHER_OPTION ? customValue : v)) : customValue;
+      }
+      const prefix = group.label ? `${group.label}: ` : '';
+      return prefix + (Array.isArray(value) ? value.join(', ') : value);
+    });
+    if (result.notes?.trim()) parts.push(`Notes: ${result.notes.trim()}`);
+    return parts.join('. ');
+  }
+
+  const { answer } = await inquirer.prompt([{ type: 'input', name: 'answer', message: question }]);
   return answer;
 }
 
