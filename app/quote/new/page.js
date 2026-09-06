@@ -173,7 +173,7 @@ export default function NewQuotePage() {
           </select>
         </label>
 
-        <label>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           Job description
           <textarea
             rows={5}
@@ -184,7 +184,7 @@ export default function NewQuotePage() {
           />
         </label>
 
-        <button type="submit" disabled={running || !jobDescription.trim()}>
+        <button type="submit" style={{ width: 'fit-content' }} disabled={running || !jobDescription.trim()}>
           {running ? 'Generating…' : 'Generate quote'}
         </button>
       </form>
