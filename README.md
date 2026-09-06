@@ -17,7 +17,6 @@ npm run db:migrate   # one-off: creates the tables in your database
 ```bash
 node qf.js --trade=<trade> --tone=<tone> "<job description>"
 node qf.js profile               # set your business name, contact details, rate, T&Cs
-node qf.js import <path>         # learn your real prices from a past quote (.md/.txt/.pdf/.docx)
 ```
 
 ### Valid trades
@@ -34,7 +33,7 @@ node qf.js import <path>         # learn your real prices from a past quote (.md
 npm run web:dev     # http://localhost:3000
 ```
 
-- `/profile` — set your business details and upload past quotes to teach the agent your real prices
+- `/profile` — set your business details (name, contact, rate, T&Cs)
 - `/quote/new` — describe a job, watch the agent work in real time, answer any clarifying questions it asks
 - `/quotes` — browse quotes you've generated
 - `/quote/[id]` — view one saved quote
@@ -66,13 +65,7 @@ For vague jobs (e.g. "Sort out my boiler") the agent will ask up to four targete
 
 ## Prices
 
-`lookup_price` checks your own price history first — see "Learning your prices" below — then falls back to `data/sample-prices.json`, which starts with 50 entries all marked `verified: false` (indicative estimates only). To verify a sample price: find the entry, update it against a live Screwfix or Toolstation listing, and set `verified: true`. The agent displays `(unverified)` next to unconfirmed prices and the quote includes a note that prices are indicative.
-
-Phase 3 will replace the sample-DB fallback with a live Playwright scraper using the same `lookup_price` interface.
-
-### Learning your prices
-
-Run `node qf.js import <path>` (CLI) or upload past quotes on the `/profile` page (web) to extract real material prices from quotes you've actually sent. These are stored per-material and preferred automatically over the sample DB — a match there is always shown as verified, since it's a price you actually paid.
+Pricing is decommissioned in this build. The materials section of every quote lists each identified material with `[Price TBC]` — no price lookup, scraping, or price history is used.
 
 ## Output
 
@@ -87,24 +80,19 @@ tools/
   index.js            — TOOL_DEFINITIONS + executeTool dispatcher
   ask-user.js          — thin adapter; transport supplied via toolContext.askUser
   identify-materials.js  — sub-LLM call to extract material list
-  lookup-price.js        — trader history first, then fuzzy match against sample-prices.json
-  draft-section.js       — sub-LLM call to generate each quote section
+  draft-section.js       — sub-LLM call to generate each quote section (materials always show [Price TBC])
   save-quote.js           — assemble the quote; best-effort write to output/
 prompts/
   system.js            — agent system prompt + shared buildInitialMessage()
 lib/
-  db.js                — Neon Postgres access (trader profile, prices, quote history)
+  db.js                — Neon Postgres access (trader profile, quote history)
   schema.sql            — Postgres schema, applied once via scripts/migrate.mjs
   trader-context.js      — formats the trader profile for the system prompt
-  extract-quote.js        — sub-LLM extraction of priced items from a past quote
   quote-runs.js           — the web UI's ask_user bridge (see app/api/quote/route.js)
-  actions/profile.js       — web UI Server Actions (save profile, import quotes)
+  actions/profile.js       — web UI Server Actions (save profile)
 commands/
   profile.js            — CLI: view/edit your trader profile
-  import.js              — CLI: import a past quote
 app/                    — Next.js App Router web UI (see CLAUDE.md for the full page/route list)
-data/
-  sample-prices.json     — mock UK supplier price database
 scripts/
   migrate.mjs            — one-off Neon schema migration
   web-env.mjs             — devcontainer env workaround wrapping `next`
@@ -114,6 +102,6 @@ agent.test.js           — vitest coverage of agent.js's core loop
 ## Phase roadmap
 
 - **Phase 1** — CLI, mock prices, all logic working end-to-end. Done.
-- **Phase 2** (this) — trader profile/price persistence on Neon Postgres, plus a Next.js web UI reusing the same agent loop. Done.
-- **Phase 3** — Real Playwright scraper replaces the sample-DB fallback in `lookup-price.js` (same tool interface)
+- **Phase 2** — trader profile persistence on Neon Postgres, plus a Next.js web UI reusing the same agent loop. Done.
+- **Phase 3** — Real Playwright scraper for live supplier prices. Superseded — pricing was decommissioned in this build; every material line reads `[Price TBC]`.
 - **Phase 4** — Optional: auth, multi-tenant support
