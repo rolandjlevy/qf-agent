@@ -76,7 +76,6 @@ export async function POST(request) {
   after(async () => {
     const abortController = new AbortController()
     const steps = []
-    let savedQuote = null
 
     // Every quote_runs write for this run — progress, question, terminal
     // state — goes through this single queue instead of firing independently.
@@ -130,9 +129,6 @@ export async function POST(request) {
       if (finished) return
       if (!['turn_start', 'tool_call', 'tool_result', 'final_answer'].includes(step.type)) return
       steps.push(step)
-      if (step.type === 'tool_result' && step.tool === 'save_quote' && step.result?.success) {
-        savedQuote = { filePath: step.result.file_path, content: step.result.content }
-      }
       const snapshot = [...steps]
       enqueueWrite(() => updateQuoteRunProgress(runId, snapshot))
     }
@@ -154,6 +150,11 @@ export async function POST(request) {
       const systemPrompt = traderContext ? `${SYSTEM_PROMPT}\n\n${traderContext}` : SYSTEM_PROMPT
       const initialMessage = buildInitialMessage({ trade, tone, jobDescription })
 
+      // trade/tone/jobDescription/sectionStore let identify_materials/draft_section/
+      // save_quote pull known-once-per-run context instead of requiring the
+      // model to retype it on every call; save_quote fills in toolContext.savedQuote.
+      const toolContext = { traderProfile, askUser, signal: abortController.signal, trade, tone, jobDescription, sectionStore: {} }
+
       const { turns } = await runAgent({
         systemPrompt,
         tools: TOOL_DEFINITIONS,
@@ -161,16 +162,16 @@ export async function POST(request) {
         initialMessage,
         maxTurns: 20,
         onStep,
-        toolContext: { traderProfile, askUser, signal: abortController.signal },
+        toolContext,
         signal: abortController.signal,
       })
 
       let quoteId = null
-      if (savedQuote) {
+      if (toolContext.savedQuote) {
         quoteId = await insertGeneratedQuote({
           job_description: jobDescription,
-          output_path: savedQuote.filePath ?? '',
-          content: savedQuote.content,
+          output_path: toolContext.savedQuote.file_path ?? '',
+          content: toolContext.savedQuote.content,
           tool_call_log: steps,
         })
       }
