@@ -37,10 +37,17 @@ export async function runAgent({
         // before system, so this caches both together) plus a top-level
         // automatic breakpoint on the growing messages tail — the prefix
         // and every prior turn would otherwise be rebilled at full price on
-        // every turn of the loop.
-        system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+        // every turn of the loop. 1h TTL (not the 5m default): generation
+        // time counts against the cache lifetime, and a single ask_user
+        // wait can legitimately run up to ASK_USER_TIMEOUT_MS (3.5 min) —
+        // close enough to 5 min that a slow-to-answer trader could expire
+        // the cache and force a full-price rewrite of the whole
+        // conversation so far. 1h writes cost 2x base input vs 1.25x for
+        // 5m, but break even at 3 reads of the same content, which every
+        // real run clears many times over.
+        system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral', ttl: '1h' } }],
         tools,
-        cache_control: { type: 'ephemeral' },
+        cache_control: { type: 'ephemeral', ttl: '1h' },
         messages,
       },
       { signal },
