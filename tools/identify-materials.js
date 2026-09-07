@@ -44,6 +44,26 @@ RULES — follow these exactly:
 - Include a brief notes field only if there is a genuinely useful constraint (e.g. "must be RCBO type")
 - Limit to 4–8 materials — only the key purchasable items, not every small consumable
 
+EXAMPLES of the desired style — do not copy these, generate materials specific to the actual job description above:
+
+Job: "Electrician — replace consumer unit, 8-way, with RCBOs"
+{
+  "materials": [
+    { "name": "Consumer unit 10-way RCBO", "quantity": "1", "notes": "must be RCBO type per job description" },
+    { "name": "MCB Type B 32A", "quantity": "2", "notes": null },
+    { "name": "Twin and earth cable 2.5mm 6242Y", "quantity": "25m", "notes": null }
+  ]
+}
+
+Job: "Plumber — replace bathroom suite, retile floor"
+{
+  "materials": [
+    { "name": "Close coupled toilet pan and cistern", "quantity": "1", "notes": "single product as sold — not a bundle" },
+    { "name": "Ceramic floor tile 300x300mm", "quantity": "12", "notes": "adjust to room size" },
+    { "name": "Flexible tap connector 15mm", "quantity": "2", "notes": null }
+  ]
+}
+
 Return this exact JSON structure:
 {
   "materials": [
@@ -64,19 +84,32 @@ Return this exact JSON structure:
 
   const raw = response.content.find((b) => b.type === 'text')?.text || ''
 
+  // A malformed response here must surface as a tool error (thrown, caught by
+  // executeTool, returned as {error: true, ...}) rather than silently
+  // returning an empty list — an empty list is indistinguishable from "the
+  // model genuinely found nothing to buy" and flows straight through to the
+  // materials section as "(No materials identified yet)" with no signal that
+  // anything went wrong. Throwing lets Claude see the failure and retry the
+  // call, same as every other tool in this codebase.
+
   // Strip markdown fences if Claude wraps the JSON anyway
   const jsonMatch = raw.match(/\{[\s\S]*\}/)
   if (!jsonMatch) {
-    return { materials: [] }
+    throw new Error('identify_materials: model response did not contain a JSON object')
   }
 
-  let materials
+  let parsed
   try {
-    const parsed = JSON.parse(jsonMatch[0])
-    materials = Array.isArray(parsed.materials) ? parsed.materials.filter((m) => !isRejectedMaterial(m)) : []
-  } catch {
-    materials = []
+    parsed = JSON.parse(jsonMatch[0])
+  } catch (err) {
+    throw new Error(`identify_materials: could not parse model response as JSON — ${err.message}`)
   }
+
+  if (!Array.isArray(parsed.materials)) {
+    throw new Error('identify_materials: model response was missing a "materials" array')
+  }
+
+  const materials = parsed.materials.filter((m) => !isRejectedMaterial(m))
 
   // Available to draft_section's materials-section call without the model
   // having to pass the list back explicitly.

@@ -101,6 +101,10 @@ export default function NewQuotePage() {
   const [running, setRunning] = useState(false);
   const [steps, setSteps] = useState([]);
   const [question, setQuestion] = useState(null);
+  // True from the moment an answer is submitted until we know whether the
+  // next turn needs another answer — keeps the dialog open across
+  // back-to-back questions instead of closing/reopening between them.
+  const [waitingForNext, setWaitingForNext] = useState(false);
   const [answerText, setAnswerText] = useState('');
   const [choiceSelections, setChoiceSelections] = useState({});
   const [otherText, setOtherText] = useState({});
@@ -110,6 +114,19 @@ export default function NewQuotePage() {
   const pollTimerRef = useRef(null);
   const pollStartRef = useRef(null);
   const dialogRef = useRef(null);
+  // steps.length snapshot taken when waitingForNext turns true — pollStatus
+  // only inspects steps written after this point to decide whether the next
+  // turn needs another answer.
+  const waitingSinceLenRef = useRef(0);
+  // pollStatus is captured once by setInterval (see handleSubmit) and never
+  // re-created, so it can't read fresh state via closure — mirrored here the
+  // same way runIdRef mirrors runId.
+  const waitingForNextRef = useRef(false);
+
+  function setWaiting(value) {
+    waitingForNextRef.current = value;
+    setWaitingForNext(value);
+  }
   // Polling replaces `question` with a fresh object every ~2s even when it's
   // the same pending question — only reset in-progress selections when the
   // question text actually changes, not on every poll tick.
@@ -143,12 +160,13 @@ export default function NewQuotePage() {
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    if (question && !dialog.open) {
+    const shouldBeOpen = Boolean(question) || waitingForNext;
+    if (shouldBeOpen && !dialog.open) {
       dialog.showModal();
-    } else if (!question && dialog.open) {
+    } else if (!shouldBeOpen && dialog.open) {
       dialog.close();
     }
-  }, [question]);
+  }, [question, waitingForNext]);
 
   async function pollStatus() {
     if (!runIdRef.current) return;
@@ -177,12 +195,32 @@ export default function NewQuotePage() {
     if (!response.ok) return; // transient server error — retry next tick
 
     const data = await response.json();
-    setSteps(data.steps ?? []);
-    setQuestion(data.question ?? null);
+    const newSteps = data.steps ?? [];
+    setSteps(newSteps);
+
+    if (data.question) {
+      setQuestion(data.question);
+      setWaiting(false);
+    } else if (waitingForNextRef.current) {
+      // No question yet — inspect only the steps written since we started
+      // waiting to see whether this turn is going to ask another one.
+      const stepsSinceWaiting = newSteps.slice(waitingSinceLenRef.current);
+      const toolCallSteps = stepsSinceWaiting.filter(
+        (s) => s.type === 'tool_call',
+      );
+      const willAskAgain = toolCallSteps.some((s) => s.tool === 'ask_user');
+      const hasFinalAnswer = stepsSinceWaiting.some(
+        (s) => s.type === 'final_answer',
+      );
+      const turnResolvedWithoutQuestion =
+        (toolCallSteps.length > 0 && !willAskAgain) || hasFinalAnswer;
+      if (turnResolvedWithoutQuestion) setWaiting(false);
+    }
 
     if (data.status === 'done') {
       stopPolling();
       setRunning(false);
+      setWaiting(false);
       if (data.quoteId) {
         router.push(`/quote/${data.quoteId}`);
       } else {
@@ -191,10 +229,12 @@ export default function NewQuotePage() {
     } else if (data.status === 'error') {
       stopPolling();
       setRunning(false);
+      setWaiting(false);
       setError(data.error || 'The run failed.');
     } else if (data.status === 'aborted') {
       stopPolling();
       setRunning(false);
+      setWaiting(false);
       setError(data.error || 'This run was stopped.');
     }
   }
@@ -204,6 +244,8 @@ export default function NewQuotePage() {
     setRunning(true);
     setSteps([]);
     setQuestion(null);
+    setWaiting(false);
+    waitingSinceLenRef.current = 0;
     setError(null);
     runIdRef.current = null;
     stopPolling();
@@ -275,7 +317,9 @@ export default function NewQuotePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answer }),
       });
+      waitingSinceLenRef.current = steps.length;
       setQuestion(null);
+      setWaiting(true);
       setAnswerText('');
       setChoiceSelections({});
       setOtherText({});
@@ -295,10 +339,8 @@ export default function NewQuotePage() {
         style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
       >
         <div style={{ color: '#666', fontSize: '0.9rem' }}>
-          Enter a job description and select the trade and tone for the quote.
-          The AI will generate a professional quote document for you to review
-          and send to your customer. If the AI needs more information, it will
-          ask you follow-up questions before generating the quote.
+          Describe the job, pick a trade and tone, and we'll draft a
+          ready-to-send quote — asking a few questions first if needed.
         </div>
         <section style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           <label>
@@ -374,6 +416,9 @@ export default function NewQuotePage() {
           padding: '1.25rem',
         }}
       >
+        {!question && waitingForNext && (
+          <p style={{ color: '#666' }}>Thinking about your answer…</p>
+        )}
         {question && (
           <form
             onSubmit={handleAnswerSubmit}
@@ -442,7 +487,10 @@ export default function NewQuotePage() {
                       placeholder="Please specify"
                       value={otherText[i] || ''}
                       onChange={(e) =>
-                        setOtherText((prev) => ({ ...prev, [i]: e.target.value }))
+                        setOtherText((prev) => ({
+                          ...prev,
+                          [i]: e.target.value,
+                        }))
                       }
                       style={{
                         marginTop: '0.25rem',
@@ -465,7 +513,9 @@ export default function NewQuotePage() {
               value={answerText}
               onChange={(e) => setAnswerText(e.target.value)}
               placeholder={
-                hasChoices ? 'Additional notes or comments (optional)' : undefined
+                hasChoices
+                  ? 'Additional notes or comments (optional)'
+                  : undefined
               }
               autoFocus={!hasChoices}
             />
