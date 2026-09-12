@@ -1,5 +1,6 @@
 import { listGeneratedQuotes } from '../../lib/db.js'
 import DeleteQuoteButton from './delete-quote-button.js'
+import QuoteActions from '../quote-actions.js'
 
 // Always read live from Neon — a build-time static snapshot would never
 // see quotes added later (via the web UI or the CLI, which shares this
@@ -40,15 +41,24 @@ export default async function QuotesPage() {
               }}
             >
               <div>
-                <a href={`/quote/${quote.id}`} style={{ fontWeight: 'bold' }}>
+                <div style={{ fontWeight: 'bold' }}>
                   {quote.job_description.slice(0, 80)}
                   {quote.job_description.length > 80 ? '…' : ''}
-                </a>
+                </div>
                 <div style={{ color: '#666', fontSize: '0.9rem', marginTop: '0.25rem' }}>
                   {formatDate(quote.generated_at)}
                 </div>
               </div>
-              <DeleteQuoteButton id={quote.id} />
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <QuoteActions
+                  content={quote.content}
+                  jobDescription={quote.job_description}
+                  generatedAt={quote.generated_at}
+                  id={quote.id}
+                  downloadLabel="Download"
+                />
+                <DeleteQuoteButton id={quote.id} />
+              </div>
             </li>
           ))}
         </ul>
