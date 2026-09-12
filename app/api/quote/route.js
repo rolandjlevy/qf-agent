@@ -113,8 +113,16 @@ export async function POST(request) {
         return
       }
       const info = await getQuoteRunWatchdogInfo(runId).catch(() => null)
-      if (!info || info.status === 'done' || info.status === 'error' || info.status === 'aborted') {
+      if (!info || info.status === 'done' || info.status === 'error') {
         clearInterval(watchdog)
+        return
+      }
+      if (info.status === 'aborted') {
+        // Set by POST /api/quote/[runId]/cancel — this loop's AbortController
+        // just hasn't heard yet. Abort now so it stops burning API calls and can't reset status back to 'running' via onStep.
+        clearInterval(watchdog)
+        finished = true
+        abortController.abort()
         return
       }
       if (Date.now() - new Date(info.last_polled_at).getTime() > WATCHDOG_STALL_MS) {

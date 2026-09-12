@@ -239,6 +239,42 @@ export default function NewQuotePage() {
     }
   }
 
+  // Returns the page to exactly what a fresh load looks like — used by
+  // handleCancel, which cancels the whole in-flight quote, not just the
+  // dialog it was triggered from.
+  function resetToInitialState() {
+    stopPolling()
+    runIdRef.current = null
+    setTrade(VALID_TRADES[0]);
+    setTone(VALID_TONES[0]);
+    setJobDescription('');
+    setRunning(false);
+    setSteps([]);
+    setQuestion(null);
+    setWaiting(false);
+    waitingSinceLenRef.current = 0;
+    setAnswerText('');
+    setChoiceSelections({});
+    setOtherText({});
+    setSubmittingAnswer(false);
+    setError(null);
+  }
+
+  // Hard stop, not an answer — resets local state immediately rather than
+  // waiting on the server round-trip, since there's nothing left to show.
+  async function handleCancel() {
+    const runId = runIdRef.current;
+    resetToInitialState();
+    if (!runId) return;
+    try {
+      await fetch(`/api/quote/${runId}/cancel`, { method: 'POST' });
+    } catch {
+      // Best-effort — if this fails, the run's own watchdog will still stop
+      // it once it notices the client has stopped polling (see
+      // app/api/quote/route.js).
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setRunning(true);
@@ -407,7 +443,13 @@ export default function NewQuotePage() {
 
       <dialog
         ref={dialogRef}
-        onCancel={(e) => e.preventDefault()}
+        onCancel={(e) => {
+          // Suppress the browser's own close-on-Esc — closing goes through
+          // handleCancel so the run is actually cancelled server-side too,
+          // not just visually dismissed.
+          e.preventDefault();
+          handleCancel();
+        }}
         style={{
           maxWidth: 480,
           width: '90%',
@@ -496,6 +538,9 @@ export default function NewQuotePage() {
                         marginTop: '0.25rem',
                         marginLeft: '1.4rem',
                         display: 'block',
+                        padding: '0.5rem',
+                        fontFamily: 'inherit',
+                        fontSize: 'inherit',
                       }}
                       autoFocus
                     />
@@ -519,13 +564,23 @@ export default function NewQuotePage() {
               }
               autoFocus={!hasChoices}
             />
-            <button
-              style={{ width: 'fit-content', padding: '0.5rem 1rem' }}
-              type="submit"
-              disabled={submittingAnswer}
-            >
-              {submittingAnswer ? 'Answering…' : 'Answer'}
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                style={{ width: 'fit-content', padding: '0.5rem 1rem' }}
+                type="submit"
+                disabled={submittingAnswer}
+              >
+                {submittingAnswer ? 'Answering…' : 'Answer'}
+              </button>
+              <button
+                type="button"
+                style={{ width: 'fit-content', padding: '0.5rem 1rem' }}
+                onClick={handleCancel}
+                disabled={submittingAnswer}
+              >
+                Cancel
+              </button>
+            </div>
           </form>
         )}
       </dialog>
