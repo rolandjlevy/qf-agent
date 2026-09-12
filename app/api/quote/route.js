@@ -113,8 +113,21 @@ export async function POST(request) {
         return
       }
       const info = await getQuoteRunWatchdogInfo(runId).catch(() => null)
-      if (!info || info.status === 'done' || info.status === 'error' || info.status === 'aborted') {
+      if (!info || info.status === 'done' || info.status === 'error') {
         clearInterval(watchdog)
+        return
+      }
+      if (info.status === 'aborted') {
+        // Set by POST /api/quote/[runId]/cancel (user cancelled) rather than
+        // by this watchdog's own stale-client branch below — either way, the
+        // DB row already says 'aborted'; this loop's AbortController just
+        // hasn't heard about it yet. Wire it up so the in-flight agent loop
+        // actually stops instead of continuing to burn Anthropic calls nobody
+        // wants, and so a subsequent onStep write can't reset status back to
+        // 'running' (see updateQuoteRunProgress).
+        clearInterval(watchdog)
+        finished = true
+        abortController.abort()
         return
       }
       if (Date.now() - new Date(info.last_polled_at).getTime() > WATCHDOG_STALL_MS) {

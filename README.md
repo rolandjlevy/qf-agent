@@ -1,5 +1,7 @@
 # QuoteFetch Agent
 
+See [live demo](https://quotefetch-agent.vercel.app) of the project
+
 An agentic tool that turns a rough trade job description into a professional written quote. Claude drives the sequence using tools — it decides whether to ask follow-up questions, which materials to look up, and in what order to draft sections. Available both as a CLI and as a web app, both built on the same agent loop and tools.
 
 ## Setup
@@ -74,11 +76,11 @@ Every quote drives several Claude API calls — the main agent loop plus statele
 - **Prompt caching** (`agent.js`) — the system prompt + tool schemas, and the growing conversation history, are now cached (`cache_control: { type: 'ephemeral' }`) instead of being resent at full price on every turn of the loop. On a real run this took uncached input from a multi-thousand-token resend down to 1–3 tokens per turn from turn 2 onward.
 - **No more round-tripping content the model or host already has** — `identify_materials`/`draft_section` no longer require the model to retype `trade`/`tone`/`job_description`/`materials` on every call (they default from the run's own context, and the model can still override any of them, e.g. after a clarifying question); `save_quote` no longer requires the model to paste back the full text of all 7 already-drafted sections — it reads them from a server-side accumulator instead.
 
-| | Before | After (measured) |
-|---|---|---|
-| Per quote (representative job, no clarifying questions) | ~$0.169 | ~$0.05 |
-| Main-loop turns | ~10 (sequential) | 4 (Claude batches all 7 `draft_section` calls into a single turn) |
-| Main-loop cost | ~$0.143 | ~$0.024 |
+|                                                         | Before           | After (measured)                                                  |
+| ------------------------------------------------------- | ---------------- | ----------------------------------------------------------------- |
+| Per quote (representative job, no clarifying questions) | ~$0.169          | ~$0.05                                                            |
+| Main-loop turns                                         | ~10 (sequential) | 4 (Claude batches all 7 `draft_section` calls into a single turn) |
+| Main-loop cost                                          | ~$0.143          | ~$0.024                                                           |
 
 Figures are for `claude-sonnet-4-6` ($3 / $15 per MTok input/output); actual savings per job vary with job-description length and how many clarifying questions get asked. The sub-LLM calls (`identify_materials`, each `draft_section` generation) are unaffected by this change — they're small, single-shot calls below the cache-minimum prefix size, and now make up the majority of what's left, which is a reasonable floor since that's genuine per-job inference rather than overhead.
 
