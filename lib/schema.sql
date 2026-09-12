@@ -8,6 +8,12 @@ CREATE TABLE IF NOT EXISTS trader_profile (
   updated_at TEXT
 );
 
+-- CREATE TABLE IF NOT EXISTS won't add columns to an already-existing table,
+-- so new trader_profile fields are added via explicit, idempotent ALTERs.
+ALTER TABLE trader_profile ADD COLUMN IF NOT EXISTS vat_registered BOOLEAN DEFAULT false;
+ALTER TABLE trader_profile ADD COLUMN IF NOT EXISTS certifications TEXT;
+ALTER TABLE trader_profile ADD COLUMN IF NOT EXISTS service_area TEXT;
+
 CREATE TABLE IF NOT EXISTS trader_prices (
   id SERIAL PRIMARY KEY,
   material_name TEXT NOT NULL,

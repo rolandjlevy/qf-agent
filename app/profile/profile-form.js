@@ -45,6 +45,21 @@ export default function ProfileForm({ profile }) {
           <textarea style={inputStyle} name="voice_sample" defaultValue={profile?.voice_sample || ''} rows={2} />
         </label>
 
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <input type="checkbox" name="vat_registered" defaultChecked={profile?.vat_registered || false} />
+          VAT registered
+        </label>
+
+        <label style={fieldStyle}>
+          Certifications / registrations (e.g. "Gas Safe Reg 123456, Part P certified")
+          <textarea style={inputStyle} name="certifications" defaultValue={profile?.certifications || ''} rows={2} />
+        </label>
+
+        <label style={fieldStyle}>
+          Service area (e.g. "North London and surrounding areas")
+          <input style={inputStyle} type="text" name="service_area" defaultValue={profile?.service_area || ''} />
+        </label>
+
         <button type="submit" disabled={savePending}>
           {savePending ? 'Saving…' : 'Save profile'}
         </button>

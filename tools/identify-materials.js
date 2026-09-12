@@ -2,15 +2,19 @@ import { createClient, createMessage, getModel } from '../lib/anthropic-client.j
 import { NEVER_DO_RULES } from '../prompts/system.js'
 
 const SKIP_KEYWORDS = ['sundries', 'consumables', 'miscellaneous', 'disposal', 'hire', 'skip hire', 'labour']
+const SKIP_KEYWORD_PATTERNS = SKIP_KEYWORDS.map((kw) => new RegExp(`\\b${kw}\\b`, 'i'))
 
-function isRejectedMaterial(m) {
+export function isRejectedMaterial(m) {
   if (!m || typeof m.name !== 'string') return true
   const name = m.name.trim()
   if (name.length < 4) return true
   const lower = name.toLowerCase()
   if (lower.includes(' or ')) return true
-  if ((name.match(/,/g) || []).length >= 2) return true
-  if (SKIP_KEYWORDS.some((kw) => lower.includes(kw))) return true
+  // A single legitimate product name should never contain a comma — any
+  // comma is a sign of exactly the bundling ("screws, wall plugs") the
+  // prompt's rules forbid.
+  if (name.includes(',')) return true
+  if (SKIP_KEYWORD_PATTERNS.some((re) => re.test(name))) return true
   return false
 }
 
@@ -43,31 +47,50 @@ RULES — follow these exactly:
 - Include quantity where clearly determinable from the job description (e.g. "8" for 8 MCBs)
 - Include a brief notes field only if there is a genuinely useful constraint (e.g. "must be RCBO type")
 - Limit to 4–8 materials — only the key purchasable items, not every small consumable
+- Include a confidence field: "certain" if the job description explicitly names or clearly implies this material is needed, "inferred" if it's a reasonable but non-obligatory addition you're inferring from trade norms
 
 EXAMPLES of the desired style — do not copy these, generate materials specific to the actual job description above:
 
 Job: "Electrician — replace consumer unit, 8-way, with RCBOs"
 {
   "materials": [
-    { "name": "Consumer unit 10-way RCBO", "quantity": "1", "notes": "must be RCBO type per job description" },
-    { "name": "MCB Type B 32A", "quantity": "2", "notes": null },
-    { "name": "Twin and earth cable 2.5mm 6242Y", "quantity": "25m", "notes": null }
+    { "name": "Consumer unit 10-way RCBO", "quantity": "1", "notes": "must be RCBO type per job description", "confidence": "certain" },
+    { "name": "MCB Type B 32A", "quantity": "2", "notes": null, "confidence": "certain" },
+    { "name": "Twin and earth cable 2.5mm 6242Y", "quantity": "25m", "notes": null, "confidence": "inferred" }
   ]
 }
 
 Job: "Plumber — replace bathroom suite, retile floor"
 {
   "materials": [
-    { "name": "Close coupled toilet pan and cistern", "quantity": "1", "notes": "single product as sold — not a bundle" },
-    { "name": "Ceramic floor tile 300x300mm", "quantity": "12", "notes": "adjust to room size" },
-    { "name": "Flexible tap connector 15mm", "quantity": "2", "notes": null }
+    { "name": "Close coupled toilet pan and cistern", "quantity": "1", "notes": "single product as sold — not a bundle", "confidence": "certain" },
+    { "name": "Ceramic floor tile 300x300mm", "quantity": "12", "notes": "adjust to room size", "confidence": "certain" },
+    { "name": "Flexible tap connector 15mm", "quantity": "2", "notes": null, "confidence": "inferred" }
+  ]
+}
+
+Job: "Decorator — freshen up the hallway, it's looking a bit tired" (vague — narrow to specific likely products, don't guess wildly)
+{
+  "materials": [
+    { "name": "Matt emulsion paint 5L", "quantity": "2", "notes": "assumes walls only, standard hallway size", "confidence": "inferred" },
+    { "name": "Masking tape 50mm", "quantity": "1", "notes": null, "confidence": "inferred" },
+    { "name": "Paint roller and tray set", "quantity": "1", "notes": null, "confidence": "inferred" }
+  ]
+}
+
+Job: "Builder — fit new door, needs screws and wall plugs" (never bundle two products on one line, even if the job description does)
+{
+  "materials": [
+    { "name": "Internal fire door 762mm", "quantity": "1", "notes": null, "confidence": "certain" },
+    { "name": "Wood screws 4x40mm", "quantity": "1 box", "notes": null, "confidence": "certain" },
+    { "name": "Wall plugs 6mm", "quantity": "1 box", "notes": null, "confidence": "certain" }
   ]
 }
 
 Return this exact JSON structure:
 {
   "materials": [
-    { "name": "string", "quantity": "string or null", "notes": "string or null" }
+    { "name": "string", "quantity": "string or null", "notes": "string or null", "confidence": "certain or inferred" }
   ]
 }`
 
@@ -76,6 +99,7 @@ Return this exact JSON structure:
     {
       model: getModel(),
       max_tokens: 1024,
+      temperature: 0.2,
       system: NEVER_DO_RULES,
       messages: [{ role: 'user', content: prompt }],
     },
