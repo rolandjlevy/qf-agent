@@ -2,6 +2,7 @@
 
 import { useTransition } from 'react'
 import { deleteQuote } from '../../lib/actions/quotes.js'
+import { buttonStyle } from '../button-style.js'
 
 export default function DeleteQuoteButton({ id }) {
   const [isPending, startTransition] = useTransition()
@@ -12,7 +13,7 @@ export default function DeleteQuoteButton({ id }) {
   }
 
   return (
-    <button onClick={handleClick} disabled={isPending} style={{ color: 'crimson' }}>
+    <button onClick={handleClick} disabled={isPending} style={{ ...buttonStyle, color: 'crimson' }}>
       {isPending ? 'Deleting…' : 'Delete'}
     </button>
   )
