@@ -260,11 +260,8 @@ export default function NewQuotePage() {
     setError(null);
   }
 
-  // Cancelling is a hard stop, not an answer — reachable from any open
-  // dialog state (an active question or the "thinking" gap between
-  // questions). Resets local state immediately rather than waiting on the
-  // server round-trip, since there's nothing left for this run to show the
-  // user once they've backed out of it.
+  // Hard stop, not an answer — resets local state immediately rather than
+  // waiting on the server round-trip, since there's nothing left to show.
   async function handleCancel() {
     const runId = runIdRef.current;
     resetToInitialState();
