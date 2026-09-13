@@ -17,7 +17,7 @@ npm start -- --trade=electrician --tone=professional "Replace consumer unit, 8 M
 Web UI:
 ```bash
 npm run db:migrate  # one-off: apply lib/schema.sql to DATABASE_URL, only needed once per database
-npm run web:dev      # http://localhost:3000
+npm run dev          # http://localhost:3000
 npm run web:build    # production build (also runs as Vercel's build command, see package.json's vercel-build)
 npm run web:start
 ```
@@ -46,40 +46,54 @@ qf.js / app/api/quote/route.js  →  runAgent()  →  Claude API  →  tool call
 
 `lib/anthropic-client.js` centralizes all Anthropic API access — `agent.js`, `tools/identify-materials.js`, and `tools/draft-section.js` all call through it instead of constructing their own client. It provides a shared client (with a request timeout), retry with exponential backoff on `429`/`5xx`/network errors (immediate fail on `401`/`403` since retrying a bad key never helps), and detection of `stop_reason === 'max_tokens'` (thrown as `TruncatedResponseError` rather than silently treated as a complete response).
 
-**The five tools:**
+**The four tools:**
 
 | Tool | Implementation | Notes |
 |---|---|---|
 | `ask_user` | transport supplied via `toolContext.askUser` | `tools/ask-user.js` has no `inquirer` import — the CLI (`qf.js`) supplies an inquirer-backed callback, the web UI (`app/api/quote/route.js`) supplies an SSE-question/wait-for-answer callback (`lib/quote-runs.js`). This split exists because a static `inquirer` import anywhere reachable from the API route's module graph breaks Vercel's build bundling |
 | `identify_materials` | sub-LLM call | Returns `{ materials: [{name, quantity, notes}] }`; results are post-filtered to drop entries that are missing/non-string, too short, contain "or"/multiple commas, or match a skip-keyword list — a code-level backstop for the never-do rules below |
-| `lookup_price` | trader history first, then fuzzy match on `data/sample-prices.json` | See "Trader profile & pricing" below. Returns `found`, `cheapest`, `cheapest_supplier`, `verified`, `source`; returns `found: false` gracefully for a non-string/empty `material_name` or a matched entry with no prices, instead of throwing |
-| `draft_section` | sub-LLM call per section | Seven sections: introduction, scope, materials, assumptions, exclusions, next_steps, disclaimers |
+| `draft_section` | sub-LLM call per section | Seven sections: introduction, scope, materials, assumptions, exclusions, next_steps, disclaimers. Pricing is never part of this loop — the materials section always renders every item as `[Price TBC]`; see "Pricing" below for how a trader attaches real prices afterwards |
 | `save_quote` | assembles + best-effort `fs.writeFileSync` | Assembles sections in fixed order; returns the assembled `content` plus `file_path`/`filename` (both `null` when the local write didn't happen). The local write to `output/` is wrapped in try/catch (non-fatal) since Vercel's filesystem is read-only outside `/tmp` — `content` is the durable record, persisted to `generated_quotes.content` in Neon by the caller. If a same-day local file for the same trade/job already exists, appends `-2`, `-3`, ... rather than overwriting it |
 
-**Multiple tool calls per turn:** Claude may return several `tool_use` blocks in a single response (e.g. batching all `lookup_price` calls). The loop in `agent.js` handles this correctly — it processes all blocks and returns all `tool_result` entries in one message. If you modify the loop, preserve this behaviour or the API will return a 400.
+There used to be a fifth tool, `lookup_price`, called inline during drafting from a static sample-price catalog. It was removed: pricing now happens entirely outside the agent loop, after a quote is saved — see "Pricing" below.
 
-## Trader profile & pricing (Phase 2a)
+**Multiple tool calls per turn:** Claude may return several `tool_use` blocks in a single response (e.g. batching all seven `draft_section` calls). The loop in `agent.js` handles this correctly — it processes all blocks and returns all `tool_result` entries in one message. If you modify the loop, preserve this behaviour or the API will return a 400.
+
+## Trader profile
 
 Trader identity (business name, contact details, hourly rate, standard T&Cs, voice sample) is a single-row Postgres table (`trader_profile`) via `lib/db.js`. Loaded once per run — in `qf.js` for the CLI, in `app/api/quote/route.js` for the web UI — and passed through `runAgent`'s `toolContext`, never re-read from the DB inside an individual tool.
 
-`lib/trader-context.js`'s `formatTraderContext(profile)` turns that row into a prompt-ready block, appended to `SYSTEM_PROMPT` and passed to `draft_section`'s sub-LLM calls; `save_quote` uses it to fill in the `[BUSINESS NAME]`/`[CONTACT DETAILS]` placeholders automatically. An empty profile degrades gracefully back to Phase 1 behaviour (placeholders, sample-DB prices only).
+`lib/trader-context.js`'s `formatTraderContext(profile)` turns that row into a prompt-ready block, appended to `SYSTEM_PROMPT` and passed to `draft_section`'s sub-LLM calls; `save_quote` uses it to fill in the `[BUSINESS NAME]`/`[CONTACT DETAILS]` placeholders automatically. An empty profile degrades gracefully — the same placeholders and `[Price TBC]` materials, just with no business details filled in.
 
-`lookup_price` checks the trader's own `trader_prices` table first (fuzzy-matched with the same `scoreMatch`/`MATCH_THRESHOLD` logic as the sample DB — see `lib/fuzzy-match.js`). A hit there is `source: 'trader_history'` and always `verified: true`, since it's a price the trader actually paid. Only when there's no match does it fall back to `data/sample-prices.json`.
+There used to be a second half to this feature: traders importing their own past quotes (CLI `node qf.js import <path>`, a `/profile` upload form, `lib/extract-quote.js` sub-LLM extraction) to build up a `trader_prices` price-history table that `lookup_price` would check first. That whole flow has been removed — there is no `import` CLI command and no upload form today. `trader_prices` and `historical_quotes` still exist in `lib/schema.sql` but nothing in the app reads or writes them any more.
 
-Traders populate `trader_prices` by importing their own past quotes — two entry points, same underlying logic:
-- CLI: `node qf.js import <path>` (`.md`/`.txt`/`.pdf`/`.docx`)
-- Web: the `/profile` page's upload form (`lib/actions/profile.js`'s `importQuote` Server Action), accepting multiple files in one submission
+## Pricing (Phase 3a — live price search)
 
-Both call the same `lib/extract-quote.js` sub-LLM extraction (same never-do rules, no guessed prices) and the same `lib/db.js` writes. They differ only in where the uploaded file physically lives: a real, permanent path on the trader's own machine for the CLI; a `/tmp` file for the lifetime of that one request on the web, since Vercel's filesystem is otherwise read-only. For web uploads, `historical_quotes.file_path` is therefore display-only (the original filename) rather than a working path — `extracted_text` and the derived `trader_prices` rows are the actual durable record.
+Pricing is deliberately **not** part of the agent loop. `draft_section` always renders every materials line as `[Price TBC]`, and the drafted quote text is never edited afterwards. Instead, once a quote is saved, the trader looks up real prices per material line from the quote-view page — a separate, on-demand feature that layers prices on top of the static quote rather than generating them.
+
+**The search itself** (`app/materials-pricing.js`'s `MaterialsPricing` component, rendered on `/quote/[id]`): each material line gets a "Find prices" button that opens a modal (`PricePickerModal`) pre-filled with the material name. It calls `POST /api/pricing/search`, which goes through `lib/pricing/index.js`'s `getPriceSearchProvider()`:
+- Picks a provider by the `PRICE_PROVIDER` env var — `serper` (default, `lib/pricing/providers/SerperPriceSearchProvider.js`, Google Shopping via Serper's API) or `dataforseo` (`DataForSEOPriceSearchProvider.js` — a documented skeleton only, not wired up; `PRICE_PROVIDER=dataforseo` throws `NOT_IMPLEMENTED` on purpose rather than silently doing nothing).
+- With no `SERPER_API_KEY` set (or `SERPER_MOCK_MODE=true`), `SerperPriceSearchProvider` returns realistic UK trade-material mock data instead of calling the real API — this is also the local-dev default, so `npm run dev` works out of the box with no key.
+- Wraps whichever provider in `createCachedProvider` (`lib/pricing/CachedPriceSearchProvider.js`), backed by `DbCacheStore` (`lib/pricing/cache/DbCacheStore.js`) against the `price_search_cache` Postgres table. Cache key is a hash of the normalized query + country + currency + maxResults + merchant filter; TTL is `PRICE_CACHE_TTL_SECONDS` (default 48h). Errors and zero-result responses are never cached — a transient failure or an empty result today shouldn't be memoized as if it were a real answer.
+
+**Merchant filtering:** `lib/pricing/merchant-category.js`'s `merchantCategory()` buckets each result's free-text merchant name (e.g. Serper's `"Amazon.co.uk - Amazon.co.uk-Seller"`) into one of `MERCHANT_CATEGORIES` (Screwfix, Toolstation, B&Q, Amazon, Other) by substring match, keyed off a single `MERCHANT_NAME_PATTERNS` list so the category names and their matching substrings can't drift apart. Shared by the server (the route's input validation, the provider's merchant filter) and the client (the modal's filter buttons), so both sides can never bucket the same merchant differently. Clicking a merchant filter re-queries the API with `options.merchant` set — a server round-trip, not a client-side filter of the already-fetched page, because a mixed page of `maxResults` results could easily contain far fewer than 10 from any one merchant even when 10+ exist for it; the provider over-fetches and filters server-side before applying `maxResults` so a merchant filter still returns a full page when one exists.
+
+**Sorting**, by contrast, *is* a pure client-side re-sort of the already-fetched page (`sortProducts` in `app/materials-pricing.js`, keyed by a `SORT_COMPARATORS` lookup) — price and rating are already on every result, so reordering them needs no extra fetch, unlike the merchant filter. Options: best match (provider order, the default), price low→high/high→low, rating high→low (unrated items always sort last).
+
+**Persisting a choice:** clicking a product calls `selectLinePrice` (`lib/actions/quote-prices.js`, a Server Action), which upserts into `quote_line_prices` — one row per `(quote_id, material_name)`, storing the chosen `ProductResult` as JSON. This is an overlay the quote-view page joins in by material name to show an inline price badge; it is deliberately separate from `generated_quotes.content` and `tool_call_log`, which stay exactly as originally drafted. Re-selecting a material's price upserts the same row rather than accumulating history.
+
+`/api/pricing/search` also does its own input validation (query length/shape, `options.merchant` against `MERCHANT_CATEGORIES`), a best-effort in-memory per-IP rate limit (soft — see the route's own comment on why this can't be a hard guarantee on Vercel), and maps `PriceSearchError` codes (`RATE_LIMITED`, `NO_RESULTS`, `PROVIDER_DOWN`, `INVALID_QUERY`, `NOT_IMPLEMENTED`, `UNKNOWN`) to HTTP status codes rather than leaking raw provider error messages to the client.
+
+There used to be an earlier pricing system (`data/sample-prices.json`, `lib/fuzzy-match.js`, a Playwright scraper run via GitHub Actions into a `scraped_prices` table) called inline from the agent loop's `lookup_price` tool. All of it has been removed — the JSON catalog and fuzzy-match module are gone, `scripts/scrape-prices.mjs` and `.github/workflows/scrape-prices.yml` don't exist, and `scraped_prices` still exists in `lib/schema.sql` but nothing queries it any more.
 
 ## Web UI (Phase 2b)
 
 Next.js 15 (App Router), reusing `agent.js` and `tools/index.js` directly. `/quotes`, `/quote/[id]`, and `/profile` read `lib/db.js` directly from a Server Component or Server Action — deliberately **no** separate JSON API for these (an earlier version of this had one; it was dropped as an unused, redundant layer once the direct-read pages existed). `/quote/new` + `app/api/quote/route.js` is the one place a real HTTP layer is unavoidable.
 
 Pages:
-- `/profile` — trader identity form + past-quote upload
+- `/profile` — trader identity form
 - `/quote/new` — job description form; polls for live progress
-- `/quote/[id]` — view a saved quote
+- `/quote/[id]` — view a saved quote, including the per-material "Find prices" UI (see "Pricing" above)
 - `/quotes` — list of past quotes
 
 `/quotes`, `/quote/[id]`, and `/profile` set `export const dynamic = 'force-dynamic'`: without it, Next statically prerenders them at build time, which would freeze their data and never reflect a later update — including one made through the CLI, which shares this same Neon database but has no way to trigger Next's cache revalidation from outside a Server Action.
@@ -96,23 +110,11 @@ Two protections in `app/api/quote/route.js`, each fixing a real production incid
 
 ## Error handling
 
-`tools/index.js`'s `executeTool` is the single choke point for all five tools: it validates required fields per tool before dispatch, then wraps the call in try/catch. A validation failure or caught exception becomes `{ error: true, message }`, returned as a normal tool result so Claude sees a recoverable failure and can adapt (skip an item, ask the user, retry) instead of the whole run crashing. The one exception is `401`/`403` auth errors, which propagate up (to `qf.js`'s top-level handler in the CLI, to the `quote_runs` row's `error` state in the web route) since no amount of retrying or model adaptation fixes a bad API key.
+`tools/index.js`'s `executeTool` is the single choke point for all four tools: it validates required fields per tool before dispatch, then wraps the call in try/catch. A validation failure or caught exception becomes `{ error: true, message }`, returned as a normal tool result so Claude sees a recoverable failure and can adapt (skip an item, ask the user, retry) instead of the whole run crashing. The one exception is `401`/`403` auth errors, which propagate up (to `qf.js`'s top-level handler in the CLI, to the `quote_runs` row's `error` state in the web route) since no amount of retrying or model adaptation fixes a bad API key.
 
 `agent.js`'s `onStep` calls are also wrapped defensively — a bug in the caller's display/formatting code (CLI console output, or the web route's progress-write callback) logs a warning instead of aborting the agent loop mid-turn.
 
 CLI input is validated up front too: `qf.js`'s `--trade` and `--tone` options use yargs `choices` against `VALID_TRADES`/`VALID_TONES` (in `lib/constants.js`, shared with the web UI), so an invalid value fails fast instead of silently flowing into every prompt. The web route validates the same way against a 400 response.
-
-## Prices database
-
-`data/sample-prices.json` — 50 entries, the catalog's canonical `name`/`aliases`/`trade` taxonomy. Imported as a static JSON module (`import db from '../data/sample-prices.json' with { type: 'json' }` in `tools/lookup-price.js`), not read via `fs` at runtime, so it's safely bundled into the Vercel deployment. It remains the single source of truth for *which materials exist and what they're called* — Phase 3 (below) changed where their *prices* come from, not this catalog.
-
-`lookup_price` uses word-overlap fuzzy matching with a score threshold of 40 (see `lib/fuzzy-match.js`; `MATCH_THRESHOLD`) to find the canonical material, checking three sources in order: the trader's own `trader_prices` (see above), then the scraped-price cache (below), then `sample-prices.json`'s own `prices` array as the final placeholder fallback (`verified: false`, `source: 'sample_db'`). The `verified` flag flows through to the agent's system prompt — unverified prices get a note added to the quote automatically.
-
-**Scraped prices (Phase 3):** `scripts/scrape-prices.mjs` populates a `scraped_prices` Postgres table (see `lib/schema.sql`) with real, current prices from Screwfix/Toolstation/B&Q, run out of band via GitHub Actions (`.github/workflows/scrape-prices.yml`, nightly + manual `workflow_dispatch`) — never inside the live agent request path, since Playwright doesn't fit Vercel's serverless functions and `app/api/quote/route.js` already fights a tight `maxDuration` budget (see below). `lookup_price` reads this cache (`source: 'scraped'`, `verified: true`) ahead of the static JSON fallback, ignoring rows older than `SCRAPED_PRICE_MAX_AGE_DAYS` (14 days) so a stalled scrape schedule degrades to the honest placeholder rather than serving an increasingly stale "verified" price.
-
-Each supplier gets its own module in `scripts/scrapers/` (`screwfix.mjs`, `toolstation.mjs`, `bq.mjs`), each returning several top search-result candidates rather than trusting the first one — confirmed necessary in testing, where a literal top result mismatched the target spec (e.g. searching "MCB Type B 6A" ranked a Type A product first; "Consumer unit 10-way RCBO" ranked an 8-way unit first). `scrape-prices.mjs` scores every candidate against the canonical material's `name`/`aliases` with the same `scoreMatch`/`MATCH_THRESHOLD` used everywhere else, and only caches the best match if it clears the threshold — a low-confidence result is skipped, not cached as if verified. Toolstation additionally fronts a Cloudflare JS challenge ("Just a moment…") that a real headless Chromium session clears on its own with an 8s wait (vs. 3s for the other two) — no stealth plugin or proxy needed; confirmed via manual probing that plain Playwright from a datacenter IP isn't blocked by any of the three suppliers.
-
-To update the catalog itself (add/remove a material, change aliases): edit `sample-prices.json` directly, then either wait for the next scheduled scrape or trigger `.github/workflows/scrape-prices.yml` manually to pick it up immediately. The top of the array is sorted priority-first (consumer units, MCBs, copper pipe, emulsion paint, plasterboard).
 
 ## Quote output
 
@@ -124,7 +126,7 @@ Section order: `[BUSINESS NAME]` · `[CONTACT DETAILS]` · Date · introduction 
 
 These are safety guardrails, not style preferences:
 
-- Claude must never invent or estimate material prices — only prices returned by `lookup_price` may appear in a quote
+- Claude must never invent or estimate material prices — `draft_section` always renders materials as `[Price TBC]`; the only real prices that can appear come from a trader's own explicit selection in the "Find prices" UI (see "Pricing" above), stored separately in `quote_line_prices` and never written into the drafted quote text itself
 - No regulatory compliance claims (Part P, Gas Safe, BS 7671, etc.)
 - No markdown tables anywhere in quote output
 - Materials lines must be single specific products — no "X or Y" alternatives, no bundling two items on one line
@@ -135,13 +137,15 @@ These rules are enforced two ways, not just by prompt instruction: `NEVER_DO_RUL
 ## Environment
 
 ```
-ANTHROPIC_API_KEY=    # required
-CLAUDE_MODEL=         # optional, defaults to claude-sonnet-4-6
-REQUEST_TIMEOUT_MS=   # optional, defaults to 60000; Anthropic client request timeout (lib/anthropic-client.js)
-DATABASE_URL=         # required; Neon/Postgres connection string, used by lib/db.js and scripts/migrate.mjs
+ANTHROPIC_API_KEY=        # required
+CLAUDE_MODEL=             # optional, defaults to claude-sonnet-4-6
+REQUEST_TIMEOUT_MS=       # optional, defaults to 60000; Anthropic client request timeout (lib/anthropic-client.js)
+DATABASE_URL=             # required; Neon/Postgres connection string, used by lib/db.js and scripts/migrate.mjs
+SERPER_API_KEY=           # optional; Google Shopping price search (see "Pricing" above). Unset = mock data
+SERPER_MOCK_MODE=         # optional, defaults to unset/false; forces mock price data even with a real key set
+PRICE_PROVIDER=           # optional, defaults to 'serper'; 'dataforseo' is an unimplemented skeleton
+PRICE_CACHE_TTL_SECONDS=  # optional, defaults to 172800 (48h); price_search_cache row lifetime
 ```
-
-The same `DATABASE_URL` value must also be set as a GitHub Actions repository secret (Settings → Secrets and variables → Actions) for `.github/workflows/scrape-prices.yml` to write to `scraped_prices` — it isn't read from `.env` in that context.
 
 `qf.js` treats an empty-string `ANTHROPIC_API_KEY`/`CLAUDE_MODEL` as unset before calling `dotenv.config()` — this devcontainer's `remoteEnv` pre-sets both to `""` when the host has no value, which would otherwise make `dotenv` skip loading the real value from `.env` (its default `override: false` treats an existing-but-empty var as "already set"). This still means a real operator/CI-supplied value is never silently overridden by a stray local `.env`. `scripts/web-env.mjs` applies the same clearing (plus `DATABASE_URL`) before spawning `next`, since Next's own `.env` loader has the identical behaviour.
 
@@ -149,15 +153,16 @@ The same `DATABASE_URL` value must also be set as a GitHub Actions repository se
 
 ## Testing
 
-`agent.test.js` (vitest) tests `agent.js`'s loop directly, mocking `lib/anthropic-client.js` — architecture-agnostic, so it applies regardless of how the CLI or web UI evolve. The `.claude/skills/test-impact` skill (`npm run test:impact`) diffs the working tree and reports which tests a change touches, or flags a change with no coverage at all — use it before wrapping up a feature. See its `SKILL.md` for the full workflow.
+`agent.test.js` (vitest) tests `agent.js`'s loop directly, mocking `lib/anthropic-client.js` — architecture-agnostic, so it applies regardless of how the CLI or web UI evolve. `lib/pricing/` has its own suite (`index.test.js`, `CachedPriceSearchProvider.test.js`, `providers/SerperPriceSearchProvider.test.js`, `cache/DbCacheStore.test.js`) covering provider selection, caching behaviour, and Serper response mapping/mock mode. `lib/quote-materials.test.js` and `tools/{draft-section,identify-materials}.test.js` cover their respective modules. The `.claude/skills/test-impact` skill (`npm run test:impact`) diffs the working tree and reports which tests a change touches, or flags a change with no coverage at all — use it before wrapping up a feature. See its `SKILL.md` for the full workflow.
 
 ## Known caveats
 
-- No test coverage for `tools/*.js`, `lib/db.js`, the CLI's interactive commands, or the `app/` web UI — deferred deliberately (originally per the Phase 2 brief, `prompts/05_QF_PHASE_2.md`), and a prior, more extensive suite covering some of this was dropped in the `main` merge since it tested a parallel JSON API that no longer exists. `agent.test.js` is the only test file today.
+- No test coverage for `lib/db.js`, the CLI's interactive commands, or the `app/` web UI's own components (`app/materials-pricing.js` included) — deferred deliberately (originally per the Phase 2 brief, `prompts/05_QF_PHASE_2.md`), and a prior, more extensive suite covering some of this was dropped in the `main` merge since it tested a parallel JSON API that no longer exists. `tools/*.js` and `lib/pricing/**` are the exceptions — both do have coverage now (see "Testing" above).
+- `trader_prices`, `historical_quotes`, and `scraped_prices` are all still defined in `lib/schema.sql` but no longer read or written anywhere in the app — leftover schema from removed features (see "Trader profile" and "Pricing" above). Left in place rather than dropped, since a migration to drop columns/tables in a one-shot, no-rollback `db:migrate` script is a separate decision from a docs cleanup.
 - `next@15.5.25` pulls in a `postcss` version with published XSS/path-traversal advisories (`npm audit`), fixed only in `next@16` — a breaking bump deliberately not taken here since 15 is the version already proven to deploy correctly.
 
 ## Phase roadmap (for context)
 
-- **Phase 2** — Neon Postgres persistence (trader profile, trader prices, quote history) + Next.js web UI, reusing `agent.js`/`tools/` as-is
-- **Phase 3** (this) — Real Playwright scraper (`scripts/scrape-prices.mjs`, scheduled via GitHub Actions) replaces `tools/lookup-price.js`'s sample-DB fallback with a live-scraped Postgres cache (same tool interface, different price source — see "Prices database" above)
+- **Phase 2** — Neon Postgres persistence (trader profile, quote history) + Next.js web UI, reusing `agent.js`/`tools/` as-is
+- **Phase 3a** (this) — Live price search: a trader looks up real, current prices per material line via Google Shopping (Serper), triggered on demand from the quote-view page rather than during drafting — see "Pricing" above. Superseded an earlier, fully removed Phase 3 attempt (a Playwright scraper feeding an agent-side `lookup_price` tool) and the Phase 2a trader-price-history import feature, neither of which survived into this build
 - **Phase 4** — Optional auth/multi-tenant support (Phase 2 is deliberately single-tenant — one trader per deployment, no login)
