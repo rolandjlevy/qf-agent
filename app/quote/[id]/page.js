@@ -12,8 +12,8 @@ export const dynamic = 'force-dynamic';
 // writes into quote.content — used to split the plain-text quote into
 // collapsible sections without needing a structured representation in the DB.
 const SECTION_HEADINGS = [
-  'SCOPE OF WORK',
   'MATERIALS & EQUIPMENT',
+  'SCOPE OF WORK',
   'ASSUMPTIONS',
   'EXCLUSIONS',
   'NEXT STEPS',
@@ -58,6 +58,70 @@ function stripMaterialBullets(body) {
     .join('\n')
     .replace(/\n{2,}/g, '\n')
     .trim();
+}
+
+function formatLinePrice(product) {
+  const amount = new Intl.NumberFormat('en-GB', { style: 'currency', currency: product.currency || 'GBP' }).format(product.price);
+  return `${amount} (${product.merchant})`;
+}
+
+// Mirrors buildMaterialLines()'s bullet shape in tools/draft-section.js (the
+// same shape draft_section itself was instructed to produce), but with the
+// real selected price substituted for "[Price TBC]" and the trader's
+// quantity override applied — this is what Copy/Download should actually
+// contain, not the frozen-at-drafting-time text.
+function formatMaterialLine(material, override) {
+  const quantity = override?.quantity ?? material.quantity;
+  const qty = quantity ? ` (qty: ${quantity})` : '';
+  const notes = material.notes ? ` — ${material.notes}` : '';
+  const price = override?.product ? ` — ${formatLinePrice(override.product)}` : ' — [Price TBC]';
+  return `• ${material.name}${qty}${notes}${price}`;
+}
+
+// Replaces just the bullet lines inside the drafted MATERIALS & EQUIPMENT
+// body with freshly built ones (real prices, edited quantities, 'deleted'/
+// 'saved_for_later' lines omitted entirely), keeping whatever intro/closing
+// prose the sub-LLM wrote around them in place. Falls back to the untouched
+// body if it doesn't contain the expected bullet-list shape (e.g. a
+// hand-edited or unusually-drafted quote) rather than guessing at a rewrite.
+function rebuildMaterialsBody(body, activeMaterials, overridesByName) {
+  const lines = body.split('\n');
+  const isBullet = (line) => line.trim().startsWith('•');
+  const firstBulletIndex = lines.findIndex(isBullet);
+  if (firstBulletIndex === -1) return body;
+  let lastBulletIndex = firstBulletIndex;
+  for (let i = lines.length - 1; i > lastBulletIndex; i--) {
+    if (isBullet(lines[i])) {
+      lastBulletIndex = i;
+      break;
+    }
+  }
+
+  const before = lines.slice(0, firstBulletIndex);
+  const after = lines.slice(lastBulletIndex + 1);
+  const newBullets = activeMaterials.map((m) => formatMaterialLine(m, overridesByName[m.name]));
+
+  return [...before, ...newBullets, ...after].join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+// Rebuilds the full plain-text quote for Copy/Download from the parsed
+// preamble/sections, substituting a freshly built MATERIALS & EQUIPMENT body
+// (see rebuildMaterialsBody) in place of the one frozen at drafting time.
+// Mirrors tools/save-quote.js's assembleQuote() join style exactly, so a
+// quote with no line overrides at all produces byte-identical output to the
+// original quote.content.
+function buildDisplayContent(quote, preamble, sections, materials, overridesByName) {
+  if (!sections.length || !materials.length) return quote.content;
+
+  const activeMaterials = materials.filter((m) => (overridesByName[m.name]?.status ?? 'active') === 'active');
+  const rebuiltSections = sections.map((section) =>
+    section.heading === 'MATERIALS & EQUIPMENT'
+      ? { ...section, body: rebuildMaterialsBody(section.body, activeMaterials, overridesByName) }
+      : section,
+  );
+
+  const body = rebuiltSections.map((s) => `${s.heading}\n${s.body}`).join('\n\n');
+  return preamble ? `${preamble}\n\n${body}` : body;
 }
 
 function formatDate(iso) {
@@ -108,7 +172,7 @@ export default async function QuotePage({ params }) {
   const quote = await getGeneratedQuoteById(idNum);
   if (!quote) notFound();
 
-  const { preamble, sections } = quote.content ? parseQuoteSections(quote.content) : {};
+  const { preamble = '', sections = [] } = quote.content ? parseQuoteSections(quote.content) : {};
 
   let toolCallLog = [];
   try {
@@ -119,19 +183,21 @@ export default async function QuotePage({ params }) {
   const materials = extractMaterialsFromToolCallLog(toolCallLog);
 
   const priceRows = materials.length ? await getQuoteLinePrices(idNum) : [];
-  const initialSelections = Object.fromEntries(
-    priceRows
-      .map((row) => {
-        try {
-          return [row.material_name, JSON.parse(row.product)];
-        } catch {
-          // A malformed row degrades to "no price selected" for that one
-          // line rather than throwing and 500ing the whole page.
-          return null;
-        }
-      })
-      .filter(Boolean),
+  const overridesByName = Object.fromEntries(
+    priceRows.map((row) => {
+      let product = null;
+      try {
+        product = row.product ? JSON.parse(row.product) : null;
+      } catch {
+        // A malformed row degrades to "no price selected" for that one line
+        // rather than throwing and 500ing the whole page.
+        product = null;
+      }
+      return [row.material_name, { product, quantity: row.quantity_override, status: row.status }];
+    }),
   );
+
+  const displayContent = quote.content ? buildDisplayContent(quote, preamble, sections, materials, overridesByName) : quote.content;
 
   return (
     <div>
@@ -143,7 +209,7 @@ export default async function QuotePage({ params }) {
         <>
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
             <QuoteActions
-              content={quote.content}
+              content={displayContent}
               jobDescription={quote.job_description}
               generatedAt={quote.generated_at}
             />
@@ -163,7 +229,7 @@ export default async function QuotePage({ params }) {
               </pre>
               {section.heading === 'MATERIALS & EQUIPMENT' && materials.length > 0 && (
                 <div style={{ padding: '0 1.25rem 1rem' }}>
-                  <MaterialsPricing quoteId={idNum} materials={materials} initialSelections={initialSelections} />
+                  <MaterialsPricing quoteId={idNum} materials={materials} overridesByName={overridesByName} />
                 </div>
               )}
             </details>

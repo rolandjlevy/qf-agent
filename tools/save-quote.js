@@ -27,6 +27,21 @@ function slugify(str) {
     .slice(0, 30)
 }
 
+// Business name, contact details, and date on one pipe-separated line
+// instead of three stacked lines — contact_details itself can be multi-line
+// (the profile form's field is "phone / email / address"), so each of its
+// lines becomes its own pipe segment too rather than breaking the "one
+// line" result.
+function formatHeaderLine(traderProfile) {
+  const businessName = traderProfile?.business_name || '[YOUR BUSINESS NAME]'
+  const contactDetails = traderProfile?.contact_details || '[YOUR CONTACT DETAILS]'
+  return [businessName, contactDetails, `Date: ${formatDate()}`]
+    .flatMap((part) => part.split('\n'))
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(' | ')
+}
+
 function assembleQuote(sections, traderProfile) {
   const s = (key, fallback = '') => {
     // Accept both snake_case (tool API) and camelCase (KB format)
@@ -37,18 +52,15 @@ function assembleQuote(sections, traderProfile) {
   const customerLine = sections.customer_name ? `Dear ${sections.customer_name},\n\n` : ''
 
   const parts = [
-    traderProfile?.business_name || '[YOUR BUSINESS NAME]',
-    traderProfile?.contact_details || '[YOUR CONTACT DETAILS]',
-    '',
-    `Date: ${formatDate()}`,
+    formatHeaderLine(traderProfile),
     '',
     customerLine + s('introduction'),
     '',
-    'SCOPE OF WORK',
-    s('scope'),
-    '',
     'MATERIALS & EQUIPMENT',
     s('materials'),
+    '',
+    'SCOPE OF WORK',
+    s('scope'),
     '',
     'ASSUMPTIONS',
     s('assumptions'),
