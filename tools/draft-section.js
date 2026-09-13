@@ -158,7 +158,8 @@ RULES:
 - Do NOT claim compliance with any specific regulation (Part P, Gas Safe, BS 7671, etc.), even if the trader profile lists real certifications — state those verbatim if relevant, never imply this specific job has been assessed against them.
 - Do NOT guarantee outcomes or results.
 - Around 80–100 words.
-- Return plain prose (not bullets) — clear, professional language.`,
+- Return plain prose (not bullets) — clear, professional language.
+- No markdown, no headings — the section heading is added separately.`,
 }
 
 function buildMaterialLines(materials) {

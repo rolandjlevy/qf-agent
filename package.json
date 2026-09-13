@@ -8,7 +8,7 @@
     "start": "node qf.js",
     "db:migrate": "node scripts/migrate.mjs",
     "vercel-build": "next build",
-    "web:dev": "node scripts/web-env.mjs dev",
+    "dev": "node scripts/web-env.mjs dev",
     "web:build": "node scripts/web-env.mjs build",
     "web:start": "node scripts/web-env.mjs start",
     "test": "vitest run",

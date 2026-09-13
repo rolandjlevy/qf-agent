@@ -32,13 +32,13 @@ node qf.js profile               # set your business name, contact details, rate
 ## Web usage
 
 ```bash
-npm run web:dev     # http://localhost:3000
+npm run dev         # http://localhost:3000
 ```
 
 - `/profile` — set your business details (name, contact, rate, T&Cs)
 - `/quote/new` — describe a job, watch the agent work in real time, answer any clarifying questions it asks
 - `/quotes` — browse quotes you've generated
-- `/quote/[id]` — view one saved quote
+- `/quote/[id]` — view one saved quote, and look up real prices per material line (see "Prices" below)
 
 Not a separate implementation — it reuses the exact same agent loop and tools as the CLI above. `npm run web:build`/`npm run web:start` for a production build. Deploys to Vercel as-is (`npm run vercel-build` runs `next build`); set `ANTHROPIC_API_KEY` and `DATABASE_URL` as environment variables there too.
 
@@ -67,7 +67,9 @@ For vague jobs (e.g. "Sort out my boiler") the agent will ask up to four targete
 
 ## Prices
 
-Pricing is decommissioned in this build. The materials section of every quote lists each identified material with `[Price TBC]` — no price lookup, scraping, or price history is used.
+The agent itself never prices anything — every material line in a generated quote reads `[Price TBC]`, and that text is never edited afterwards. Instead, from a saved quote's page (`/quote/[id]`) you can click "Find prices" on any material to search live Google Shopping results (via [Serper](https://serper.dev)), filter by merchant, sort by price or rating, and pick a product — that choice is stored alongside the quote and shown as a price badge next to the line.
+
+No `SERPER_API_KEY`? The search falls back to realistic mock data automatically, so this works out of the box in local dev with no extra setup. Add a real key (see `.env.example`) to search live.
 
 ## Token cost
 
@@ -107,9 +109,14 @@ lib/
   trader-context.js      — formats the trader profile for the system prompt
   quote-runs.js           — the web UI's ask_user bridge (see app/api/quote/route.js)
   actions/profile.js       — web UI Server Actions (save profile)
+  actions/quote-prices.js   — Server Action that persists a trader's chosen price for one material line
+  pricing/                — live price search: provider abstraction (Serper/Google Shopping),
+                             Postgres-backed cache, and merchant categorization — see "Prices" above
 commands/
   profile.js            — CLI: view/edit your trader profile
 app/                    — Next.js App Router web UI (see CLAUDE.md for the full page/route list)
+  materials-pricing.js   — the "Find prices" modal on /quote/[id]: search, merchant filter, sort
+  api/pricing/search/     — Google Shopping search endpoint backing that modal
 scripts/
   migrate.mjs            — one-off Neon schema migration
   web-env.mjs             — devcontainer env workaround wrapping `next`
@@ -120,5 +127,5 @@ agent.test.js           — vitest coverage of agent.js's core loop
 
 - **Phase 1** — CLI, mock prices, all logic working end-to-end. Done.
 - **Phase 2** — trader profile persistence on Neon Postgres, plus a Next.js web UI reusing the same agent loop. Done.
-- **Phase 3** — Real Playwright scraper for live supplier prices. Superseded — pricing was decommissioned in this build; every material line reads `[Price TBC]`.
+- **Phase 3a** — Live price search: look up real, current prices per material line via Google Shopping, on demand from a saved quote's page — see "Prices" above. The agent's own drafting is untouched; every material line still reads `[Price TBC]`.
 - **Phase 4** — Optional: auth, multi-tenant support

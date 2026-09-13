@@ -1,5 +1,6 @@
 import { getPriceSearchProvider } from '../../../../lib/pricing/index.js'
 import { PriceSearchError } from '../../../../lib/pricing/providers/PriceSearchProvider.js'
+import { MERCHANT_CATEGORIES } from '../../../../lib/pricing/merchant-category.js'
 
 export const runtime = 'nodejs'
 
@@ -60,6 +61,9 @@ export async function POST(request) {
   }
   if (options !== undefined && (typeof options !== 'object' || options === null || Array.isArray(options))) {
     return Response.json({ code: 'INVALID_QUERY', message: '"options" must be an object when provided.' }, { status: 400 })
+  }
+  if (options?.merchant !== undefined && !MERCHANT_CATEGORIES.includes(options.merchant)) {
+    return Response.json({ code: 'INVALID_QUERY', message: `"options.merchant" must be one of: ${MERCHANT_CATEGORIES.join(', ')}.` }, { status: 400 })
   }
 
   try {
