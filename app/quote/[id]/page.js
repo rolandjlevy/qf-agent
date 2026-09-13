@@ -46,6 +46,20 @@ function parseQuoteSections(content) {
   return { preamble, sections };
 }
 
+// When the interactive MaterialsPricing list is shown, it already repeats
+// every bullet line (name/qty/notes) with a price control attached — leaving
+// the identical bullets in the drafted <pre> body too reads as the same list
+// twice. Drop just the bullet lines here; the underlying quote.content (used
+// by Copy/Download) is untouched, only this on-screen display is trimmed.
+function stripMaterialBullets(body) {
+  return body
+    .split('\n')
+    .filter((line) => !line.trim().startsWith('•'))
+    .join('\n')
+    .replace(/\n{2,}/g, '\n')
+    .trim();
+}
+
 function formatDate(iso) {
   return new Date(iso).toLocaleString('en-GB', {
     day: 'numeric',
@@ -130,7 +144,11 @@ export default async function QuotePage({ params }) {
               open={section.heading === 'MATERIALS & EQUIPMENT' && materials.length > 0 ? true : undefined}
             >
               <summary style={summaryStyle}>{section.heading}</summary>
-              <pre style={sectionBodyStyle}>{section.body}</pre>
+              <pre style={sectionBodyStyle}>
+                {section.heading === 'MATERIALS & EQUIPMENT' && materials.length > 0
+                  ? stripMaterialBullets(section.body)
+                  : section.body}
+              </pre>
               {section.heading === 'MATERIALS & EQUIPMENT' && materials.length > 0 && (
                 <div style={{ padding: '0 1.25rem 1rem' }}>
                   <MaterialsPricing quoteId={idNum} materials={materials} initialSelections={initialSelections} />

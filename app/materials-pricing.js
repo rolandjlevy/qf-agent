@@ -16,13 +16,43 @@ const overlayStyle = {
 }
 
 const dialogStyle = {
+  position: 'relative',
   background: '#fff',
   borderRadius: 8,
-  padding: '1.25rem',
   width: '100%',
   maxWidth: 640,
   maxHeight: '85vh',
+  display: 'flex',
+  flexDirection: 'column',
+  overflow: 'hidden',
+}
+
+const dialogHeaderStyle = {
+  flexShrink: 0,
+  padding: '1.25rem 1.25rem 0.75rem',
+  borderBottom: '1px solid #eee',
+}
+
+const dialogResultsStyle = {
+  flex: 1,
   overflowY: 'auto',
+  padding: '0.75rem 1.25rem 1.25rem',
+}
+
+const closeButtonStyle = {
+  position: 'absolute',
+  top: '0.75rem',
+  right: '0.75rem',
+  width: '2rem',
+  height: '2rem',
+  lineHeight: '2rem',
+  padding: 0,
+  textAlign: 'center',
+  border: '1px solid #ddd',
+  borderRadius: '50%',
+  background: '#fff',
+  cursor: 'pointer',
+  fontSize: '1.1rem',
 }
 
 const inputStyle = {
@@ -34,15 +64,55 @@ const inputStyle = {
 }
 
 const productCardStyle = {
-  display: 'flex',
-  gap: '0.75rem',
-  alignItems: 'center',
   border: '1px solid #eee',
   borderRadius: 6,
   padding: '0.5rem 0.75rem',
   marginBottom: '0.5rem',
-  cursor: 'pointer',
   background: '#fafafa',
+}
+
+const selectedProductCardStyle = {
+  ...productCardStyle,
+  border: '2px solid #2e7d46',
+  background: '#f2faf5',
+}
+
+const productSummaryRowStyle = {
+  display: 'flex',
+  gap: '0.75rem',
+  alignItems: 'center',
+  cursor: 'pointer',
+}
+
+const productDetailStyle = {
+  marginTop: '0.6rem',
+  paddingTop: '0.6rem',
+  borderTop: '1px solid #e0e0e0',
+  fontSize: '0.9rem',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '0.3rem',
+}
+
+const filterRowStyle = {
+  display: 'flex',
+  gap: '0.4rem',
+  flexWrap: 'wrap',
+  marginBottom: '0.75rem',
+}
+
+const filterButtonStyle = {
+  ...buttonStyle,
+  padding: '0.25rem 0.7rem',
+  fontSize: '0.8rem',
+  borderRadius: 999,
+}
+
+const activeFilterButtonStyle = {
+  ...filterButtonStyle,
+  background: '#2e2e2e',
+  border: '1px solid #2e2e2e',
+  color: '#fff',
 }
 
 const badgeStyle = {
@@ -69,21 +139,61 @@ function merchantSearchLinks(query) {
   ]
 }
 
+const MERCHANT_FILTERS = ['All', 'Screwfix', 'Toolstation', 'B&Q', 'Amazon', 'Other']
+
+// Serper's `source` field is a free-text merchant name (e.g. "Screwfix.com",
+// "Amazon.co.uk - Amazon.co.uk-Seller") rather than a fixed enum — bucket it
+// by substring match onto the filter categories, with anything unrecognised
+// (Wickes, ITS, an independent seller, etc.) falling into "Other" rather
+// than being dropped.
+function merchantCategory(merchant) {
+  const name = (merchant || '').toLowerCase()
+  if (name.includes('screwfix')) return 'Screwfix'
+  if (name.includes('toolstation')) return 'Toolstation'
+  if (name.includes('b&q') || name.includes('diy.com')) return 'B&Q'
+  if (name.includes('amazon')) return 'Amazon'
+  return 'Other'
+}
+
 function formatPrice(product) {
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency: product.currency || 'GBP' }).format(product.price)
 }
 
-function PricePickerModal({ materialName, quoteId, onClose, onSelect }) {
+function formatAmount(amount, currency) {
+  return new Intl.NumberFormat('en-GB', { style: 'currency', currency: currency || 'GBP' }).format(amount)
+}
+
+// A material's quantity comes from the identify_materials sub-LLM as a loose
+// string — fall back to 1 (not 0) for anything that isn't a positive number,
+// so a missing/non-numeric quantity still contributes its unit price rather
+// than silently zeroing the line out of the total.
+function materialQuantity(material) {
+  const qty = Number(material.quantity)
+  return Number.isFinite(qty) && qty > 0 ? qty : 1
+}
+
+function calculateMaterialsTotal(materials, selections) {
+  return materials.reduce((sum, material) => {
+    const product = selections[material.name]
+    return product ? sum + materialQuantity(material) * product.price : sum
+  }, 0)
+}
+
+function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onSelect }) {
   const [query, setQuery] = useState(materialName)
   const [status, setStatus] = useState('idle') // idle | loading | done
   const [products, setProducts] = useState([])
   const [errorMessage, setErrorMessage] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [expandedId, setExpandedId] = useState(null)
+  const [merchantFilter, setMerchantFilter] = useState('All')
 
   async function runSearch(e) {
     e?.preventDefault()
     setStatus('loading')
     setErrorMessage(null)
+    setProducts([])
+    setMerchantFilter('All')
     try {
       const res = await fetch('/api/pricing/search', {
         method: 'POST',
@@ -124,17 +234,25 @@ function PricePickerModal({ materialName, quoteId, onClose, onSelect }) {
     }
   }
 
+  const filteredProducts = merchantFilter === 'All' ? products : products.filter((p) => merchantCategory(p.merchant) === merchantFilter)
+
   return (
     <div style={overlayStyle} onClick={onClose}>
       <div style={dialogStyle} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ marginTop: 0 }}>Find prices — {materialName}</h3>
-        <form onSubmit={runSearch} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-          <input style={inputStyle} value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search query" />
-          <button type="submit" style={buttonStyle} disabled={status === 'loading'}>
-            {status === 'loading' ? 'Searching…' : 'Search'}
-          </button>
-        </form>
+        <button type="button" style={closeButtonStyle} onClick={onClose} aria-label="Close">
+          ✕
+        </button>
+        <div style={dialogHeaderStyle}>
+          <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>Find prices — {query}</h3>
+          <form onSubmit={runSearch} style={{ display: 'flex', gap: '0.5rem' }}>
+            <input style={inputStyle} value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search query" />
+            <button type="submit" style={buttonStyle} disabled={status === 'loading'}>
+              {status === 'loading' ? 'Searching…' : 'Search'}
+            </button>
+          </form>
+        </div>
 
+        <div style={dialogResultsStyle}>
         {status === 'loading' && <p>Searching Google Shopping…</p>}
 
         {status === 'done' && products.length === 0 && (
@@ -152,24 +270,93 @@ function PricePickerModal({ materialName, quoteId, onClose, onSelect }) {
           </div>
         )}
 
-        {products.map((product) => (
-          <div key={product.id} style={productCardStyle} onClick={() => !saving && handleSelect(product)}>
-            {product.imageUrl && <img src={product.imageUrl} alt="" style={{ width: 48, height: 48, objectFit: 'contain' }} />}
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 'bold' }}>{product.title}</div>
-              <div style={{ color: '#666', fontSize: '0.85rem' }}>
-                {product.merchant}
-                {product.rating ? ` · ${product.rating}★ (${product.reviewCount ?? 0})` : ''}
-              </div>
-            </div>
-            <div style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>{formatPrice(product)}</div>
+        {status === 'done' && products.length > 0 && (
+          <div style={filterRowStyle}>
+            {MERCHANT_FILTERS.map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                style={filter === merchantFilter ? activeFilterButtonStyle : filterButtonStyle}
+                onClick={() => setMerchantFilter(filter)}
+              >
+                {filter}
+              </button>
+            ))}
           </div>
-        ))}
+        )}
+
+        {status === 'done' && products.length > 0 && filteredProducts.length === 0 && (
+          <p>No results from {merchantFilter} for this search.</p>
+        )}
+
+        {status === 'done' && filteredProducts.map((product) => {
+          const isSelected = selectedProduct?.id === product.id
+          const isExpanded = expandedId === product.id
+          return (
+            <div key={product.id} style={isSelected ? selectedProductCardStyle : productCardStyle}>
+              <div
+                style={productSummaryRowStyle}
+                onClick={() => setExpandedId(isExpanded ? null : product.id)}
+                aria-expanded={isExpanded}
+              >
+                <span aria-hidden="true" style={{ width: '1.5rem', textAlign: 'center', color: '#666', fontSize: '1.6rem', lineHeight: 1 }}>
+                  {isExpanded ? '▾' : '▸'}
+                </span>
+                {product.imageUrl && <img src={product.imageUrl} alt="" style={{ width: 48, height: 48, objectFit: 'contain' }} />}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 'bold' }}>{product.title}</div>
+                  <div style={{ color: '#666', fontSize: '0.85rem' }}>
+                    {product.merchant}
+                    {product.rating ? ` · ${product.rating}★ (${product.reviewCount ?? 0})` : ''}
+                  </div>
+                </div>
+                <div style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>{formatPrice(product)}</div>
+                {isSelected && <span style={{ color: '#2e7d46', fontWeight: 'bold', whiteSpace: 'nowrap' }}>✓ Selected</span>}
+              </div>
+
+              {isExpanded && (
+                <div style={productDetailStyle}>
+                  <div>
+                    <strong>Merchant:</strong> {product.merchant}
+                  </div>
+                  <div>
+                    <strong>Availability:</strong> {product.availability === 'unknown' ? 'Not stated' : product.availability}
+                  </div>
+                  {product.rating != null && (
+                    <div>
+                      <strong>Rating:</strong> {product.rating}★ ({product.reviewCount ?? 0} reviews)
+                    </div>
+                  )}
+                  {product.productUrl && (
+                    <div>
+                      <a href={product.productUrl} target="_blank" rel="noreferrer">
+                        View product page ↗
+                      </a>
+                    </div>
+                  )}
+                  <div style={{ marginTop: '0.4rem', textAlign: 'right' }}>
+                    <button
+                      style={buttonStyle}
+                      disabled={saving}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleSelect(product)
+                      }}
+                    >
+                      {isSelected ? 'Selected' : 'Select'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
 
         <div style={{ marginTop: '1rem', textAlign: 'right' }}>
           <button style={buttonStyle} onClick={onClose}>
             Close
           </button>
+        </div>
         </div>
       </div>
     </div>
@@ -184,8 +371,19 @@ function PricePickerModal({ materialName, quoteId, onClose, onSelect }) {
 export default function MaterialsPricing({ quoteId, materials, initialSelections }) {
   const [selections, setSelections] = useState(initialSelections || {})
   const [openMaterial, setOpenMaterial] = useState(null)
+  const [total, setTotal] = useState(null)
+
+  // A price selection changing (a new pick, or "Change" on an existing one)
+  // makes any previously calculated total stale — clear it so the button has
+  // to be pressed again rather than leaving a now-wrong figure on screen.
+  useEffect(() => {
+    setTotal(null)
+  }, [selections])
 
   if (!materials.length) return null
+
+  const allPriced = materials.every((material) => selections[material.name])
+  const currency = Object.values(selections)[0]?.currency || 'GBP'
 
   return (
     <div style={{ marginTop: '0.75rem' }}>
@@ -214,10 +412,18 @@ export default function MaterialsPricing({ quoteId, materials, initialSelections
         )
       })}
 
+      <div style={{ marginTop: '0.75rem', paddingTop: '0.6rem', borderTop: '1px solid #ddd', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <button style={buttonStyle} disabled={!allPriced} onClick={() => setTotal(calculateMaterialsTotal(materials, selections))}>
+          Calculate materials total
+        </button>
+        {total != null && <span style={{ fontWeight: 'bold' }}>Total: {formatAmount(total, currency)}</span>}
+      </div>
+
       {openMaterial && (
         <PricePickerModal
           materialName={openMaterial}
           quoteId={quoteId}
+          selectedProduct={selections[openMaterial]}
           onClose={() => setOpenMaterial(null)}
           onSelect={(product) => setSelections((prev) => ({ ...prev, [openMaterial]: product }))}
         />
