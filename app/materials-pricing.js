@@ -151,6 +151,23 @@ function merchantSearchLinks(query) {
 
 const MERCHANT_FILTERS = ['All', ...MERCHANT_CATEGORIES]
 
+// Unrated products sort last regardless of direction — there's no
+// meaningful way to rank a null rating against a real one.
+function byRatingDesc(a, b) {
+  if (a.rating == null) return b.rating == null ? 0 : 1
+  if (b.rating == null) return -1
+  return b.rating - a.rating
+}
+
+// Keyed by the same values SORT_OPTIONS exposes in the dropdown; 'relevance'
+// has no entry, so it falls through sortProducts' lookup as a no-op — it's
+// whatever order the provider returned.
+const SORT_COMPARATORS = {
+  'price-asc': (a, b) => a.price - b.price,
+  'price-desc': (a, b) => b.price - a.price,
+  'rating-desc': byRatingDesc,
+}
+
 const SORT_OPTIONS = [
   { value: 'relevance', label: 'Best match' },
   { value: 'price-asc', label: 'Price: Low to High' },
@@ -161,24 +178,10 @@ const SORT_OPTIONS = [
 // A pure re-sort of the already-fetched page, unlike the merchant filter
 // (which needs a server round-trip — see performSearch) — price/rating are
 // already on every ProductResult, so no extra fetch is needed to reorder by
-// them. 'relevance' is a no-op: it's whatever order the provider returned.
+// them.
 function sortProducts(products, sortBy) {
-  if (sortBy === 'relevance') return products
-  const sorted = [...products]
-  if (sortBy === 'price-asc') {
-    sorted.sort((a, b) => a.price - b.price)
-  } else if (sortBy === 'price-desc') {
-    sorted.sort((a, b) => b.price - a.price)
-  } else if (sortBy === 'rating-desc') {
-    // Unrated products sort last regardless of direction — there's no
-    // meaningful way to rank a null rating against a real one.
-    sorted.sort((a, b) => {
-      if (a.rating == null) return b.rating == null ? 0 : 1
-      if (b.rating == null) return -1
-      return b.rating - a.rating
-    })
-  }
-  return sorted
+  const comparator = SORT_COMPARATORS[sortBy]
+  return comparator ? [...products].sort(comparator) : products
 }
 
 function formatPrice(product) {
