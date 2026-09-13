@@ -119,7 +119,19 @@ export default async function QuotePage({ params }) {
   const materials = extractMaterialsFromToolCallLog(toolCallLog);
 
   const priceRows = materials.length ? await getQuoteLinePrices(idNum) : [];
-  const initialSelections = Object.fromEntries(priceRows.map((row) => [row.material_name, JSON.parse(row.product)]));
+  const initialSelections = Object.fromEntries(
+    priceRows
+      .map((row) => {
+        try {
+          return [row.material_name, JSON.parse(row.product)];
+        } catch {
+          // A malformed row degrades to "no price selected" for that one
+          // line rather than throwing and 500ing the whole page.
+          return null;
+        }
+      })
+      .filter(Boolean),
+  );
 
   return (
     <div>

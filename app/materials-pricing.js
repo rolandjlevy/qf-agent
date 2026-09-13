@@ -193,11 +193,16 @@ function formatAmount(amount, currency) {
 }
 
 // A material's quantity comes from the identify_materials sub-LLM as a loose
-// string — fall back to 1 (not 0) for anything that isn't a positive number,
-// so a missing/non-numeric quantity still contributes its unit price rather
-// than silently zeroing the line out of the total.
+// string, and its own prompt examples include unit-suffixed values like
+// "25m" and "1 box" (see tools/identify-materials.js) — Number(qty) is NaN
+// for those, so pull out the leading numeric portion instead of requiring
+// the whole string to be a bare number. Falls back to 1 (not 0) for
+// anything with no leading number at all, so a missing/unparseable quantity
+// still contributes its unit price rather than silently zeroing the line
+// out of the total.
 function materialQuantity(material) {
-  const qty = Number(material.quantity)
+  const match = String(material.quantity ?? '').match(/[\d.]+/)
+  const qty = match ? Number(match[0]) : NaN
   return Number.isFinite(qty) && qty > 0 ? qty : 1
 }
 
