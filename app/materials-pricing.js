@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { buttonStyle } from './button-style.js'
 import { selectLinePrice } from '../lib/actions/quote-prices.js'
+import { MERCHANT_CATEGORIES } from '../lib/pricing/merchant-category.js'
 
 const overlayStyle = {
   position: 'fixed',
@@ -139,21 +140,7 @@ function merchantSearchLinks(query) {
   ]
 }
 
-const MERCHANT_FILTERS = ['All', 'Screwfix', 'Toolstation', 'B&Q', 'Amazon', 'Other']
-
-// Serper's `source` field is a free-text merchant name (e.g. "Screwfix.com",
-// "Amazon.co.uk - Amazon.co.uk-Seller") rather than a fixed enum — bucket it
-// by substring match onto the filter categories, with anything unrecognised
-// (Wickes, ITS, an independent seller, etc.) falling into "Other" rather
-// than being dropped.
-function merchantCategory(merchant) {
-  const name = (merchant || '').toLowerCase()
-  if (name.includes('screwfix')) return 'Screwfix'
-  if (name.includes('toolstation')) return 'Toolstation'
-  if (name.includes('b&q') || name.includes('diy.com')) return 'B&Q'
-  if (name.includes('amazon')) return 'Amazon'
-  return 'Other'
-}
+const MERCHANT_FILTERS = ['All', ...MERCHANT_CATEGORIES]
 
 function formatPrice(product) {
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency: product.currency || 'GBP' }).format(product.price)
@@ -187,25 +174,35 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
   const [saving, setSaving] = useState(false)
   const [expandedId, setExpandedId] = useState(null)
   const [merchantFilter, setMerchantFilter] = useState('All')
+  // Tracks whether the unfiltered ("All") search ever found anything, so the
+  // filter row and "try another merchant" framing stay available even while
+  // the currently selected merchant filter itself has zero results.
+  const [everFoundResults, setEverFoundResults] = useState(false)
 
-  async function runSearch(e) {
-    e?.preventDefault()
+  // Searching per merchant happens server-side (see /api/pricing/search's
+  // options.merchant) rather than by filtering an already-fetched page
+  // client-side — a single mixed page of `maxResults` products could easily
+  // contain far fewer than 10 from any one merchant even when 10+ exist for
+  // it, so each filter click re-queries with that merchant so the backend
+  // can over-fetch and fill up to 10 when that many are actually available.
+  async function performSearch(merchant) {
     setStatus('loading')
     setErrorMessage(null)
     setProducts([])
-    setMerchantFilter('All')
     try {
       const res = await fetch('/api/pricing/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, options: merchant === 'All' ? undefined : { merchant } }),
       })
       const data = await res.json()
       if (!res.ok) {
         setErrorMessage(data.message || 'Price search failed.')
         setProducts([])
       } else {
-        setProducts(data.products || [])
+        const results = data.products || []
+        setProducts(results)
+        if (results.length > 0) setEverFoundResults(true)
       }
     } catch {
       setErrorMessage('Could not reach the price search service.')
@@ -215,10 +212,22 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
     }
   }
 
+  function handleSearchSubmit(e) {
+    e?.preventDefault()
+    setMerchantFilter('All')
+    setEverFoundResults(false)
+    performSearch('All')
+  }
+
+  function handleFilterClick(filter) {
+    setMerchantFilter(filter)
+    performSearch(filter)
+  }
+
   // Search once on open, with the material name pre-filled — the trader can
   // still edit and re-search from there.
   useEffect(() => {
-    runSearch()
+    performSearch('All')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -234,8 +243,6 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
     }
   }
 
-  const filteredProducts = merchantFilter === 'All' ? products : products.filter((p) => merchantCategory(p.merchant) === merchantFilter)
-
   return (
     <div style={overlayStyle} onClick={onClose}>
       <div style={dialogStyle} onClick={(e) => e.stopPropagation()}>
@@ -244,7 +251,7 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
         </button>
         <div style={dialogHeaderStyle}>
           <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>Find prices — {query}</h3>
-          <form onSubmit={runSearch} style={{ display: 'flex', gap: '0.5rem' }}>
+          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.5rem' }}>
             <input style={inputStyle} value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search query" />
             <button type="submit" style={buttonStyle} disabled={status === 'loading'}>
               {status === 'loading' ? 'Searching…' : 'Search'}
@@ -253,11 +260,30 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
         </div>
 
         <div style={dialogResultsStyle}>
+        {everFoundResults && (
+          <div style={filterRowStyle}>
+            {MERCHANT_FILTERS.map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                style={filter === merchantFilter ? activeFilterButtonStyle : filterButtonStyle}
+                disabled={status === 'loading'}
+                onClick={() => handleFilterClick(filter)}
+              >
+                {filter}
+              </button>
+            ))}
+          </div>
+        )}
+
         {status === 'loading' && <p>Searching Google Shopping…</p>}
 
         {status === 'done' && products.length === 0 && (
           <div>
-            <p>{errorMessage || `No results for "${query}".`} Try a direct search instead:</p>
+            <p>
+              {errorMessage || (merchantFilter === 'All' ? `No results for "${query}".` : `No results from ${merchantFilter} for "${query}".`)}
+              {merchantFilter === 'All' ? ' Try a direct search instead:' : ' Try another merchant, or a direct search:'}
+            </p>
             <ul style={{ paddingLeft: '1.2rem' }}>
               {merchantSearchLinks(query).map((link) => (
                 <li key={link.url}>
@@ -270,26 +296,7 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
           </div>
         )}
 
-        {status === 'done' && products.length > 0 && (
-          <div style={filterRowStyle}>
-            {MERCHANT_FILTERS.map((filter) => (
-              <button
-                key={filter}
-                type="button"
-                style={filter === merchantFilter ? activeFilterButtonStyle : filterButtonStyle}
-                onClick={() => setMerchantFilter(filter)}
-              >
-                {filter}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {status === 'done' && products.length > 0 && filteredProducts.length === 0 && (
-          <p>No results from {merchantFilter} for this search.</p>
-        )}
-
-        {status === 'done' && filteredProducts.map((product) => {
+        {status === 'done' && products.map((product) => {
           const isSelected = selectedProduct?.id === product.id
           const isExpanded = expandedId === product.id
           return (
