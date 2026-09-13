@@ -51,11 +51,6 @@ export default function QuoteActions({ content, jobDescription, generatedAt, id,
 
   return (
     <>
-      {content && (
-        <button onClick={handleCopy} style={buttonStyle}>
-          {copyState === 'copied' ? 'Copied!' : copyState === 'error' ? 'Copy failed' : 'Copy'}
-        </button>
-      )}
       {id != null && (
         <a
           href={`/quote/${id}`}
@@ -63,6 +58,11 @@ export default function QuoteActions({ content, jobDescription, generatedAt, id,
         >
           View
         </a>
+      )}
+      {content && (
+        <button onClick={handleCopy} style={buttonStyle}>
+          {copyState === 'copied' ? 'Copied!' : copyState === 'error' ? 'Copy failed' : 'Copy'}
+        </button>
       )}
       {content && (
         <button onClick={handleDownload} style={buttonStyle}>

@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation';
-import { getGeneratedQuoteById } from '../../../lib/db.js';
+import { getGeneratedQuoteById, getQuoteLinePrices } from '../../../lib/db.js';
+import { extractMaterialsFromToolCallLog } from '../../../lib/quote-materials.js';
 import QuoteActions from '../../quote-actions.js';
+import MaterialsPricing from '../../materials-pricing.js';
 
 // Belt-and-braces alongside app/quotes/page.js's force-dynamic — this route
 // is already dynamic due to its [id] param, but explicit costs nothing.
@@ -42,6 +44,20 @@ function parseQuoteSections(content) {
   }
 
   return { preamble, sections };
+}
+
+// When the interactive MaterialsPricing list is shown, it already repeats
+// every bullet line (name/qty/notes) with a price control attached — leaving
+// the identical bullets in the drafted <pre> body too reads as the same list
+// twice. Drop just the bullet lines here; the underlying quote.content (used
+// by Copy/Download) is untouched, only this on-screen display is trimmed.
+function stripMaterialBullets(body) {
+  return body
+    .split('\n')
+    .filter((line) => !line.trim().startsWith('•'))
+    .join('\n')
+    .replace(/\n{2,}/g, '\n')
+    .trim();
 }
 
 function formatDate(iso) {
@@ -94,6 +110,17 @@ export default async function QuotePage({ params }) {
 
   const { preamble, sections } = quote.content ? parseQuoteSections(quote.content) : {};
 
+  let toolCallLog = [];
+  try {
+    toolCallLog = JSON.parse(quote.tool_call_log || '[]');
+  } catch {
+    toolCallLog = [];
+  }
+  const materials = extractMaterialsFromToolCallLog(toolCallLog);
+
+  const priceRows = materials.length ? await getQuoteLinePrices(idNum) : [];
+  const initialSelections = Object.fromEntries(priceRows.map((row) => [row.material_name, JSON.parse(row.product)]));
+
   return (
     <div>
       <h1>{quote.job_description}</h1>
@@ -111,9 +138,22 @@ export default async function QuotePage({ params }) {
           </div>
           {preamble && <pre style={preStyle}>{preamble}</pre>}
           {sections.map((section) => (
-            <details key={section.heading} style={detailsStyle}>
+            <details
+              key={section.heading}
+              style={detailsStyle}
+              open={section.heading === 'MATERIALS & EQUIPMENT' && materials.length > 0 ? true : undefined}
+            >
               <summary style={summaryStyle}>{section.heading}</summary>
-              <pre style={sectionBodyStyle}>{section.body}</pre>
+              <pre style={sectionBodyStyle}>
+                {section.heading === 'MATERIALS & EQUIPMENT' && materials.length > 0
+                  ? stripMaterialBullets(section.body)
+                  : section.body}
+              </pre>
+              {section.heading === 'MATERIALS & EQUIPMENT' && materials.length > 0 && (
+                <div style={{ padding: '0 1.25rem 1rem' }}>
+                  <MaterialsPricing quoteId={idNum} materials={materials} initialSelections={initialSelections} />
+                </div>
+              )}
             </details>
           ))}
         </>

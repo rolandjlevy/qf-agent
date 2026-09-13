@@ -8,6 +8,12 @@ CREATE TABLE IF NOT EXISTS trader_profile (
   updated_at TEXT
 );
 
+-- CREATE TABLE IF NOT EXISTS won't add columns to an already-existing table,
+-- so new trader_profile fields are added via explicit, idempotent ALTERs.
+ALTER TABLE trader_profile ADD COLUMN IF NOT EXISTS vat_registered BOOLEAN DEFAULT false;
+ALTER TABLE trader_profile ADD COLUMN IF NOT EXISTS certifications TEXT;
+ALTER TABLE trader_profile ADD COLUMN IF NOT EXISTS service_area TEXT;
+
 CREATE TABLE IF NOT EXISTS trader_prices (
   id SERIAL PRIMARY KEY,
   material_name TEXT NOT NULL,
@@ -91,4 +97,36 @@ CREATE TABLE IF NOT EXISTS scraped_prices (
   sku TEXT,
   product_url TEXT,
   scraped_at TEXT NOT NULL
+);
+
+-- Caches lib/pricing's PriceSearchProvider results (Phase 3a — Google
+-- Shopping price search, see lib/pricing/CachedPriceSearchProvider.js) so
+-- repeat lookups of the same material don't re-spend SERP provider credits.
+-- cache_key is a hash of the normalized query + country + currency +
+-- maxResults (see lib/pricing/CachedPriceSearchProvider.js's makeCacheKey).
+-- No scheduled cleanup for MVP — an expired row is only ever deleted lazily,
+-- the next time DbCacheStore.get() happens to read it past expires_at.
+CREATE TABLE IF NOT EXISTS price_search_cache (
+  cache_key TEXT PRIMARY KEY,
+  payload TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS price_search_cache_expires_at_idx
+  ON price_search_cache(expires_at);
+
+-- A trader's chosen Serper product for one material line of one quote.
+-- Deliberately additive/separate from generated_quotes.content and
+-- tool_call_log — those stay exactly as drafted/saved. This table is an
+-- overlay the quote-view page joins in by (quote_id, material_name) to show
+-- an inline price badge, never a rewrite of the quote text itself. One
+-- unique choice per line (re-selecting a material's price upserts, it
+-- doesn't accumulate history).
+CREATE TABLE IF NOT EXISTS quote_line_prices (
+  id SERIAL PRIMARY KEY,
+  quote_id INTEGER NOT NULL REFERENCES generated_quotes(id) ON DELETE CASCADE,
+  material_name TEXT NOT NULL,
+  product TEXT NOT NULL, -- JSON.stringify(ProductResult)
+  selected_at TEXT NOT NULL,
+  UNIQUE (quote_id, material_name)
 );
