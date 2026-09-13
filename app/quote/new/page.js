@@ -446,8 +446,12 @@ export default function NewQuotePage() {
         onCancel={(e) => {
           // Suppress the browser's own close-on-Esc — closing goes through
           // handleCancel so the run is actually cancelled server-side too,
-          // not just visually dismissed.
+          // not just visually dismissed. Ignored mid-submit, same as the
+          // explicit Cancel button's own `disabled={submittingAnswer}` — an
+          // Esc landing right as the answer POST is in flight shouldn't race
+          // it into cancelling a run whose answer is about to be accepted.
           e.preventDefault();
+          if (submittingAnswer) return;
           handleCancel();
         }}
         style={{
