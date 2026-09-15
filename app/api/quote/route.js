@@ -2,7 +2,8 @@ import { randomUUID } from 'crypto'
 import { after } from 'next/server'
 import { runAgent } from '../../../agent.js'
 import { TOOL_DEFINITIONS, executeTool } from '../../../tools/index.js'
-import { SYSTEM_PROMPT, buildInitialMessage } from '../../../prompts/system.js'
+import { buildPhaseBSystemPrompt, buildInitialMessage } from '../../../prompts/system.js'
+import { getPhaseBModel } from '../../../lib/anthropic-client.js'
 import {
   getTraderProfile,
   insertGeneratedQuote,
@@ -46,11 +47,54 @@ const PIPELINE_MARGIN_MS = 90 * 1000
 const WATCHDOG_INTERVAL_MS = 15000
 const WATCHDOG_STALL_MS = 60000
 
+// Materials-refinement flow (see CLAUDE.md's Phase 3a addendum): this route
+// is now always Phase B — the trader has already reviewed a Phase A proposal
+// via /api/quote/propose-materials and refined it client-side, so `materials`
+// is required and authoritative, never re-derived by the agent loop itself.
+function validateMaterials(materials) {
+  // An empty array is valid and deliberate — a labour-only job can
+  // legitimately have no materials at all; only a missing/malformed field
+  // (not an array, or a malformed entry) is rejected below.
+  if (!Array.isArray(materials)) return null
+  for (const m of materials) {
+    if (!m || typeof m.label !== 'string' || !m.label.trim()) return null
+    if (m.description !== undefined && typeof m.description !== 'string') return null
+  }
+  return materials
+}
+
+// Converts the refined {label, description?} list back into the
+// {name, quantity, notes, confidence} shape tools/identify-materials.js has
+// always produced, so lib/quote-materials.js's extractMaterialsFromToolCallLog
+// — and everything downstream of it (the Phase 3a price-lookup UI) — keeps
+// working completely unchanged, with no knowledge that Phase A/B exist.
+function toLegacyMaterialShape(materials) {
+  return materials.map((m) => ({
+    name: m.label.trim(),
+    quantity: null,
+    notes: m.description?.trim() || null,
+    confidence: 'trader_confirmed',
+  }))
+}
+
+// { question, answer } pairs gathered during Phase A's clarifying-question
+// round-trip (lib/propose-materials.js) — supplementary context for
+// buildInitialMessage, not authoritative like `materials`, so malformed
+// entries are dropped rather than rejecting the whole request over them.
+function sanitizeFollowUpAnswers(followUpAnswers) {
+  if (!Array.isArray(followUpAnswers)) return []
+  return followUpAnswers.filter(
+    (qa) => qa && typeof qa.question === 'string' && qa.question.trim() && typeof qa.answer === 'string' && qa.answer.trim(),
+  )
+}
+
 export async function POST(request) {
   const body = await request.json().catch(() => null)
   const trade = body?.trade
   const tone = body?.tone
   const jobDescription = typeof body?.jobDescription === 'string' ? body.jobDescription.trim() : ''
+  const materials = validateMaterials(body?.materials)
+  const followUpAnswers = sanitizeFollowUpAnswers(body?.followUpAnswers)
 
   if (!VALID_TRADES.includes(trade)) {
     return Response.json({ error: `trade must be one of: ${VALID_TRADES.join(', ')}` }, { status: 400 })
@@ -60,6 +104,12 @@ export async function POST(request) {
   }
   if (!jobDescription) {
     return Response.json({ error: 'jobDescription is required' }, { status: 400 })
+  }
+  if (!materials) {
+    return Response.json(
+      { error: 'materials is required — an array of { label, description? } refined via /api/quote/propose-materials (may be empty for a labour-only job)' },
+      { status: 400 },
+    )
   }
 
   const runId = randomUUID()
@@ -155,23 +205,61 @@ export async function POST(request) {
     try {
       const traderProfile = await getTraderProfile()
       const traderContext = formatTraderContext(traderProfile)
-      const systemPrompt = traderContext ? `${SYSTEM_PROMPT}\n\n${traderContext}` : SYSTEM_PROMPT
-      const initialMessage = buildInitialMessage({ trade, tone, jobDescription })
+      const phaseBPrompt = buildPhaseBSystemPrompt()
+      const systemPrompt = traderContext ? `${phaseBPrompt}\n\n${traderContext}` : phaseBPrompt
+      const initialMessage = buildInitialMessage({ trade, tone, jobDescription, followUpAnswers })
 
-      // trade/tone/jobDescription/sectionStore let identify_materials/draft_section/
-      // save_quote pull known-once-per-run context instead of requiring the
-      // model to retype it on every call; save_quote fills in toolContext.savedQuote.
-      const toolContext = { traderProfile, askUser, signal: abortController.signal, trade, tone, jobDescription, sectionStore: {} }
+      // The trader-refined list from the materials-refinement UI — already
+      // final by this point (see validateMaterials/toLegacyMaterialShape
+      // above). Converted to the same shape tools/identify-materials.js has
+      // always produced and recorded as a synthetic identify_materials
+      // tool_call/tool_result pair, purely so
+      // lib/quote-materials.js's extractMaterialsFromToolCallLog (and the
+      // Phase 3a price-lookup UI built on it) keeps working unchanged,
+      // without needing to know Phase A/B split ever happened.
+      const legacyMaterials = toLegacyMaterialShape(materials)
+      const materialsInput = { trade, job_description: jobDescription }
+      steps.push(
+        { type: 'tool_call', tool: 'identify_materials', input: materialsInput },
+        { type: 'tool_result', tool: 'identify_materials', result: { materials: legacyMaterials } },
+      )
+
+      // trade/tone/jobDescription/sectionStore let draft_section/save_quote
+      // pull known-once-per-run context instead of requiring the model to
+      // retype it on every call; save_quote fills in toolContext.savedQuote.
+      // materials is pre-populated (not left for the model to fill in via
+      // identify_materials, which isn't offered as a tool below) so
+      // draft_section picks up the trader-refined list automatically.
+      const toolContext = {
+        traderProfile,
+        askUser,
+        signal: abortController.signal,
+        trade,
+        tone,
+        jobDescription,
+        sectionStore: {},
+        materials: legacyMaterials,
+      }
+
+      // identify_materials and ask_user are deliberately excluded — materials
+      // are already final and any clarifying questions this job needed were
+      // already asked during Phase A's round-trip (see
+      // lib/propose-materials.js and PHASE_B_MATERIALS_RULES in
+      // prompts/system.js); not offering either tool at all is a stronger
+      // guarantee than a prompt instruction alone that the model can't
+      // silently re-derive materials or re-ask something too late to matter.
+      const phaseBTools = TOOL_DEFINITIONS.filter((t) => !['identify_materials', 'ask_user'].includes(t.name))
 
       const { turns } = await runAgent({
         systemPrompt,
-        tools: TOOL_DEFINITIONS,
+        tools: phaseBTools,
         executeTool,
         initialMessage,
         maxTurns: 20,
         onStep,
         toolContext,
         signal: abortController.signal,
+        model: getPhaseBModel(),
       })
 
       let quoteId = null
