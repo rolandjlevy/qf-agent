@@ -1,21 +1,10 @@
 import { createClient, createMessage, getModel } from '../lib/anthropic-client.js'
 import { NEVER_DO_RULES } from '../prompts/system.js'
-
-const SKIP_KEYWORDS = ['sundries', 'consumables', 'miscellaneous', 'disposal', 'hire', 'skip hire', 'labour']
-const SKIP_KEYWORD_PATTERNS = SKIP_KEYWORDS.map((kw) => new RegExp(`\\b${kw}\\b`, 'i'))
+import { isRejectedLabel } from '../lib/material-rules.js'
 
 export function isRejectedMaterial(m) {
   if (!m || typeof m.name !== 'string') return true
-  const name = m.name.trim()
-  if (name.length < 4) return true
-  const lower = name.toLowerCase()
-  if (lower.includes(' or ')) return true
-  // A single legitimate product name should never contain a comma — any
-  // comma is a sign of exactly the bundling ("screws, wall plugs") the
-  // prompt's rules forbid.
-  if (name.includes(',')) return true
-  if (SKIP_KEYWORD_PATTERNS.some((re) => re.test(name))) return true
-  return false
+  return isRejectedLabel(m.name)
 }
 
 // trade/job_description default from toolContext (known once per run) — the

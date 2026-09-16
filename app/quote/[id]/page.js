@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getGeneratedQuoteById, getQuoteLinePrices } from '../../../lib/db.js';
 import { extractMaterialsFromToolCallLog } from '../../../lib/quote-materials.js';
+import { extractIntegerQuantity } from '../../../lib/quantity.js';
 import QuoteActions from '../../quote-actions.js';
 import MaterialsPricing from '../../materials-pricing.js';
 
@@ -71,8 +72,12 @@ function formatLinePrice(product) {
 // quantity override applied — this is what Copy/Download should actually
 // contain, not the frozen-at-drafting-time text.
 function formatMaterialLine(material, override) {
-  const quantity = override?.quantity ?? material.quantity;
-  const qty = quantity ? ` (qty: ${quantity})` : '';
+  const rawQuantity = override?.quantity ?? material.quantity;
+  // Never let a raw range/unparsed string ("2-3 bags") leak into the
+  // exported quote text just because the trader never touched this line's
+  // Qty input — same integer-only rule the input itself enforces (see
+  // lib/quantity.js), so Copy/Download can't disagree with what's on screen.
+  const qty = rawQuantity ? ` (qty: ${extractIntegerQuantity(rawQuantity)})` : '';
   const notes = material.notes ? ` — ${material.notes}` : '';
   const price = override?.product ? ` — ${formatLinePrice(override.product)}` : ' — [Price TBC]';
   return `• ${material.name}${qty}${notes}${price}`;

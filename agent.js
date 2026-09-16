@@ -10,6 +10,7 @@ export async function runAgent({
   onStep,
   toolContext = {},
   signal,
+  model,
 }) {
   const anthropic = createClient();
   const messages = [{ role: 'user', content: initialMessage }];
@@ -31,7 +32,7 @@ export async function runAgent({
     const response = await createMessage(
       anthropic,
       {
-        model: getModel(),
+        model: model || getModel(),
         max_tokens: 4096,
         // Explicit breakpoint on the static system prompt (tools render
         // before system, so this caches both together) plus a top-level

@@ -1,0 +1,24 @@
+/* Standard skeleton-loading pulse, shared by any loading placeholder in the
+   app (currently app/materials-refinement.js's MaterialsSkeleton) — a plain
+   opacity pulse is the conventional pattern (same technique as Tailwind's
+   `animate-pulse`, MUI's Skeleton, etc.), not achievable via inline styles
+   since React inline style objects can't declare @keyframes. */
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.skeleton-bar {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-bar {
+    animation: none;
+  }
+}

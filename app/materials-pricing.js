@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { buttonStyle } from './button-style.js'
 import { selectLinePrice, updateLineQuantity, updateLineStatus } from '../lib/actions/quote-prices.js'
 import { MERCHANT_CATEGORIES } from '../lib/pricing/merchant-category.js'
+import { extractIntegerQuantity, splitQuantity, joinQuantity } from '../lib/quantity.js'
 
 const overlayStyle = {
   position: 'fixed',
@@ -241,51 +242,11 @@ function formatAmount(amount, currency) {
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency: currency || 'GBP' }).format(amount)
 }
 
-// A material's quantity is a loose string — either as identify_materials
-// first returned it (its own prompt examples include unit-suffixed values
-// like "25m" and "1 box", see tools/identify-materials.js) or as the trader
-// has since edited it in the quantity input below. Number(qty) is NaN for
-// unit-suffixed values, so pull out the leading numeric portion instead of
-// requiring the whole string to be a bare number. Falls back to 1 (not 0)
-// for anything with no leading number at all, so a missing/unparseable
-// quantity still contributes its unit price rather than silently zeroing
-// the line out of the total.
-function materialQuantity(quantity) {
-  const match = String(quantity ?? '').match(/[\d.]+/)
-  const qty = match ? Number(match[0]) : NaN
-  return Number.isFinite(qty) && qty > 0 ? qty : 1
-}
-
-// Splits a loose quantity string ("25m", "1 box", "2") into its editable
-// number and the trailing unit word, so the quantity input can show/edit
-// just the number while the unit is shown next to the "Qty" label instead
-// (e.g. "Qty (box):") rather than being part of the typed-in value.
-// `separator` preserves whether the original had a space before the unit
-// ("1 box") or not ("25m"), so re-joining after an edit doesn't change that.
-//
-// The trailing part only counts as a unit if it starts with a letter —
-// identify_materials occasionally returns a range like "1–5" instead of a
-// plain quantity, and treating everything after the leading digits as a
-// "unit" would turn that into a nonsense label like "Qty (–5)". Anything
-// that doesn't match this shape (a range included) falls back to keeping
-// the original string whole as `number`, unedited by this split.
-function splitQuantity(quantity) {
-  const str = String(quantity ?? '').trim()
-  const match = str.match(/^([\d.]+)(\s*)([a-zA-Z].*)$/)
-  if (!match) return { number: str, separator: '', unit: '' }
-  const [, number, separator, unit] = match
-  return { number, separator, unit }
-}
-
-function joinQuantity(number, separator, unit) {
-  return unit ? `${number}${separator || ' '}${unit}` : number
-}
-
 function calculateMaterialsTotal(materials, selections, quantities) {
   return materials.reduce((sum, material) => {
     const product = selections[material.name]
     if (!product) return sum
-    return sum + materialQuantity(quantities[material.name]) * product.price
+    return sum + extractIntegerQuantity(quantities[material.name]) * product.price
   }, 0)
 }
 
@@ -538,8 +499,8 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
   const [quantityUnits] = useState(() =>
     Object.fromEntries(
       materials.map((m) => {
-        const { separator, unit } = splitQuantity(overridesByName[m.name]?.quantity ?? m.quantity ?? '')
-        return [m.name, { separator, unit }]
+        const { unit } = splitQuantity(overridesByName[m.name]?.quantity ?? m.quantity ?? '')
+        return [m.name, unit]
       }),
     ),
   )
@@ -547,16 +508,8 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
     Object.fromEntries(materials.map((m) => [m.name, overridesByName[m.name]?.status ?? 'active'])),
   )
   const [openMaterial, setOpenMaterial] = useState(null)
-  const [total, setTotal] = useState(null)
   const [lineError, setLineError] = useState(null)
   const [pendingMaterial, setPendingMaterial] = useState(null)
-
-  // A price selection, quantity, or status change all make any previously
-  // calculated total stale — clear it so the button has to be pressed again
-  // rather than leaving a now-wrong figure on screen.
-  useEffect(() => {
-    setTotal(null)
-  }, [selections, quantities, statuses])
 
   if (!materials.length) return null
 
@@ -564,6 +517,15 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
   const savedMaterials = materials.filter((m) => statuses[m.name] === 'saved_for_later')
   const allPriced = activeMaterials.length > 0 && activeMaterials.every((material) => selections[material.name])
   const currency = Object.values(selections)[0]?.currency || 'GBP'
+  // Recomputed fresh on every render straight from live state — no
+  // "recalculate" button and nothing to go stale — so a quantity edit
+  // (including mid-keystroke via handleQuantityChange, not just on blur), a
+  // product selection/change, a delete, or a save-for-later all show up in
+  // this figure immediately, exactly as they happen. Materials without a
+  // selected price simply don't contribute yet (see calculateMaterialsTotal),
+  // which is what makes this a genuine partial/"running" total rather than
+  // something that has to wait for every line to be priced.
+  const materialsTotal = calculateMaterialsTotal(activeMaterials, selections, quantities)
 
   function handleQuantityChange(materialName, value) {
     setQuantities((prev) => ({ ...prev, [materialName]: value }))
@@ -571,23 +533,21 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
 
   async function handleQuantityBlur(materialName) {
     const currentValue = quantities[materialName] ?? ''
-    const numeric = Number(currentValue)
-    const isPlainNumber = currentValue !== '' && Number.isFinite(numeric)
-    // Enforce "at least 1" here rather than only via the input's own
-    // min="1" — that only affects the browser's native :invalid styling and
-    // spinner behaviour, it doesn't stop an out-of-range value from being
-    // typed or from reaching this handler. Only applies to a genuinely
-    // numeric quantity — an unparseable one (e.g. a "1–5" range that
-    // splitQuantity left whole, see its comment) isn't touched, since there
-    // is no single "less than 1" to enforce on it.
-    const clampedNumber = isPlainNumber ? (numeric >= 1 ? currentValue : '1') : currentValue
+    // Enforce "a whole number, at least 1" here rather than relying only on
+    // the input's own type="number"/min="1" — those only affect the
+    // browser's native :invalid styling and spinner behaviour, they don't
+    // stop a decimal, an empty value, or an out-of-range one from actually
+    // reaching this handler. extractIntegerQuantity always returns a clean
+    // integer >= 1, same rule the display already enforces (see
+    // splitQuantity), so the two can never drift apart.
+    const clampedNumber = String(extractIntegerQuantity(currentValue))
     if (clampedNumber !== currentValue) {
       setQuantities((prev) => ({ ...prev, [materialName]: clampedNumber }))
     }
 
-    const { separator, unit } = quantityUnits[materialName] ?? { separator: '', unit: '' }
+    const unit = quantityUnits[materialName] ?? ''
     try {
-      await updateLineQuantity(quoteId, materialName, joinQuantity(clampedNumber, separator, unit))
+      await updateLineQuantity(quoteId, materialName, joinQuantity(clampedNumber, unit))
     } catch {
       setLineError('Could not save the quantity change — try again.')
     }
@@ -619,13 +579,7 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
       {activeMaterials.map((material) => {
         const selected = selections[material.name]
         const isPending = pendingMaterial === material.name
-        const quantityValue = quantities[material.name] ?? ''
-        // A number input can't display something like "1–5" (a range
-        // identify_materials occasionally returns instead of a plain
-        // quantity — see splitQuantity) without the browser silently
-        // blanking it, so the "at least 1" input type/validation only
-        // applies when the quantity is actually a plain number.
-        const isNumericQuantity = quantityValue !== '' && Number.isFinite(Number(quantityValue))
+        const unit = quantityUnits[material.name]
         return (
           <div key={material.name} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
             <span>
@@ -633,11 +587,11 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
               {material.notes ? ` — ${material.notes}` : ''}
             </span>
             <label style={quantityLabelStyle}>
-              Qty{quantityUnits[material.name]?.unit ? ` (${quantityUnits[material.name].unit})` : ''}:
+              Qty{unit ? ` (${unit})` : ''}:
               <input
-                type={isNumericQuantity ? 'number' : 'text'}
-                min={isNumericQuantity ? '1' : undefined}
-                step={isNumericQuantity ? 'any' : undefined}
+                type="number"
+                min="1"
+                step="1"
                 style={quantityInputStyle}
                 value={quantities[material.name] ?? ''}
                 onChange={(e) => handleQuantityChange(material.name, e.target.value)}
@@ -671,12 +625,18 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
         )
       })}
 
-      <div style={{ marginTop: '0.75rem', paddingTop: '0.6rem', borderTop: '1px solid #ddd', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-        <button style={buttonStyle} disabled={!allPriced} onClick={() => setTotal(calculateMaterialsTotal(activeMaterials, selections, quantities))}>
-          Calculate materials total
-        </button>
-        {total != null && <span style={{ fontWeight: 'bold' }}>Total: {formatAmount(total, currency)}</span>}
-      </div>
+      {activeMaterials.length > 0 && (
+        <div style={{ marginTop: '0.75rem', paddingTop: '0.6rem', borderTop: '1px solid #ddd' }}>
+          {allPriced ? (
+            <span style={{ fontWeight: 'bold' }}>Final total for materials: {formatAmount(materialsTotal, currency)}</span>
+          ) : (
+            <span style={{ fontWeight: 'bold' }}>
+              Running total for materials: {formatAmount(materialsTotal, currency)}{' '}
+              <span style={{ fontWeight: 'normal', color: '#666' }}>(whilst there are materials still pending / unselected)</span>
+            </span>
+          )}
+        </div>
+      )}
 
       {savedMaterials.length > 0 && (
         <div style={{ marginTop: '0.75rem', paddingTop: '0.6rem', borderTop: '1px dashed #ddd' }}>

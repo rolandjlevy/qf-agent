@@ -1,3 +1,5 @@
+import './globals.css';
+
 export const metadata = {
   title: 'QuoteFetch',
   description: 'Agentic UK trade quote generator',

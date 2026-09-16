@@ -144,3 +144,22 @@ CREATE TABLE IF NOT EXISTS quote_line_prices (
 ALTER TABLE quote_line_prices ALTER COLUMN product DROP NOT NULL;
 ALTER TABLE quote_line_prices ADD COLUMN IF NOT EXISTS quantity_override TEXT;
 ALTER TABLE quote_line_prices ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'saved_for_later', 'deleted'));
+
+-- Analytics for the materials-refinement step (see CLAUDE.md's Phase 3a
+-- addendum): one row per material the trader saw in the refinement dialog
+-- when they hit Continue, capturing whether an LLM-proposed material was
+-- kept or removed, and which materials the trader typed in themselves.
+-- Nothing in the app reads this back — it's a pure data-collection surface,
+-- queried manually to spot where Phase A's proposals are weak.
+CREATE TABLE IF NOT EXISTS material_refinement_events (
+  id SERIAL PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  job_description TEXT NOT NULL,
+  label TEXT NOT NULL,
+  source TEXT NOT NULL CHECK (source IN ('llm_proposed', 'trader_added')),
+  action TEXT NOT NULL CHECK (action IN ('accepted', 'rejected')),
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS material_refinement_events_created_at_idx
+  ON material_refinement_events(created_at);
