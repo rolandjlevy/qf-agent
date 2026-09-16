@@ -58,20 +58,25 @@ function validateMaterials(materials) {
   if (!Array.isArray(materials)) return null
   for (const m of materials) {
     if (!m || typeof m.label !== 'string' || !m.label.trim()) return null
+    if (m.quantity !== undefined && typeof m.quantity !== 'string') return null
     if (m.description !== undefined && typeof m.description !== 'string') return null
   }
   return materials
 }
 
-// Converts the refined {label, description?} list back into the
+// Converts the refined {label, quantity?, description?} list back into the
 // {name, quantity, notes, confidence} shape tools/identify-materials.js has
 // always produced, so lib/quote-materials.js's extractMaterialsFromToolCallLog
-// — and everything downstream of it (the Phase 3a price-lookup UI) — keeps
-// working completely unchanged, with no knowledge that Phase A/B exist.
+// — and everything downstream of it (the Phase 3a price-lookup UI, including
+// its editable Qty input — see app/materials-pricing.js) — keeps working
+// completely unchanged, with no knowledge that Phase A/B exist. `quantity`
+// used to be hardcoded null here since Phase A never captured it as a
+// structured field; it now proposes one (lib/propose-materials.js) so it can
+// carry straight through instead of leaving that Qty input blank.
 function toLegacyMaterialShape(materials) {
   return materials.map((m) => ({
     name: m.label.trim(),
-    quantity: null,
+    quantity: m.quantity?.trim() || null,
     notes: m.description?.trim() || null,
     confidence: 'trader_confirmed',
   }))

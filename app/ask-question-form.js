@@ -141,10 +141,10 @@ export default function AskQuestionForm({ question, onSubmit, submitting, submit
         autoFocus={!hasChoices}
       />
       <div style={{ display: 'flex', gap: '0.5rem' }}>
+        {actions}
         <button style={{ width: 'fit-content', padding: '0.5rem 1rem' }} type="submit" disabled={submitting}>
           {submitting ? 'Answering…' : submitLabel}
         </button>
-        {actions}
       </div>
     </form>
   );
