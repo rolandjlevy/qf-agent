@@ -527,7 +527,7 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
   )
   const [openMaterial, setOpenMaterial] = useState(null)
   const [lineError, setLineError] = useState(null)
-  const [pendingMaterial, setPendingMaterial] = useState(null)
+  const [pendingAction, setPendingAction] = useState(null) // { name, status } | null
 
   if (!materials.length) return null
 
@@ -561,19 +561,20 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
   }
 
   async function handleStatusChange(materialName, status) {
-    setPendingMaterial(materialName)
+    setPendingAction({ name: materialName, status })
     try {
       await updateLineStatus(quoteId, materialName, status)
       setStatuses((prev) => ({ ...prev, [materialName]: status }))
     } catch {
       setLineError('Could not save that change — try again.')
     } finally {
-      setPendingMaterial(null)
+      setPendingAction(null)
     }
   }
 
-  function handleDelete(materialName) {
-    if (!confirm(`Remove "${materialName}" from this quote? This can't be undone (use "Save for later" instead if you might want it back).`)) return
+  function handleDelete(materialName, { alreadySavedForLater = false } = {}) {
+    const hint = alreadySavedForLater ? '' : ' (use "Save for later" instead if you might want it back)'
+    if (!confirm(`Remove "${materialName}" from this quote? This can't be undone${hint}.`)) return
     handleStatusChange(materialName, 'deleted')
   }
 
@@ -585,7 +586,9 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
 
       {activeMaterials.map((material) => {
         const selected = selections[material.name]
-        const isPending = pendingMaterial === material.name
+        const isPending = pendingAction?.name === material.name
+        const isDeleting = isPending && pendingAction.status === 'deleted'
+        const isSaving = isPending && pendingAction.status === 'saved_for_later'
         const unit = quantityUnits[material.name]
         return (
           <div key={material.name} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
@@ -623,10 +626,10 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
               disabled={isPending}
               onClick={() => handleStatusChange(material.name, 'saved_for_later')}
             >
-              Save for later
+              {isSaving ? 'Saving…' : 'Save for later'}
             </button>
             <button style={dangerButtonStyle} disabled={isPending} onClick={() => handleDelete(material.name)}>
-              {isPending ? 'Removing…' : 'Delete'}
+              {isDeleting ? 'Removing…' : 'Delete'}
             </button>
           </div>
         )
@@ -648,21 +651,29 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
       {savedMaterials.length > 0 && (
         <div style={{ marginTop: '0.75rem', paddingTop: '0.6rem', borderTop: '1px dashed #ddd' }}>
           <p style={{ margin: '0 0 0.4rem', fontSize: '0.85rem', color: '#666' }}>Saved for later ({savedMaterials.length}) — not included in this quote</p>
-          {savedMaterials.map((material) => (
-            <div key={material.name} style={savedForLaterRowStyle}>
-              <span>
-                • {material.name}
-                {material.notes ? ` — ${material.notes}` : ''}
-              </span>
-              <button
-                style={smallButtonStyle}
-                disabled={pendingMaterial === material.name}
-                onClick={() => handleStatusChange(material.name, 'active')}
-              >
-                Re-add
-              </button>
-            </div>
-          ))}
+          {savedMaterials.map((material) => {
+            const isPending = pendingAction?.name === material.name
+            const isDeleting = isPending && pendingAction.status === 'deleted'
+            const isReAdding = isPending && pendingAction.status === 'active'
+            return (
+              <div key={material.name} style={savedForLaterRowStyle}>
+                <span>
+                  • {material.name}
+                  {material.notes ? ` — ${material.notes}` : ''}
+                </span>
+                <button style={smallButtonStyle} disabled={isPending} onClick={() => handleStatusChange(material.name, 'active')}>
+                  {isReAdding ? 'Re-adding…' : 'Re-add'}
+                </button>
+                <button
+                  style={dangerButtonStyle}
+                  disabled={isPending}
+                  onClick={() => handleDelete(material.name, { alreadySavedForLater: true })}
+                >
+                  {isDeleting ? 'Removing…' : 'Delete'}
+                </button>
+              </div>
+            )
+          })}
         </div>
       )}
 
