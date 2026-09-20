@@ -91,35 +91,72 @@ const quantityLabelStyle = {
   color: '#444',
 }
 
+// Tailwind's canonical "secondary button": white fill, gray-300 border,
+// shadow-sm — a defined, slightly raised look rather than a flat outline.
 const smallButtonStyle = {
   ...buttonStyle,
-  padding: '0.1rem 0.5rem',
-  fontSize: '0.75rem',
+  padding: '0.3rem 0.7rem',
+  fontSize: '0.85rem',
+  fontWeight: 500,
+  color: '#111827',
+  border: '1px solid #d1d5db',
+  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
 }
 
+// Tailwind's "destructive" secondary button — same white/shadow treatment,
+// red-tinted border and text instead of gray.
 const dangerButtonStyle = {
   ...smallButtonStyle,
-  color: 'crimson',
+  color: '#dc2626',
+  border: '1px solid #fecaca',
 }
 
-// Primary action within an expanded product card — filled with the same
-// accent green used for "Selected" elsewhere, so it stands out from the
-// plain outlined buttons (Search, Close, Save for later, ...) around it.
+// Tailwind's canonical solid/filled "primary button" (bg-green-600,
+// white text, shadow-sm) — the main CTA on an unpriced line.
+const findPricesButtonStyle = {
+  ...buttonStyle,
+  padding: '0.4rem 0.85rem',
+  fontSize: '0.85rem',
+  fontWeight: 600,
+  color: '#fff',
+  background: '#16a34a',
+  border: '1px solid #16a34a',
+  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+}
+
+// A "ghost" chip nested inside the badge — Change is the same action as
+// findPricesButtonStyle, just from the priced state, kept in the same green family.
+// flexShrink/whiteSpace pin this to its natural single-line size — without
+// them, a long price/merchant sibling squeezes it until its own text wraps.
+const changeButtonStyle = {
+  ...smallButtonStyle,
+  fontWeight: 600,
+  color: '#15803d',
+  background: '#fff',
+  border: 'none',
+  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+  flexShrink: 0,
+  whiteSpace: 'nowrap',
+}
+
+// Same green-600 as findPricesButtonStyle — the hover state (globals.css's
+// .select-button rule) steps to green-700 for a slightly darker press state.
 const selectButtonStyle = {
   ...buttonStyle,
   padding: '0.5rem 1.1rem',
   fontSize: '0.95rem',
   fontWeight: 'bold',
   color: '#fff',
-  background: '#2e7d46',
-  border: '1px solid #2e7d46',
+  background: '#16a34a',
+  border: '1px solid #16a34a',
+  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
 }
 
 const selectedButtonStyle = {
   ...selectButtonStyle,
-  background: '#e8f5ec',
-  color: '#2e7d46',
-  border: '1px solid #2e7d46',
+  background: '#dcfce7',
+  color: '#166534',
+  border: '1px solid #16a34a',
   cursor: 'default',
 }
 
@@ -133,8 +170,11 @@ const savedForLaterRowStyle = {
   display: 'flex',
   alignItems: 'center',
   gap: '0.6rem',
-  marginBottom: '0.4rem',
   flexWrap: 'wrap',
+  padding: '0.6rem 0.75rem',
+  marginBottom: '0.5rem',
+  border: '1px dashed #ddd',
+  borderRadius: 6,
   color: '#666',
 }
 
@@ -206,15 +246,70 @@ const sortSelectStyle = {
   color: '#333',
 }
 
+// Tailwind's "soft badge" pattern (bg-green-100/text-green-800) — a shade
+// deeper than the priced row's own bg-green-50 so it still stands out on it.
 const badgeStyle = {
   display: 'inline-flex',
   alignItems: 'center',
-  gap: '0.4rem',
-  border: '1px solid #cde7d8',
-  background: '#f2faf5',
+  gap: '0.5rem',
+  border: '1px solid #86efac',
+  background: '#dcfce7',
   borderRadius: 6,
-  padding: '0.25rem 0.6rem',
+  padding: '0.3rem 0.3rem 0.3rem 0.65rem',
   fontSize: '0.85rem',
+  color: '#166534',
+}
+
+const introStyle = {
+  background: '#f5f8ff',
+  border: '1px solid #dbe6ff',
+  borderRadius: 6,
+  padding: '0.75rem 1rem',
+  marginBottom: '1rem',
+  fontSize: '0.9rem',
+  lineHeight: 1.5,
+  color: '#333',
+}
+
+// One card per line, clearly bounded from its neighbours (a plain flex row
+// read as one continuous block once there were more than a few materials).
+// A fixed-width column per field so the same field lines up at the same
+// x-position on every row — the template must stay identical across rows.
+const materialRowStyle = {
+  display: 'grid',
+  gridTemplateColumns: '130px minmax(160px, 1fr) 120px 200px 150px 100px',
+  alignItems: 'center',
+  gap: '0.6rem',
+  padding: '0.75rem',
+  marginBottom: '0.6rem',
+  border: '1px solid #e5e7eb',
+  borderRadius: 6,
+  background: '#f9fafb',
+}
+
+const materialRowPricedStyle = {
+  ...materialRowStyle,
+  border: '1px solid #bbf7d0',
+  background: '#f0fdf4',
+}
+
+const statusTagStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.3rem',
+  fontSize: '1rem',
+  fontWeight: 'bold',
+  whiteSpace: 'nowrap',
+}
+
+const pricedTagStyle = {
+  ...statusTagStyle,
+  color: '#15803d',
+}
+
+const notPricedTagStyle = {
+  ...statusTagStyle,
+  color: '#b45309',
 }
 
 // Zero results / an error fall back to direct merchant search links rather
@@ -288,6 +383,9 @@ function PricePickerModal({ materialName, initialQuery, quoteId, selectedProduct
   const [products, setProducts] = useState([])
   const [errorMessage, setErrorMessage] = useState(null)
   const [savingId, setSavingId] = useState(null)
+  // Separate from errorMessage (a search failure) since a save can fail even
+  // while results are showing, where errorMessage's banner isn't rendered.
+  const [saveError, setSaveError] = useState(null)
   const [expandedId, setExpandedId] = useState(null)
   const [merchantFilter, setMerchantFilter] = useState(initialMerchantFilter)
   const [sortBy, setSortBy] = useState('relevance')
@@ -347,6 +445,7 @@ function PricePickerModal({ materialName, initialQuery, quoteId, selectedProduct
 
   async function handleSelect(product) {
     setSavingId(product.id)
+    setSaveError(null)
     // A search term the trader edited before finding this product becomes
     // the line's new display name going forward — see selectLinePrice.
     const trimmedQuery = query.trim()
@@ -356,7 +455,7 @@ function PricePickerModal({ materialName, initialQuery, quoteId, selectedProduct
       onSelect(product, nameOverride)
       onClose()
     } catch {
-      setErrorMessage('Could not save your selection — try again.')
+      setSaveError('Could not save your selection — try again.')
       setSavingId(null)
     }
   }
@@ -408,6 +507,10 @@ function PricePickerModal({ materialName, initialQuery, quoteId, selectedProduct
         </div>
 
         <div style={dialogResultsStyle}>
+        {saveError && (
+          <p style={{ color: 'crimson', marginTop: 0 }}>{saveError}</p>
+        )}
+
         {status === 'loading' && <p>Searching Google Shopping…</p>}
 
         {status === 'done' && products.length === 0 && (
@@ -594,6 +697,12 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
 
   return (
     <div style={{ marginTop: '0.75rem' }}>
+      <div style={introStyle}>
+        <strong>What to do:</strong> click <em>Find prices</em> on each item below to search live
+        prices and pick one — the materials total updates as you go. Use <em>Save for later</em>{' '}
+        to set an item aside without pricing it, or <em>Delete</em> to remove it from the quote.
+      </div>
+
       {lineError && (
         <p style={{ color: 'crimson', fontSize: '0.85rem', marginTop: 0 }}>{lineError}</p>
       )}
@@ -605,7 +714,10 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
         const isSaving = isPending && pendingAction.status === 'saved_for_later'
         const unit = quantityUnits[material.name]
         return (
-          <div key={material.name} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+          <div key={material.name} style={selected ? materialRowPricedStyle : materialRowStyle}>
+            <span style={selected ? pricedTagStyle : notPricedTagStyle}>
+              {selected ? '✅ Priced' : '○ Not priced yet'}
+            </span>
             <span>
               • {getDisplayName(material.name)}
               {material.notes ? ` — ${material.notes}` : ''}
@@ -625,13 +737,15 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
             </label>
             {selected ? (
               <span style={badgeStyle}>
-                {formatPrice(selected)} · {selected.merchant}
-                <button style={smallButtonStyle} onClick={() => setOpenMaterial(material.name)}>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  {formatPrice(selected)} · {selected.merchant}
+                </span>
+                <button style={changeButtonStyle} onClick={() => setOpenMaterial(material.name)}>
                   🔁 Change
                 </button>
               </span>
             ) : (
-              <button style={buttonStyle} onClick={() => setOpenMaterial(material.name)}>
+              <button className="select-button" style={findPricesButtonStyle} onClick={() => setOpenMaterial(material.name)}>
                 🔍 Find prices
               </button>
             )}

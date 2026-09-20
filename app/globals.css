@@ -23,9 +23,15 @@
   }
 }
 
-/* !important is required here: the button's base color comes from an inline
-   `style` attribute, which otherwise always wins over a plain CSS rule. */
+/* Shared by the Select and Find prices buttons (both green-600/green-700).
+   !important is required since the base color is an inline `style` attribute. */
 .select-button:not(:disabled):hover {
-  background: #256a3a !important;
-  border-color: #256a3a !important;
+  background: #15803d !important;
+  border-color: #15803d !important;
+}
+
+/* Browsers don't give <button> a pointer cursor by default. Covers every
+   button app-wide; an inline `cursor` override still wins over this. */
+button:not(:disabled) {
+  cursor: pointer;
 }

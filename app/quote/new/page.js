@@ -174,6 +174,9 @@ export default function NewQuotePage() {
   // Every raw answer ever given this session, keyed by question text — a
   // re-asked question (e.g. after Back then Continue) restores from here too.
   const [answerDraftsByQuestion, setAnswerDraftsByQuestion] = useState({});
+  // propose-materials responses keyed by the exact priorQuestions payload —
+  // an unchanged Back-then-Continue replays this instead of re-asking the LLM.
+  const [proposeCache, setProposeCache] = useState({});
   // Client-generated per-refinement-session id, used only to group this
   // session's material_refinement_events rows for later analysis — not an
   // auth/user concept (the app is single-tenant, see CLAUDE.md's Phase 4
@@ -337,6 +340,7 @@ export default function NewQuotePage() {
     setAnsweredQuestions([]);
     setClarifyingInitialAnswer(null);
     setAnswerDraftsByQuestion({});
+    setProposeCache({});
     setSessionId(null);
     setSteps([]);
     setQuestion(null);
@@ -366,8 +370,40 @@ export default function NewQuotePage() {
   // pairs have accumulated so far. The response is either another
   // clarifying question (loop back to the 'clarifying' phase) or the final
   // materials list (move on to 'refining') — see lib/propose-materials.js.
-  async function callProposeMaterials(priorQs) {
+  // drafts defaults to live state; a caller that just reset it must pass the
+  // fresh value explicitly — setState hasn't landed within the same tick.
+  function applyProposeMaterialsResult(data, drafts = answerDraftsByQuestion) {
+    if (data.clarifyingQuestion) {
+      setClarifyingQuestion(data.clarifyingQuestion);
+      setClarifyingInitialAnswer(drafts[data.clarifyingQuestion.question] ?? null);
+      setPhase('clarifying');
+      return;
+    }
+
+    setRefinementMaterials(
+      (data.materials ?? []).map((m) => ({
+        id: crypto.randomUUID(),
+        label: m.label,
+        quantity: m.quantity ?? null,
+        description: m.description ?? null,
+        source: 'llm_proposed',
+        checked: true,
+      })),
+    );
+    setSessionId(crypto.randomUUID());
+    setPhase('refining');
+  }
+
+  // cache/drafts default to live state for the same reason as above — see
+  // handleProposeMaterials for the one caller that must override them.
+  async function callProposeMaterials(priorQs, { cache = proposeCache, drafts = answerDraftsByQuestion } = {}) {
     setPhase('proposing');
+
+    const cacheKey = JSON.stringify(priorQs);
+    if (Object.hasOwn(cache, cacheKey)) {
+      applyProposeMaterialsResult(cache[cacheKey], drafts);
+      return;
+    }
 
     let response;
     try {
@@ -394,28 +430,8 @@ export default function NewQuotePage() {
     }
 
     const data = await response.json();
-
-    if (data.clarifyingQuestion) {
-      setClarifyingQuestion(data.clarifyingQuestion);
-      setClarifyingInitialAnswer(
-        answerDraftsByQuestion[data.clarifyingQuestion.question] ?? null,
-      );
-      setPhase('clarifying');
-      return;
-    }
-
-    setRefinementMaterials(
-      (data.materials ?? []).map((m) => ({
-        id: crypto.randomUUID(),
-        label: m.label,
-        quantity: m.quantity ?? null,
-        description: m.description ?? null,
-        source: 'llm_proposed',
-        checked: true,
-      })),
-    );
-    setSessionId(crypto.randomUUID());
-    setPhase('refining');
+    setProposeCache((prev) => ({ ...prev, [cacheKey]: data }));
+    applyProposeMaterialsResult(data, drafts);
   }
 
   function handleOpenExamples() {
@@ -449,8 +465,11 @@ export default function NewQuotePage() {
     setError(null);
     setAnsweredQuestions([]);
     setAnswerDraftsByQuestion({});
+    setProposeCache({});
     setClarifyingQuestion(null);
-    await callProposeMaterials([]);
+    // Passed explicitly (not read back from state) — the resets above
+    // haven't landed yet within this same synchronous handler.
+    await callProposeMaterials([], { cache: {}, drafts: {} });
   }
 
   async function handleClarifyingAnswer(answer, rawAnswer) {

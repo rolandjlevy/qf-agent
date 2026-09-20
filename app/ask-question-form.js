@@ -80,7 +80,12 @@ export default function AskQuestionForm({ question, onSubmit, submitting, submit
             style={{ border: '1px solid #ddd', borderRadius: 4, padding: '0.5rem 0.75rem' }}
           >
             {group.label && <legend>{group.label}</legend>}
-            {[...group.options, OTHER_OPTION].map((option) => {
+            {[
+              // Drop any "Other" the model included on its own despite the
+              // prompt saying not to — the interface always adds exactly one.
+              ...group.options.filter((o) => o.toLowerCase() !== OTHER_OPTION.toLowerCase()),
+              OTHER_OPTION,
+            ].map((option) => {
               const isCheckbox = group.type === 'checkbox';
               const checked = isCheckbox
                 ? (choiceSelections[i] || []).includes(option)
