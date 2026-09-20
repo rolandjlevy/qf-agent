@@ -276,11 +276,14 @@ function calculateMaterialsTotal(materials, selections, quantities) {
   }, 0)
 }
 
-function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onSelect }) {
+// materialName is the stable (quote_id, material_name) key, never changed by
+// the trader — initialQuery is what the search box shows on open, which is
+// this line's current display name (its own past rename, if any).
+function PricePickerModal({ materialName, initialQuery, quoteId, selectedProduct, onClose, onSelect }) {
   // Reopening on an existing selection re-applies that product's own merchant
   // filter — it may not surface within an unfiltered "All" search's top results.
   const initialMerchantFilter = selectedProduct ? merchantCategory(selectedProduct.merchant) : 'All'
-  const [query, setQuery] = useState(materialName)
+  const [query, setQuery] = useState(initialQuery)
   const [status, setStatus] = useState('idle') // idle | loading | done
   const [products, setProducts] = useState([])
   const [errorMessage, setErrorMessage] = useState(null)
@@ -344,9 +347,13 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
 
   async function handleSelect(product) {
     setSavingId(product.id)
+    // A search term the trader edited before finding this product becomes
+    // the line's new display name going forward — see selectLinePrice.
+    const trimmedQuery = query.trim()
+    const nameOverride = trimmedQuery && trimmedQuery !== materialName ? trimmedQuery : undefined
     try {
-      await selectLinePrice(quoteId, materialName, product)
-      onSelect(product)
+      await selectLinePrice(quoteId, materialName, product, nameOverride)
+      onSelect(product, nameOverride)
       onClose()
     } catch {
       setErrorMessage('Could not save your selection — try again.')
@@ -365,7 +372,7 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
           <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.5rem' }}>
             <input style={inputStyle} value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search query" />
             <button type="submit" style={buttonStyle} disabled={status === 'loading'}>
-              {status === 'loading' ? 'Searching…' : 'Search'}
+              {status === 'loading' ? '⏳ Searching…' : '🔍 Search'}
             </button>
           </form>
 
@@ -479,7 +486,7 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
                       handleSelect(product)
                     }}
                   >
-                    {isSelected ? '✓ Selected' : isSavingThis ? 'Saving…' : 'Select'}
+                    {isSelected ? '✓ Selected' : isSavingThis ? '⏳ Saving…' : '🛒 Select'}
                   </button>
                 </div>
               )}
@@ -489,7 +496,7 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
 
         <div style={{ marginTop: '1rem', textAlign: 'right' }}>
           <button style={buttonStyle} onClick={onClose}>
-            Close
+            ✖️ Close
           </button>
         </div>
         </div>
@@ -525,11 +532,18 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
   const [statuses, setStatuses] = useState(() =>
     Object.fromEntries(materials.map((m) => [m.name, overridesByName[m.name]?.status ?? 'active'])),
   )
+  // The trader's own rename of a line, keyed by the original (stable)
+  // material name — see selectLinePrice/PricePickerModal's nameOverride.
+  const [names, setNames] = useState(() =>
+    Object.fromEntries(materials.filter((m) => overridesByName[m.name]?.nameOverride).map((m) => [m.name, overridesByName[m.name].nameOverride])),
+  )
   const [openMaterial, setOpenMaterial] = useState(null)
   const [lineError, setLineError] = useState(null)
   const [pendingAction, setPendingAction] = useState(null) // { name, status } | null
 
   if (!materials.length) return null
+
+  const getDisplayName = (materialName) => names[materialName] ?? materialName
 
   const activeMaterials = materials.filter((m) => statuses[m.name] === 'active')
   const savedMaterials = materials.filter((m) => statuses[m.name] === 'saved_for_later')
@@ -574,7 +588,7 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
 
   function handleDelete(materialName, { alreadySavedForLater = false } = {}) {
     const hint = alreadySavedForLater ? '' : ' (use "Save for later" instead if you might want it back)'
-    if (!confirm(`Remove "${materialName}" from this quote? This can't be undone${hint}.`)) return
+    if (!confirm(`Remove "${getDisplayName(materialName)}" from this quote? This can't be undone${hint}.`)) return
     handleStatusChange(materialName, 'deleted')
   }
 
@@ -593,7 +607,7 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
         return (
           <div key={material.name} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
             <span>
-              • {material.name}
+              • {getDisplayName(material.name)}
               {material.notes ? ` — ${material.notes}` : ''}
             </span>
             <label style={quantityLabelStyle}>
@@ -606,19 +620,19 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
                 value={quantities[material.name] ?? ''}
                 onChange={(e) => handleQuantityChange(material.name, e.target.value)}
                 onBlur={() => handleQuantityBlur(material.name)}
-                aria-label={`Quantity for ${material.name}`}
+                aria-label={`Quantity for ${getDisplayName(material.name)}`}
               />
             </label>
             {selected ? (
               <span style={badgeStyle}>
                 {formatPrice(selected)} · {selected.merchant}
                 <button style={smallButtonStyle} onClick={() => setOpenMaterial(material.name)}>
-                  Change
+                  🔁 Change
                 </button>
               </span>
             ) : (
               <button style={buttonStyle} onClick={() => setOpenMaterial(material.name)}>
-                Find prices
+                🔍 Find prices
               </button>
             )}
             <button
@@ -626,10 +640,10 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
               disabled={isPending}
               onClick={() => handleStatusChange(material.name, 'saved_for_later')}
             >
-              {isSaving ? 'Saving…' : 'Save for later'}
+              {isSaving ? '⏳ Saving…' : '🔖 Save for later'}
             </button>
             <button style={dangerButtonStyle} disabled={isPending} onClick={() => handleDelete(material.name)}>
-              {isDeleting ? 'Removing…' : 'Delete'}
+              {isDeleting ? '⏳ Removing…' : '🗑️ Delete'}
             </button>
           </div>
         )
@@ -658,18 +672,18 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
             return (
               <div key={material.name} style={savedForLaterRowStyle}>
                 <span>
-                  • {material.name}
+                  • {getDisplayName(material.name)}
                   {material.notes ? ` — ${material.notes}` : ''}
                 </span>
                 <button style={smallButtonStyle} disabled={isPending} onClick={() => handleStatusChange(material.name, 'active')}>
-                  {isReAdding ? 'Re-adding…' : 'Re-add'}
+                  {isReAdding ? '⏳ Re-adding…' : '↩️ Re-add'}
                 </button>
                 <button
                   style={dangerButtonStyle}
                   disabled={isPending}
                   onClick={() => handleDelete(material.name, { alreadySavedForLater: true })}
                 >
-                  {isDeleting ? 'Removing…' : 'Delete'}
+                  {isDeleting ? '⏳ Removing…' : '🗑️ Delete'}
                 </button>
               </div>
             )
@@ -680,10 +694,14 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
       {openMaterial && (
         <PricePickerModal
           materialName={openMaterial}
+          initialQuery={getDisplayName(openMaterial)}
           quoteId={quoteId}
           selectedProduct={selections[openMaterial]}
           onClose={() => setOpenMaterial(null)}
-          onSelect={(product) => setSelections((prev) => ({ ...prev, [openMaterial]: product }))}
+          onSelect={(product, nameOverride) => {
+            setSelections((prev) => ({ ...prev, [openMaterial]: product }))
+            if (nameOverride) setNames((prev) => ({ ...prev, [openMaterial]: nameOverride }))
+          }}
         />
       )}
     </div>

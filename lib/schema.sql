@@ -144,6 +144,11 @@ CREATE TABLE IF NOT EXISTS quote_line_prices (
 ALTER TABLE quote_line_prices ALTER COLUMN product DROP NOT NULL;
 ALTER TABLE quote_line_prices ADD COLUMN IF NOT EXISTS quantity_override TEXT;
 ALTER TABLE quote_line_prices ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'saved_for_later', 'deleted'));
+-- Set alongside a product selection when the trader searched under a
+-- different term than the original identify_materials label (e.g. "Gutter
+-- cleaning brush" -> "Gutter cleaning brush set") — material_name itself
+-- stays the stable join key back to tool_call_log's materials list.
+ALTER TABLE quote_line_prices ADD COLUMN IF NOT EXISTS name_override TEXT;
 
 -- Analytics for the materials-refinement step (see CLAUDE.md's Phase 3a
 -- addendum): one row per material the trader saw in the refinement dialog
