@@ -102,6 +102,33 @@ const dangerButtonStyle = {
   color: 'crimson',
 }
 
+// Primary action within an expanded product card — filled with the same
+// accent green used for "Selected" elsewhere, so it stands out from the
+// plain outlined buttons (Search, Close, Save for later, ...) around it.
+const selectButtonStyle = {
+  ...buttonStyle,
+  padding: '0.5rem 1.1rem',
+  fontSize: '0.95rem',
+  fontWeight: 'bold',
+  color: '#fff',
+  background: '#2e7d46',
+  border: '1px solid #2e7d46',
+}
+
+const selectedButtonStyle = {
+  ...selectButtonStyle,
+  background: '#e8f5ec',
+  color: '#2e7d46',
+  border: '1px solid #2e7d46',
+  cursor: 'default',
+}
+
+const savingButtonStyle = {
+  ...selectButtonStyle,
+  opacity: 0.6,
+  cursor: 'not-allowed',
+}
+
 const savedForLaterRowStyle = {
   display: 'flex',
   alignItems: 'center',
@@ -137,6 +164,13 @@ const productDetailStyle = {
   paddingTop: '0.6rem',
   borderTop: '1px solid #e0e0e0',
   fontSize: '0.9rem',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '0.75rem',
+}
+
+const productDetailInfoStyle = {
   display: 'flex',
   flexDirection: 'column',
   gap: '0.3rem',
@@ -250,7 +284,7 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
   const [status, setStatus] = useState('idle') // idle | loading | done
   const [products, setProducts] = useState([])
   const [errorMessage, setErrorMessage] = useState(null)
-  const [saving, setSaving] = useState(false)
+  const [savingId, setSavingId] = useState(null)
   const [expandedId, setExpandedId] = useState(null)
   const [merchantFilter, setMerchantFilter] = useState(initialMerchantFilter)
   const [sortBy, setSortBy] = useState('relevance')
@@ -309,14 +343,14 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
   const sortedProducts = useMemo(() => sortProducts(products, sortBy), [products, sortBy])
 
   async function handleSelect(product) {
-    setSaving(true)
+    setSavingId(product.id)
     try {
       await selectLinePrice(quoteId, materialName, product)
       onSelect(product)
       onClose()
     } catch {
       setErrorMessage('Could not save your selection — try again.')
-      setSaving(false)
+      setSavingId(null)
     }
   }
 
@@ -390,6 +424,8 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
         {status === 'done' && sortedProducts.map((product) => {
           const isSelected = selectedProduct?.id === product.id
           const isExpanded = expandedId === product.id
+          const isSavingThis = savingId === product.id
+          const isBusy = savingId != null
           return (
             <div key={product.id} style={isSelected ? selectedProductCardStyle : productCardStyle}>
               <div
@@ -414,36 +450,37 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
 
               {isExpanded && (
                 <div style={productDetailStyle}>
-                  <div>
-                    <strong>Merchant:</strong> {product.merchant}
-                  </div>
-                  <div>
-                    <strong>Availability:</strong> {product.availability === 'unknown' ? 'Not stated' : product.availability}
-                  </div>
-                  {product.rating != null && (
+                  <div style={productDetailInfoStyle}>
                     <div>
-                      <strong>Rating:</strong> {product.rating}★ ({product.reviewCount ?? 0} reviews)
+                      <strong>Merchant:</strong> {product.merchant}
                     </div>
-                  )}
-                  {product.productUrl && (
                     <div>
-                      <a href={product.productUrl} target="_blank" rel="noreferrer">
-                        View product page ↗
-                      </a>
+                      <strong>Availability:</strong> {product.availability === 'unknown' ? 'Not stated' : product.availability}
                     </div>
-                  )}
-                  <div style={{ marginTop: '0.4rem', textAlign: 'right' }}>
-                    <button
-                      style={buttonStyle}
-                      disabled={saving}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleSelect(product)
-                      }}
-                    >
-                      {isSelected ? 'Selected' : 'Select'}
-                    </button>
+                    {product.rating != null && (
+                      <div>
+                        <strong>Rating:</strong> {product.rating}★ ({product.reviewCount ?? 0} reviews)
+                      </div>
+                    )}
+                    {product.productUrl && (
+                      <div>
+                        <a href={product.productUrl} target="_blank" rel="noreferrer">
+                          View product page ↗
+                        </a>
+                      </div>
+                    )}
                   </div>
+                  <button
+                    className="select-button"
+                    style={isSelected ? selectedButtonStyle : isBusy ? savingButtonStyle : selectButtonStyle}
+                    disabled={isBusy || isSelected}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleSelect(product)
+                    }}
+                  >
+                    {isSelected ? '✓ Selected' : isSavingThis ? 'Saving…' : 'Select'}
+                  </button>
                 </div>
               )}
             </div>
