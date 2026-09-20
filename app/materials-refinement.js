@@ -7,7 +7,7 @@ const SKELETON_ROWS = 6;
 // Kept as named constants (rather than inline literals in each heading
 // below) so the two stages of this step can't silently drift back into
 // duplicated/inconsistent copy — see CLAUDE.md's Phase 3a addendum.
-const SKELETON_HEADING = 'Getting your quote ready';
+const SKELETON_HEADING = "Working out what's needed";
 const REFINEMENT_HEADING = 'Review before we draft your quote';
 
 const rowStyle = { marginBottom: '0.5rem' };

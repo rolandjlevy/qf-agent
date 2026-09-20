@@ -17,18 +17,18 @@ const OTHER_OPTION = 'Other';
 // show before materials are proposed (see lib/propose-materials.js) — the
 // question/choices/answer shape is identical in both places, so this is the
 // one place that shape gets rendered and reduced to an answer string.
-export default function AskQuestionForm({ question, onSubmit, submitting, submitLabel = 'Answer', actions }) {
-  const [choiceSelections, setChoiceSelections] = useState({});
-  const [otherText, setOtherText] = useState({});
-  const [notes, setNotes] = useState('');
+export default function AskQuestionForm({ question, onSubmit, submitting, submitLabel = 'Answer', actions, initialAnswer }) {
+  const [choiceSelections, setChoiceSelections] = useState(initialAnswer?.choiceSelections ?? {});
+  const [otherText, setOtherText] = useState(initialAnswer?.otherText ?? {});
+  const [notes, setNotes] = useState(initialAnswer?.notes ?? '');
 
-  // Reset fields only when the question text itself changes, not on every
-  // re-render with the same question (a parent that re-fetches/polls could
-  // otherwise hand back an equivalent-but-new question object each time).
+  // Reset fields (from initialAnswer, if given) only when the question
+  // text changes, not on every re-render with the same question.
   useEffect(() => {
-    setChoiceSelections({});
-    setOtherText({});
-    setNotes('');
+    setChoiceSelections(initialAnswer?.choiceSelections ?? {});
+    setOtherText(initialAnswer?.otherText ?? {});
+    setNotes(initialAnswer?.notes ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [question?.question]);
 
   if (!question) return null;
@@ -58,7 +58,7 @@ export default function AskQuestionForm({ question, onSubmit, submitting, submit
 
   function handleSubmit(e) {
     e.preventDefault();
-    onSubmit(buildAnswer());
+    onSubmit(buildAnswer(), { choiceSelections, otherText, notes });
   }
 
   return (
@@ -80,7 +80,12 @@ export default function AskQuestionForm({ question, onSubmit, submitting, submit
             style={{ border: '1px solid #ddd', borderRadius: 4, padding: '0.5rem 0.75rem' }}
           >
             {group.label && <legend>{group.label}</legend>}
-            {[...group.options, OTHER_OPTION].map((option) => {
+            {[
+              // Drop any "Other" the model included on its own despite the
+              // prompt saying not to — the interface always adds exactly one.
+              ...group.options.filter((o) => o.toLowerCase() !== OTHER_OPTION.toLowerCase()),
+              OTHER_OPTION,
+            ].map((option) => {
               const isCheckbox = group.type === 'checkbox';
               const checked = isCheckbox
                 ? (choiceSelections[i] || []).includes(option)

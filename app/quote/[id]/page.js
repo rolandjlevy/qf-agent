@@ -213,13 +213,6 @@ export default async function QuotePage({ params }) {
       </p>
       {quote.content ? (
         <>
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <QuoteActions
-              content={displayContent}
-              jobDescription={quote.job_description}
-              generatedAt={quote.generated_at}
-            />
-          </div>
           {preamble && <pre style={preStyle}>{preamble}</pre>}
           {sections.map((section) => (
             <details
@@ -240,6 +233,13 @@ export default async function QuotePage({ params }) {
               )}
             </details>
           ))}
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
+            <QuoteActions
+              content={displayContent}
+              jobDescription={quote.job_description}
+              generatedAt={quote.generated_at}
+            />
+          </div>
         </>
       ) : (
         <p>No content was saved for this quote.</p>

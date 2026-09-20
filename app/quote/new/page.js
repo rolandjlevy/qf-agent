@@ -165,11 +165,18 @@ export default function NewQuotePage() {
   // see prompts/system.js's PHASE_B_MATERIALS_RULES — but the dialog
   // rendering is kept in case that ever changes).
   const [clarifyingQuestion, setClarifyingQuestion] = useState(null);
-  // Accumulated { question, answer } pairs from Phase A's clarifying-question
-  // round-trip — sent back to propose-materials on each subsequent round,
-  // and forwarded to Phase B as `followUpAnswers` so it never needs to ask
-  // again (see buildInitialMessage in prompts/system.js).
-  const [priorQuestions, setPriorQuestions] = useState([]);
+  // Answered clarifying questions so far: question, reduced answer string
+  // (for the API), and raw AskQuestionForm selections (for Back to restore).
+  const [answeredQuestions, setAnsweredQuestions] = useState([]);
+  // Raw selections to prefill AskQuestionForm with; set by Back, null for a
+  // fresh question.
+  const [clarifyingInitialAnswer, setClarifyingInitialAnswer] = useState(null);
+  // Every raw answer ever given this session, keyed by question text — a
+  // re-asked question (e.g. after Back then Continue) restores from here too.
+  const [answerDraftsByQuestion, setAnswerDraftsByQuestion] = useState({});
+  // propose-materials responses keyed by the exact priorQuestions payload —
+  // an unchanged Back-then-Continue replays this instead of re-asking the LLM.
+  const [proposeCache, setProposeCache] = useState({});
   // Client-generated per-refinement-session id, used only to group this
   // session's material_refinement_events rows for later analysis — not an
   // auth/user concept (the app is single-tenant, see CLAUDE.md's Phase 4
@@ -187,6 +194,7 @@ export default function NewQuotePage() {
   const pollTimerRef = useRef(null);
   const pollStartRef = useRef(null);
   const dialogRef = useRef(null);
+  const examplesDialogRef = useRef(null);
   // steps.length snapshot taken when waitingForNext turns true — pollStatus
   // only inspects steps written after this point to decide whether the next
   // turn needs another answer.
@@ -329,7 +337,10 @@ export default function NewQuotePage() {
     setPhase('form');
     setRefinementMaterials([]);
     setClarifyingQuestion(null);
-    setPriorQuestions([]);
+    setAnsweredQuestions([]);
+    setClarifyingInitialAnswer(null);
+    setAnswerDraftsByQuestion({});
+    setProposeCache({});
     setSessionId(null);
     setSteps([]);
     setQuestion(null);
@@ -359,8 +370,40 @@ export default function NewQuotePage() {
   // pairs have accumulated so far. The response is either another
   // clarifying question (loop back to the 'clarifying' phase) or the final
   // materials list (move on to 'refining') — see lib/propose-materials.js.
-  async function callProposeMaterials(priorQs) {
+  // drafts defaults to live state; a caller that just reset it must pass the
+  // fresh value explicitly — setState hasn't landed within the same tick.
+  function applyProposeMaterialsResult(data, drafts = answerDraftsByQuestion) {
+    if (data.clarifyingQuestion) {
+      setClarifyingQuestion(data.clarifyingQuestion);
+      setClarifyingInitialAnswer(drafts[data.clarifyingQuestion.question] ?? null);
+      setPhase('clarifying');
+      return;
+    }
+
+    setRefinementMaterials(
+      (data.materials ?? []).map((m) => ({
+        id: crypto.randomUUID(),
+        label: m.label,
+        quantity: m.quantity ?? null,
+        description: m.description ?? null,
+        source: 'llm_proposed',
+        checked: true,
+      })),
+    );
+    setSessionId(crypto.randomUUID());
+    setPhase('refining');
+  }
+
+  // cache/drafts default to live state for the same reason as above — see
+  // handleProposeMaterials for the one caller that must override them.
+  async function callProposeMaterials(priorQs, { cache = proposeCache, drafts = answerDraftsByQuestion } = {}) {
     setPhase('proposing');
+
+    const cacheKey = JSON.stringify(priorQs);
+    if (Object.hasOwn(cache, cacheKey)) {
+      applyProposeMaterialsResult(cache[cacheKey], drafts);
+      return;
+    }
 
     let response;
     try {
@@ -387,76 +430,82 @@ export default function NewQuotePage() {
     }
 
     const data = await response.json();
-
-    if (data.clarifyingQuestion) {
-      setClarifyingQuestion(data.clarifyingQuestion);
-      setPhase('clarifying');
-      return;
-    }
-
-    setRefinementMaterials(
-      (data.materials ?? []).map((m) => ({
-        id: crypto.randomUUID(),
-        label: m.label,
-        quantity: m.quantity ?? null,
-        description: m.description ?? null,
-        source: 'llm_proposed',
-        checked: true,
-      })),
-    );
-    setSessionId(crypto.randomUUID());
-    setPhase('refining');
+    setProposeCache((prev) => ({ ...prev, [cacheKey]: data }));
+    applyProposeMaterialsResult(data, drafts);
   }
 
-  // Populates trade + jobDescription from the chosen example in one go —
-  // the trader can still edit either field afterwards; this is just a
-  // starting point, not a locked-in choice (see EXAMPLE_JOBS above).
-  function handleExampleChange(e) {
-    const value = e.target.value;
-    setExampleChoice(value);
-    if (!value) return;
-    const example = EXAMPLE_JOBS[Number(value)];
-    if (!example) return;
-    setTrade(example.trade);
-    setJobDescription(example.jobDescription);
+  function handleOpenExamples() {
+    examplesDialogRef.current?.showModal();
+  }
+
+  // Populates trade + jobDescription from the chosen example on submit —
+  // the trader can still edit either field afterwards.
+  function handleExamplesSubmit(e) {
+    e.preventDefault();
+    const example = EXAMPLE_JOBS[Number(exampleChoice)];
+    if (example) {
+      setTrade(example.trade);
+      setJobDescription(example.jobDescription);
+    }
+    examplesDialogRef.current?.close();
+  }
+
+  function handleExamplesCancel() {
+    examplesDialogRef.current?.close();
+  }
+
+  // Resets the picker to unselected whenever the modal closes (submit,
+  // cancel, or Esc).
+  function handleExamplesClose() {
+    setExampleChoice('');
   }
 
   async function handleProposeMaterials(e) {
     e.preventDefault();
     setError(null);
-    setPriorQuestions([]);
+    setAnsweredQuestions([]);
+    setAnswerDraftsByQuestion({});
+    setProposeCache({});
     setClarifyingQuestion(null);
-    await callProposeMaterials([]);
+    // Passed explicitly (not read back from state) — the resets above
+    // haven't landed yet within this same synchronous handler.
+    await callProposeMaterials([], { cache: {}, drafts: {} });
   }
 
-  async function handleClarifyingAnswer(answer) {
+  async function handleClarifyingAnswer(answer, rawAnswer) {
     const updated = [
-      ...priorQuestions,
-      { question: clarifyingQuestion.question, answer },
+      ...answeredQuestions,
+      { question: clarifyingQuestion, answer, rawAnswer },
     ];
-    setPriorQuestions(updated);
+    setAnsweredQuestions(updated);
+    setAnswerDraftsByQuestion((prev) => ({
+      ...prev,
+      [clarifyingQuestion.question]: rawAnswer,
+    }));
     setClarifyingQuestion(null);
-    await callProposeMaterials(updated);
+    await callProposeMaterials(
+      updated.map((e) => ({ question: e.question.question, answer: e.answer })),
+    );
   }
 
-  // Discards everything gathered so far (clarifying answers included) and
-  // returns to the job description input — fine for v1 (CLAUDE.md's Phase 3a
-  // addendum): the trader can just re-describe the job and start again.
-  function handleBackFromClarifying() {
-    setPhase('form');
-    setPriorQuestions([]);
-    setClarifyingQuestion(null);
-  }
-
-  // Discards the refinement and returns to the job description input — any
-  // checks/additions made are lost, which is fine for v1 (CLAUDE.md's Phase
-  // 3a addendum). Trade/tone/job description are kept so the trader can just
-  // tweak the description and re-propose.
-  function handleBackFromRefinement() {
-    setPhase('form');
+  // Steps back one question at a time (used from both 'clarifying' and
+  // 'refining') rather than jumping straight to the form in one go.
+  function handleBack() {
+    if (answeredQuestions.length === 0) {
+      setPhase('form');
+      setAnsweredQuestions([]);
+      setClarifyingQuestion(null);
+      setRefinementMaterials([]);
+      setSessionId(null);
+      return;
+    }
+    const previous = answeredQuestions[answeredQuestions.length - 1];
+    setAnsweredQuestions((prev) => prev.slice(0, -1));
+    setClarifyingQuestion(previous.question);
+    setClarifyingInitialAnswer(previous.rawAnswer);
     setRefinementMaterials([]);
     setSessionId(null);
-    setPriorQuestions([]);
+    setPhase('clarifying');
   }
 
   function handleToggleMaterial(id) {
@@ -513,7 +562,10 @@ export default function NewQuotePage() {
           tone,
           jobDescription,
           materials: materialsPayload,
-          followUpAnswers: priorQuestions,
+          followUpAnswers: answeredQuestions.map((e) => ({
+            question: e.question.question,
+            answer: e.answer,
+          })),
         }),
       });
     } catch {
@@ -552,7 +604,9 @@ export default function NewQuotePage() {
           action: 'accepted',
         })),
     ];
-    recordRefinementEvents(sessionId, jobDescription, events);
+    // .catch() guards the RPC itself (e.g. a stale action id after a dev
+    // hot reload) — the try/catch inside only covers its own DB write.
+    recordRefinementEvents(sessionId, jobDescription, events).catch(() => {});
   }
 
   async function handleAnswerSubmit(answer) {
@@ -639,24 +693,16 @@ export default function NewQuotePage() {
               }}
               required
             />
-          </label>
-
-          <label
-            style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}
-          >
-            Try some common examples
-            <select
-              style={{ padding: '0.25rem' }}
-              value={exampleChoice}
-              onChange={handleExampleChange}
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                handleOpenExamples();
+              }}
+              style={{ alignSelf: 'flex-end', fontSize: '0.85rem' }}
             >
-              <option value="">Choose an example…</option>
-              {EXAMPLE_JOBS.map((example, index) => (
-                <option key={example.label} value={index}>
-                  {example.label}
-                </option>
-              ))}
-            </select>
+              Examples
+            </a>
           </label>
 
           <button
@@ -669,6 +715,46 @@ export default function NewQuotePage() {
         </form>
       )}
 
+      <dialog
+        ref={examplesDialogRef}
+        onClose={handleExamplesClose}
+        style={{
+          maxWidth: 480,
+          width: '90%',
+          border: '1px solid #ddd',
+          borderRadius: 8,
+          padding: '1.25rem',
+        }}
+      >
+        <h2>Try some common examples</h2>
+        <form
+          onSubmit={handleExamplesSubmit}
+          style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+        >
+          <select
+            style={{ padding: '0.25rem' }}
+            value={exampleChoice}
+            onChange={(e) => setExampleChoice(e.target.value)}
+          >
+            <option value="">Choose an example…</option>
+            {EXAMPLE_JOBS.map((example, index) => (
+              <option key={example.label} value={index}>
+                {example.label}
+              </option>
+            ))}
+          </select>
+
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button type="button" onClick={handleExamplesCancel}>
+              Cancel
+            </button>
+            <button type="submit" disabled={exampleChoice === ''}>
+              Submit
+            </button>
+          </div>
+        </form>
+      </dialog>
+
       {phase === 'proposing' && <MaterialsSkeleton />}
 
       {phase === 'clarifying' && clarifyingQuestion && (
@@ -677,12 +763,13 @@ export default function NewQuotePage() {
           <AskQuestionForm
             question={clarifyingQuestion}
             onSubmit={handleClarifyingAnswer}
+            initialAnswer={clarifyingInitialAnswer}
             submitLabel="Continue →"
             actions={
               <button
                 type="button"
                 style={{ width: 'fit-content', padding: '0.5rem 1rem' }}
-                onClick={handleBackFromClarifying}
+                onClick={handleBack}
               >
                 ← Back
               </button>
@@ -696,7 +783,7 @@ export default function NewQuotePage() {
           materials={refinementMaterials}
           onToggle={handleToggleMaterial}
           onAdd={handleAddMaterial}
-          onBack={handleBackFromRefinement}
+          onBack={handleBack}
           onContinue={handleContinueToQuote}
         />
       )}
