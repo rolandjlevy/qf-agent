@@ -22,3 +22,10 @@
     animation: none;
   }
 }
+
+/* !important is required here: the button's base color comes from an inline
+   `style` attribute, which otherwise always wins over a plain CSS rule. */
+.select-button:not(:disabled):hover {
+  background: #256a3a !important;
+  border-color: #256a3a !important;
+}

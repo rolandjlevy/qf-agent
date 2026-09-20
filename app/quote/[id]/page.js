@@ -80,7 +80,8 @@ function formatMaterialLine(material, override) {
   const qty = rawQuantity ? ` (qty: ${extractIntegerQuantity(rawQuantity)})` : '';
   const notes = material.notes ? ` — ${material.notes}` : '';
   const price = override?.product ? ` — ${formatLinePrice(override.product)}` : ' — [Price TBC]';
-  return `• ${material.name}${qty}${notes}${price}`;
+  const name = override?.nameOverride ?? material.name;
+  return `• ${name}${qty}${notes}${price}`;
 }
 
 // Replaces just the bullet lines inside the drafted MATERIALS & EQUIPMENT
@@ -198,7 +199,7 @@ export default async function QuotePage({ params }) {
         // rather than throwing and 500ing the whole page.
         product = null;
       }
-      return [row.material_name, { product, quantity: row.quantity_override, status: row.status }];
+      return [row.material_name, { product, quantity: row.quantity_override, status: row.status, nameOverride: row.name_override }];
     }),
   );
 

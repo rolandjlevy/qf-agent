@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { buttonStyle } from './button-style.js'
 import { selectLinePrice, updateLineQuantity, updateLineStatus } from '../lib/actions/quote-prices.js'
-import { MERCHANT_CATEGORIES } from '../lib/pricing/merchant-category.js'
+import { MERCHANT_CATEGORIES, merchantCategory } from '../lib/pricing/merchant-category.js'
 import { extractIntegerQuantity, splitQuantity, joinQuantity } from '../lib/quantity.js'
 
 const overlayStyle = {
@@ -65,11 +65,8 @@ const inputStyle = {
   fontSize: '1rem',
 }
 
-// Longhand properties only (no `padding`/`border`/`borderRadius` shorthand)
-// — a browser parsing SSR'd HTML expands those shorthands into their
-// longhand equivalents on the element's live style object, which then
-// mismatches React's hydration check against this object's shorthand keys
-// and logs a (harmless, but noisy) hydration-mismatch warning.
+// Longhand properties only — shorthand here causes a harmless but noisy
+// React hydration-mismatch warning against the browser's expanded style object.
 const quantityInputStyle = {
   width: '4rem',
   paddingTop: '0.2rem',
@@ -103,6 +100,33 @@ const smallButtonStyle = {
 const dangerButtonStyle = {
   ...smallButtonStyle,
   color: 'crimson',
+}
+
+// Primary action within an expanded product card — filled with the same
+// accent green used for "Selected" elsewhere, so it stands out from the
+// plain outlined buttons (Search, Close, Save for later, ...) around it.
+const selectButtonStyle = {
+  ...buttonStyle,
+  padding: '0.5rem 1.1rem',
+  fontSize: '0.95rem',
+  fontWeight: 'bold',
+  color: '#fff',
+  background: '#2e7d46',
+  border: '1px solid #2e7d46',
+}
+
+const selectedButtonStyle = {
+  ...selectButtonStyle,
+  background: '#e8f5ec',
+  color: '#2e7d46',
+  border: '1px solid #2e7d46',
+  cursor: 'default',
+}
+
+const savingButtonStyle = {
+  ...selectButtonStyle,
+  opacity: 0.6,
+  cursor: 'not-allowed',
 }
 
 const savedForLaterRowStyle = {
@@ -140,6 +164,13 @@ const productDetailStyle = {
   paddingTop: '0.6rem',
   borderTop: '1px solid #e0e0e0',
   fontSize: '0.9rem',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '0.75rem',
+}
+
+const productDetailInfoStyle = {
   display: 'flex',
   flexDirection: 'column',
   gap: '0.3rem',
@@ -186,10 +217,8 @@ const badgeStyle = {
   fontSize: '0.85rem',
 }
 
-// Zero results / an error both fall back to direct merchant search links
-// (per the brief's fallback UX decision) rather than just a bare
-// "no results" message — these are generic search-page URLs, not fabricated
-// product links.
+// Zero results / an error fall back to direct merchant search links rather
+// than a bare "no results" message — generic search URLs, not fabricated ones.
 function merchantSearchLinks(query) {
   const q = encodeURIComponent(query)
   return [
@@ -209,9 +238,8 @@ function byRatingDesc(a, b) {
   return b.rating - a.rating
 }
 
-// Keyed by the same values SORT_OPTIONS exposes in the dropdown; 'relevance'
-// has no entry, so it falls through sortProducts' lookup as a no-op — it's
-// whatever order the provider returned.
+// 'relevance' has no entry, so it falls through as a no-op — whatever order
+// the provider returned.
 const SORT_COMPARATORS = {
   'price-asc': (a, b) => a.price - b.price,
   'price-desc': (a, b) => b.price - a.price,
@@ -226,9 +254,7 @@ const SORT_OPTIONS = [
 ]
 
 // A pure re-sort of the already-fetched page, unlike the merchant filter
-// (which needs a server round-trip — see performSearch) — price/rating are
-// already on every ProductResult, so no extra fetch is needed to reorder by
-// them.
+// (which needs a server round-trip — see performSearch).
 function sortProducts(products, sortBy) {
   const comparator = SORT_COMPARATORS[sortBy]
   return comparator ? [...products].sort(comparator) : products
@@ -250,26 +276,27 @@ function calculateMaterialsTotal(materials, selections, quantities) {
   }, 0)
 }
 
-function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onSelect }) {
-  const [query, setQuery] = useState(materialName)
+// materialName is the stable (quote_id, material_name) key, never changed by
+// the trader — initialQuery is what the search box shows on open, which is
+// this line's current display name (its own past rename, if any).
+function PricePickerModal({ materialName, initialQuery, quoteId, selectedProduct, onClose, onSelect }) {
+  // Reopening on an existing selection re-applies that product's own merchant
+  // filter — it may not surface within an unfiltered "All" search's top results.
+  const initialMerchantFilter = selectedProduct ? merchantCategory(selectedProduct.merchant) : 'All'
+  const [query, setQuery] = useState(initialQuery)
   const [status, setStatus] = useState('idle') // idle | loading | done
   const [products, setProducts] = useState([])
   const [errorMessage, setErrorMessage] = useState(null)
-  const [saving, setSaving] = useState(false)
+  const [savingId, setSavingId] = useState(null)
   const [expandedId, setExpandedId] = useState(null)
-  const [merchantFilter, setMerchantFilter] = useState('All')
+  const [merchantFilter, setMerchantFilter] = useState(initialMerchantFilter)
   const [sortBy, setSortBy] = useState('relevance')
-  // Tracks whether the unfiltered ("All") search ever found anything, so the
-  // filter row and "try another merchant" framing stay available even while
-  // the currently selected merchant filter itself has zero results.
-  const [everFoundResults, setEverFoundResults] = useState(false)
+  // Keeps the filter row visible even when the current filter has zero
+  // results. Starts true on reopen — an existing selection is proof results exist.
+  const [everFoundResults, setEverFoundResults] = useState(Boolean(selectedProduct))
 
-  // Searching per merchant happens server-side (see /api/pricing/search's
-  // options.merchant) rather than by filtering an already-fetched page
-  // client-side — a single mixed page of `maxResults` products could easily
-  // contain far fewer than 10 from any one merchant even when 10+ exist for
-  // it, so each filter click re-queries with that merchant so the backend
-  // can over-fetch and fill up to 10 when that many are actually available.
+  // Filtering happens server-side, not client-side — a mixed page could
+  // easily contain far fewer than 10 results from any one merchant.
   async function performSearch(merchant) {
     setStatus('loading')
     setErrorMessage(null)
@@ -309,24 +336,28 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
     performSearch(filter)
   }
 
-  // Search once on open, with the material name pre-filled — the trader can
-  // still edit and re-search from there.
+  // Search once on open, pre-filled with the material name and (see above)
+  // the selected product's own merchant filter.
   useEffect(() => {
-    performSearch('All')
+    performSearch(initialMerchantFilter)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const sortedProducts = useMemo(() => sortProducts(products, sortBy), [products, sortBy])
 
   async function handleSelect(product) {
-    setSaving(true)
+    setSavingId(product.id)
+    // A search term the trader edited before finding this product becomes
+    // the line's new display name going forward — see selectLinePrice.
+    const trimmedQuery = query.trim()
+    const nameOverride = trimmedQuery && trimmedQuery !== materialName ? trimmedQuery : undefined
     try {
-      await selectLinePrice(quoteId, materialName, product)
-      onSelect(product)
+      await selectLinePrice(quoteId, materialName, product, nameOverride)
+      onSelect(product, nameOverride)
       onClose()
     } catch {
       setErrorMessage('Could not save your selection — try again.')
-      setSaving(false)
+      setSavingId(null)
     }
   }
 
@@ -341,7 +372,7 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
           <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.5rem' }}>
             <input style={inputStyle} value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search query" />
             <button type="submit" style={buttonStyle} disabled={status === 'loading'}>
-              {status === 'loading' ? 'Searching…' : 'Search'}
+              {status === 'loading' ? '⏳ Searching…' : '🔍 Search'}
             </button>
           </form>
 
@@ -400,6 +431,8 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
         {status === 'done' && sortedProducts.map((product) => {
           const isSelected = selectedProduct?.id === product.id
           const isExpanded = expandedId === product.id
+          const isSavingThis = savingId === product.id
+          const isBusy = savingId != null
           return (
             <div key={product.id} style={isSelected ? selectedProductCardStyle : productCardStyle}>
               <div
@@ -424,36 +457,37 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
 
               {isExpanded && (
                 <div style={productDetailStyle}>
-                  <div>
-                    <strong>Merchant:</strong> {product.merchant}
-                  </div>
-                  <div>
-                    <strong>Availability:</strong> {product.availability === 'unknown' ? 'Not stated' : product.availability}
-                  </div>
-                  {product.rating != null && (
+                  <div style={productDetailInfoStyle}>
                     <div>
-                      <strong>Rating:</strong> {product.rating}★ ({product.reviewCount ?? 0} reviews)
+                      <strong>Merchant:</strong> {product.merchant}
                     </div>
-                  )}
-                  {product.productUrl && (
                     <div>
-                      <a href={product.productUrl} target="_blank" rel="noreferrer">
-                        View product page ↗
-                      </a>
+                      <strong>Availability:</strong> {product.availability === 'unknown' ? 'Not stated' : product.availability}
                     </div>
-                  )}
-                  <div style={{ marginTop: '0.4rem', textAlign: 'right' }}>
-                    <button
-                      style={buttonStyle}
-                      disabled={saving}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleSelect(product)
-                      }}
-                    >
-                      {isSelected ? 'Selected' : 'Select'}
-                    </button>
+                    {product.rating != null && (
+                      <div>
+                        <strong>Rating:</strong> {product.rating}★ ({product.reviewCount ?? 0} reviews)
+                      </div>
+                    )}
+                    {product.productUrl && (
+                      <div>
+                        <a href={product.productUrl} target="_blank" rel="noreferrer">
+                          View product page ↗
+                        </a>
+                      </div>
+                    )}
                   </div>
+                  <button
+                    className="select-button"
+                    style={isSelected ? selectedButtonStyle : isBusy ? savingButtonStyle : selectButtonStyle}
+                    disabled={isBusy || isSelected}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleSelect(product)
+                    }}
+                  >
+                    {isSelected ? '✓ Selected' : isSavingThis ? '⏳ Saving…' : '🛒 Select'}
+                  </button>
                 </div>
               )}
             </div>
@@ -462,7 +496,7 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
 
         <div style={{ marginTop: '1rem', textAlign: 'right' }}>
           <button style={buttonStyle} onClick={onClose}>
-            Close
+            ✖️ Close
           </button>
         </div>
         </div>
@@ -471,20 +505,11 @@ function PricePickerModal({ materialName, quoteId, selectedProduct, onClose, onS
   )
 }
 
-// Renders the MATERIALS & EQUIPMENT line items with per-line "Find prices",
-// an editable quantity, and Delete/Save for later controls. Reconstructed
-// from the structured identify_materials list (see lib/quote-materials.js)
-// rather than the drafted prose bullets, so each control binds unambiguously
-// to one material — the underlying drafted text is only ever rebuilt for
-// Copy/Download (see app/quote/[id]/page.js's buildDisplayContent), never
-// mutated here.
+// Renders MATERIALS & EQUIPMENT lines with Find prices/Delete/Save for later
+// controls, reconstructed from the structured identify_materials list.
 //
-// Delete and "Save for later" are the same underlying per-line `status`
-// ('active' | 'saved_for_later' | 'deleted') rather than two separate
-// mechanisms — see lib/schema.sql's quote_line_prices comment. They differ
-// only in UI treatment: a saved-for-later line moves to a reclaimable list
-// with a "Re-add" button, a deleted line just disappears (with a confirm()
-// guard, since there is no way back through this UI).
+// Delete and "Save for later" are the same per-line `status` field, differing
+// only in UI treatment — see lib/schema.sql's quote_line_prices comment.
 export default function MaterialsPricing({ quoteId, materials, overridesByName }) {
   const [selections, setSelections] = useState(() =>
     Object.fromEntries(materials.filter((m) => overridesByName[m.name]?.product).map((m) => [m.name, overridesByName[m.name].product])),
@@ -507,24 +532,25 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
   const [statuses, setStatuses] = useState(() =>
     Object.fromEntries(materials.map((m) => [m.name, overridesByName[m.name]?.status ?? 'active'])),
   )
+  // The trader's own rename of a line, keyed by the original (stable)
+  // material name — see selectLinePrice/PricePickerModal's nameOverride.
+  const [names, setNames] = useState(() =>
+    Object.fromEntries(materials.filter((m) => overridesByName[m.name]?.nameOverride).map((m) => [m.name, overridesByName[m.name].nameOverride])),
+  )
   const [openMaterial, setOpenMaterial] = useState(null)
   const [lineError, setLineError] = useState(null)
-  const [pendingMaterial, setPendingMaterial] = useState(null)
+  const [pendingAction, setPendingAction] = useState(null) // { name, status } | null
 
   if (!materials.length) return null
+
+  const getDisplayName = (materialName) => names[materialName] ?? materialName
 
   const activeMaterials = materials.filter((m) => statuses[m.name] === 'active')
   const savedMaterials = materials.filter((m) => statuses[m.name] === 'saved_for_later')
   const allPriced = activeMaterials.length > 0 && activeMaterials.every((material) => selections[material.name])
   const currency = Object.values(selections)[0]?.currency || 'GBP'
-  // Recomputed fresh on every render straight from live state — no
-  // "recalculate" button and nothing to go stale — so a quantity edit
-  // (including mid-keystroke via handleQuantityChange, not just on blur), a
-  // product selection/change, a delete, or a save-for-later all show up in
-  // this figure immediately, exactly as they happen. Materials without a
-  // selected price simply don't contribute yet (see calculateMaterialsTotal),
-  // which is what makes this a genuine partial/"running" total rather than
-  // something that has to wait for every line to be priced.
+  // Recomputed fresh on every render from live state — no "recalculate"
+  // button, nothing to go stale, unpriced materials just don't contribute yet.
   const materialsTotal = calculateMaterialsTotal(activeMaterials, selections, quantities)
 
   function handleQuantityChange(materialName, value) {
@@ -533,13 +559,8 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
 
   async function handleQuantityBlur(materialName) {
     const currentValue = quantities[materialName] ?? ''
-    // Enforce "a whole number, at least 1" here rather than relying only on
-    // the input's own type="number"/min="1" — those only affect the
-    // browser's native :invalid styling and spinner behaviour, they don't
-    // stop a decimal, an empty value, or an out-of-range one from actually
-    // reaching this handler. extractIntegerQuantity always returns a clean
-    // integer >= 1, same rule the display already enforces (see
-    // splitQuantity), so the two can never drift apart.
+    // The input's type="number"/min="1" only affects native styling — it
+    // doesn't stop a decimal or out-of-range value reaching this handler.
     const clampedNumber = String(extractIntegerQuantity(currentValue))
     if (clampedNumber !== currentValue) {
       setQuantities((prev) => ({ ...prev, [materialName]: clampedNumber }))
@@ -554,19 +575,20 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
   }
 
   async function handleStatusChange(materialName, status) {
-    setPendingMaterial(materialName)
+    setPendingAction({ name: materialName, status })
     try {
       await updateLineStatus(quoteId, materialName, status)
       setStatuses((prev) => ({ ...prev, [materialName]: status }))
     } catch {
       setLineError('Could not save that change — try again.')
     } finally {
-      setPendingMaterial(null)
+      setPendingAction(null)
     }
   }
 
-  function handleDelete(materialName) {
-    if (!confirm(`Remove "${materialName}" from this quote? This can't be undone (use "Save for later" instead if you might want it back).`)) return
+  function handleDelete(materialName, { alreadySavedForLater = false } = {}) {
+    const hint = alreadySavedForLater ? '' : ' (use "Save for later" instead if you might want it back)'
+    if (!confirm(`Remove "${getDisplayName(materialName)}" from this quote? This can't be undone${hint}.`)) return
     handleStatusChange(materialName, 'deleted')
   }
 
@@ -578,12 +600,14 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
 
       {activeMaterials.map((material) => {
         const selected = selections[material.name]
-        const isPending = pendingMaterial === material.name
+        const isPending = pendingAction?.name === material.name
+        const isDeleting = isPending && pendingAction.status === 'deleted'
+        const isSaving = isPending && pendingAction.status === 'saved_for_later'
         const unit = quantityUnits[material.name]
         return (
           <div key={material.name} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
             <span>
-              • {material.name}
+              • {getDisplayName(material.name)}
               {material.notes ? ` — ${material.notes}` : ''}
             </span>
             <label style={quantityLabelStyle}>
@@ -596,19 +620,19 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
                 value={quantities[material.name] ?? ''}
                 onChange={(e) => handleQuantityChange(material.name, e.target.value)}
                 onBlur={() => handleQuantityBlur(material.name)}
-                aria-label={`Quantity for ${material.name}`}
+                aria-label={`Quantity for ${getDisplayName(material.name)}`}
               />
             </label>
             {selected ? (
               <span style={badgeStyle}>
                 {formatPrice(selected)} · {selected.merchant}
                 <button style={smallButtonStyle} onClick={() => setOpenMaterial(material.name)}>
-                  Change
+                  🔁 Change
                 </button>
               </span>
             ) : (
               <button style={buttonStyle} onClick={() => setOpenMaterial(material.name)}>
-                Find prices
+                🔍 Find prices
               </button>
             )}
             <button
@@ -616,10 +640,10 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
               disabled={isPending}
               onClick={() => handleStatusChange(material.name, 'saved_for_later')}
             >
-              Save for later
+              {isSaving ? '⏳ Saving…' : '🔖 Save for later'}
             </button>
             <button style={dangerButtonStyle} disabled={isPending} onClick={() => handleDelete(material.name)}>
-              {isPending ? 'Removing…' : 'Delete'}
+              {isDeleting ? '⏳ Removing…' : '🗑️ Delete'}
             </button>
           </div>
         )
@@ -641,31 +665,43 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
       {savedMaterials.length > 0 && (
         <div style={{ marginTop: '0.75rem', paddingTop: '0.6rem', borderTop: '1px dashed #ddd' }}>
           <p style={{ margin: '0 0 0.4rem', fontSize: '0.85rem', color: '#666' }}>Saved for later ({savedMaterials.length}) — not included in this quote</p>
-          {savedMaterials.map((material) => (
-            <div key={material.name} style={savedForLaterRowStyle}>
-              <span>
-                • {material.name}
-                {material.notes ? ` — ${material.notes}` : ''}
-              </span>
-              <button
-                style={smallButtonStyle}
-                disabled={pendingMaterial === material.name}
-                onClick={() => handleStatusChange(material.name, 'active')}
-              >
-                Re-add
-              </button>
-            </div>
-          ))}
+          {savedMaterials.map((material) => {
+            const isPending = pendingAction?.name === material.name
+            const isDeleting = isPending && pendingAction.status === 'deleted'
+            const isReAdding = isPending && pendingAction.status === 'active'
+            return (
+              <div key={material.name} style={savedForLaterRowStyle}>
+                <span>
+                  • {getDisplayName(material.name)}
+                  {material.notes ? ` — ${material.notes}` : ''}
+                </span>
+                <button style={smallButtonStyle} disabled={isPending} onClick={() => handleStatusChange(material.name, 'active')}>
+                  {isReAdding ? '⏳ Re-adding…' : '↩️ Re-add'}
+                </button>
+                <button
+                  style={dangerButtonStyle}
+                  disabled={isPending}
+                  onClick={() => handleDelete(material.name, { alreadySavedForLater: true })}
+                >
+                  {isDeleting ? '⏳ Removing…' : '🗑️ Delete'}
+                </button>
+              </div>
+            )
+          })}
         </div>
       )}
 
       {openMaterial && (
         <PricePickerModal
           materialName={openMaterial}
+          initialQuery={getDisplayName(openMaterial)}
           quoteId={quoteId}
           selectedProduct={selections[openMaterial]}
           onClose={() => setOpenMaterial(null)}
-          onSelect={(product) => setSelections((prev) => ({ ...prev, [openMaterial]: product }))}
+          onSelect={(product, nameOverride) => {
+            setSelections((prev) => ({ ...prev, [openMaterial]: product }))
+            if (nameOverride) setNames((prev) => ({ ...prev, [openMaterial]: nameOverride }))
+          }}
         />
       )}
     </div>
