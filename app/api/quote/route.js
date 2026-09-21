@@ -18,6 +18,7 @@ import {
 import { formatTraderContext } from '../../../lib/trader-context.js'
 import { VALID_TRADES, VALID_TONES } from '../../../lib/constants.js'
 import { waitForAnswer } from '../../../lib/quote-runs.js'
+import { summarizeFollowUpAnswers } from '../../../lib/summarize-follow-up-answers.js'
 
 // save_quote (via tools/save-quote.js) uses Node's fs module — must run in
 // the Node runtime, not edge.
@@ -208,7 +209,13 @@ export async function POST(request) {
     }
 
     try {
-      const traderProfile = await getTraderProfile()
+      // Run concurrently — neither depends on the other, and the
+      // summarization call is itself an LLM round-trip worth overlapping
+      // with the trader-profile fetch rather than paying for both in series.
+      const [traderProfile, followUpAnswerBullets] = await Promise.all([
+        getTraderProfile(),
+        summarizeFollowUpAnswers(followUpAnswers, { signal: abortController.signal }),
+      ])
       const traderContext = formatTraderContext(traderProfile)
       const phaseBPrompt = buildPhaseBSystemPrompt()
       const systemPrompt = traderContext ? `${phaseBPrompt}\n\n${traderContext}` : phaseBPrompt
@@ -244,6 +251,7 @@ export async function POST(request) {
         jobDescription,
         sectionStore: {},
         materials: legacyMaterials,
+        followUpAnswerBullets,
       }
 
       // identify_materials and ask_user are deliberately excluded — materials

@@ -55,7 +55,7 @@ export default async function QuotesPage() {
                   jobDescription={quote.job_description}
                   generatedAt={quote.generated_at}
                   id={quote.id}
-                  downloadLabel="Download"
+                  downloadLabel="⬇️ Download"
                 />
                 <DeleteQuoteButton id={quote.id} />
               </div>

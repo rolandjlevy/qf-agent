@@ -8,6 +8,7 @@ import MaterialsRefinement, {
 } from '../../materials-refinement.js';
 import { recordRefinementEvents } from '../../../lib/actions/log-refinement.js';
 import AskQuestionForm from '../../ask-question-form.js';
+import { buttonStyle } from '../../button-style.js';
 
 // Quick-start examples for the job description form — each pairs a short,
 // realistic job description with the trade it actually belongs to, so
@@ -707,10 +708,10 @@ export default function NewQuotePage() {
 
           <button
             type="submit"
-            style={{ width: 'fit-content', padding: '0.5rem 1rem' }}
+            style={{ ...buttonStyle, width: 'fit-content', padding: '0.5rem 1rem' }}
             disabled={!jobDescription.trim()}
           >
-            Continue
+            ➡️ Continue
           </button>
         </form>
       )}
@@ -745,11 +746,11 @@ export default function NewQuotePage() {
           </select>
 
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button type="button" onClick={handleExamplesCancel}>
-              Cancel
+            <button type="button" style={buttonStyle} onClick={handleExamplesCancel}>
+              ❌ Cancel
             </button>
-            <button type="submit" disabled={exampleChoice === ''}>
-              Submit
+            <button type="submit" style={buttonStyle} disabled={exampleChoice === ''}>
+              ✅ Submit
             </button>
           </div>
         </form>
@@ -764,14 +765,14 @@ export default function NewQuotePage() {
             question={clarifyingQuestion}
             onSubmit={handleClarifyingAnswer}
             initialAnswer={clarifyingInitialAnswer}
-            submitLabel="Continue →"
+            submitLabel="➡️ Continue"
             actions={
               <button
                 type="button"
-                style={{ width: 'fit-content', padding: '0.5rem 1rem' }}
+                style={{ ...buttonStyle, width: 'fit-content', padding: '0.5rem 1rem' }}
                 onClick={handleBack}
               >
-                ← Back
+                ⬅️ Back
               </button>
             }
           />
@@ -829,11 +830,11 @@ export default function NewQuotePage() {
             actions={
               <button
                 type="button"
-                style={{ width: 'fit-content', padding: '0.5rem 1rem' }}
+                style={{ ...buttonStyle, width: 'fit-content', padding: '0.5rem 1rem' }}
                 onClick={handleCancel}
                 disabled={submittingAnswer}
               >
-                Cancel
+                ❌ Cancel
               </button>
             }
           />

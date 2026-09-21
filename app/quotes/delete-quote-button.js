@@ -14,7 +14,7 @@ export default function DeleteQuoteButton({ id }) {
 
   return (
     <button onClick={handleClick} disabled={isPending} style={{ ...buttonStyle, color: 'crimson' }}>
-      {isPending ? 'Deleting…' : 'Delete'}
+      {isPending ? '⏳ Deleting…' : '🗑️ Delete'}
     </button>
   )
 }

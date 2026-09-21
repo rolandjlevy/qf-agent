@@ -1,7 +1,9 @@
+import { Fragment } from 'react';
 import { notFound } from 'next/navigation';
 import { getGeneratedQuoteById, getQuoteLinePrices } from '../../../lib/db.js';
 import { extractMaterialsFromToolCallLog } from '../../../lib/quote-materials.js';
 import { extractIntegerQuantity } from '../../../lib/quantity.js';
+import { FOLLOW_UP_ANSWERS_HEADING } from '../../../tools/save-quote.js';
 import QuoteActions from '../../quote-actions.js';
 import MaterialsPricing from '../../materials-pricing.js';
 
@@ -130,6 +132,17 @@ function buildDisplayContent(quote, preamble, sections, materials, overridesByNa
   return preamble ? `${preamble}\n\n${body}` : body;
 }
 
+// Bolds the FOLLOW_UP_ANSWERS_HEADING line for on-screen display only — the
+// underlying content (Copy/Download, DB) stays plain text, unaffected.
+function renderPreamble(preamble) {
+  return preamble.split('\n').map((line, i) => (
+    <Fragment key={i}>
+      {i > 0 && '\n'}
+      {line === FOLLOW_UP_ANSWERS_HEADING ? <strong>{line}</strong> : line}
+    </Fragment>
+  ));
+}
+
 function formatDate(iso) {
   return new Date(iso).toLocaleString('en-GB', {
     day: 'numeric',
@@ -213,7 +226,7 @@ export default async function QuotePage({ params }) {
       </p>
       {quote.content ? (
         <>
-          {preamble && <pre style={preStyle}>{preamble}</pre>}
+          {preamble && <pre style={preStyle}>{renderPreamble(preamble)}</pre>}
           {sections.map((section) => (
             <details
               key={section.heading}

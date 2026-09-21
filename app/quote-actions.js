@@ -20,7 +20,7 @@ function buildFilename(jobDescription, generatedAt) {
   return `quote-${datePart}-${slugify(jobDescription)}.txt`
 }
 
-export default function QuoteActions({ content, jobDescription, generatedAt, id, downloadLabel = 'Download as text' }) {
+export default function QuoteActions({ content, jobDescription, generatedAt, id, downloadLabel = '⬇️ Download as text' }) {
   const [copyState, setCopyState] = useState('idle') // idle | copied | error
 
   async function handleCopy() {
@@ -54,14 +54,15 @@ export default function QuoteActions({ content, jobDescription, generatedAt, id,
       {id != null && (
         <a
           href={`/quote/${id}`}
+          className="btn-link"
           style={{ ...buttonStyle, display: 'inline-block', color: 'inherit', textDecoration: 'none' }}
         >
-          View
+          👁️ View
         </a>
       )}
       {content && (
         <button onClick={handleCopy} style={buttonStyle}>
-          {copyState === 'copied' ? 'Copied!' : copyState === 'error' ? 'Copy failed' : 'Copy'}
+          {copyState === 'copied' ? '✅ Copied!' : copyState === 'error' ? '⚠️ Copy failed' : '📋 Copy'}
         </button>
       )}
       {content && (

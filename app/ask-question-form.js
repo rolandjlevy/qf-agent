@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { buttonStyle } from './button-style.js';
 
 // Every choice group always gets this trailing option (a UI guarantee, not
 // something the model is asked to add) so a set of options never traps the
@@ -17,7 +18,7 @@ const OTHER_OPTION = 'Other';
 // show before materials are proposed (see lib/propose-materials.js) — the
 // question/choices/answer shape is identical in both places, so this is the
 // one place that shape gets rendered and reduced to an answer string.
-export default function AskQuestionForm({ question, onSubmit, submitting, submitLabel = 'Answer', actions, initialAnswer }) {
+export default function AskQuestionForm({ question, onSubmit, submitting, submitLabel = '💬 Answer', actions, initialAnswer }) {
   const [choiceSelections, setChoiceSelections] = useState(initialAnswer?.choiceSelections ?? {});
   const [otherText, setOtherText] = useState(initialAnswer?.otherText ?? {});
   const [notes, setNotes] = useState(initialAnswer?.notes ?? '');
@@ -147,8 +148,8 @@ export default function AskQuestionForm({ question, onSubmit, submitting, submit
       />
       <div style={{ display: 'flex', gap: '0.5rem' }}>
         {actions}
-        <button style={{ width: 'fit-content', padding: '0.5rem 1rem' }} type="submit" disabled={submitting}>
-          {submitting ? 'Answering…' : submitLabel}
+        <button style={{ ...buttonStyle, width: 'fit-content', padding: '0.5rem 1rem' }} type="submit" disabled={submitting}>
+          {submitting ? '⏳ Answering…' : submitLabel}
         </button>
       </div>
     </form>

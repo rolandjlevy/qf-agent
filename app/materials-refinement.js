@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { buttonStyle } from './button-style.js';
 
 const SKELETON_ROWS = 6;
 
@@ -12,7 +13,6 @@ const REFINEMENT_HEADING = 'Review before we draft your quote';
 
 const rowStyle = { marginBottom: '0.5rem' };
 const labelRowStyle = { display: 'flex', alignItems: 'flex-start', gap: '0.5rem' };
-const buttonStyle = { padding: '0.4rem 0.8rem' };
 
 // Shown while Phase A (POST /api/quote/propose-materials) is in flight — see
 // CLAUDE.md's Phase 3a addendum. Non-streaming (v1), so this skeleton is what
@@ -124,21 +124,21 @@ export default function MaterialsRefinement({ materials, onToggle, onAdd, onBack
             style={{ flex: 1, padding: '0.4rem' }}
           />
           <button type="button" style={buttonStyle} onClick={commitAdd}>
-            Add
+            ➕ Add
           </button>
         </div>
       ) : (
         <button type="button" style={{ ...buttonStyle, marginBottom: '1rem' }} onClick={() => setAdding(true)}>
-          + Add material
+          ➕ Add material
         </button>
       )}
 
       <div style={{ display: 'flex', gap: '0.5rem' }}>
         <button type="button" style={buttonStyle} onClick={onBack}>
-          ← Back
+          ⬅️ Back
         </button>
         <button type="button" style={buttonStyle} onClick={onContinue}>
-          Continue to quote →
+          ➡️ Continue to quote
         </button>
       </div>
     </div>
