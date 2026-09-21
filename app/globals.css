@@ -27,9 +27,11 @@
   border-color: #15803d !important;
 }
 
-/* Baseline hover for every other button app-wide — darkens whatever
-   background it already has, so new buttons get this for free. */
-button:not(:disabled):not(.select-button):hover {
+/* Baseline hover for every other button app-wide, plus the View link
+   (app/quote-actions.js) which is an <a> styled to look like a button —
+   .btn-link scopes this to that one link, not the app's real text links. */
+button:not(:disabled):not(.select-button):hover,
+a.btn-link:hover {
   filter: brightness(0.94);
 }
 
@@ -75,4 +77,15 @@ button:not(:disabled):not(.select-button):hover {
    button app-wide; an inline `cursor` override still wins over this. */
 button:not(:disabled) {
   cursor: pointer;
+}
+
+/* Dims a disabled button's whole rendered content, emoji included — text
+   color alone wouldn't touch an emoji glyph's own colors. .select-button is
+   excluded since it already manages its own disabled looks inline (a
+   "✓ Selected" button is deliberately disabled but NOT dimmed — it's a
+   confirmed state, not an unavailable one; savingButtonStyle's own inline
+   opacity covers the one .select-button case that should dim). */
+button:disabled:not(.select-button) {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

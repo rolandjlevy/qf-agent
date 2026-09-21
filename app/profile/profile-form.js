@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react'
 import { saveProfile } from '../../lib/actions/profile.js'
+import { buttonStyle } from '../button-style.js'
 
 const fieldStyle = { display: 'flex', flexDirection: 'column', gap: '0.25rem' }
 const inputStyle = { padding: '0.4rem 0.5rem', font: 'inherit' }
@@ -60,8 +61,8 @@ export default function ProfileForm({ profile }) {
           <input style={inputStyle} type="text" name="service_area" defaultValue={profile?.service_area || ''} />
         </label>
 
-        <button type="submit" disabled={savePending}>
-          {savePending ? 'Saving…' : 'Save profile'}
+        <button type="submit" style={{ ...buttonStyle, width: 'fit-content' }} disabled={savePending}>
+          {savePending ? '⏳ Saving…' : '💾 Save profile'}
         </button>
         {saveState.success && <p style={{ color: 'green' }}>Profile saved.</p>}
         {saveState.error && <p style={{ color: 'crimson' }}>{saveState.error}</p>}
