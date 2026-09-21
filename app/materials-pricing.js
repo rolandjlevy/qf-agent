@@ -85,6 +85,7 @@ const quantityInputStyle = {
 
 const quantityLabelStyle = {
   display: 'inline-flex',
+  flexWrap: 'wrap',
   alignItems: 'center',
   gap: '0.3rem',
   fontSize: '0.85rem',
@@ -464,7 +465,7 @@ function PricePickerModal({ materialName, initialQuery, quoteId, selectedProduct
           ✕
         </button>
         <div style={dialogHeaderStyle}>
-          <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>Find prices — {query}</h3>
+          <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>🛒 Find prices — {query}</h3>
           <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.5rem' }}>
             <input style={inputStyle} value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search query" />
             <button type="submit" style={buttonStyle} disabled={status === 'loading'}>
@@ -586,7 +587,16 @@ function PricePickerModal({ materialName, initialQuery, quoteId, selectedProduct
                       handleSelect(product)
                     }}
                   >
-                    {isSelected ? '✓ Selected' : isSavingThis ? '⏳ Saving…' : '🛒 Select'}
+                    {isSelected ? (
+                      '✓ Selected'
+                    ) : isSavingThis ? (
+                      '⏳ Saving…'
+                    ) : (
+                      <>
+                        <span style={{ fontSize: '1.3em', verticalAlign: '-0.1em', marginRight: '0.3em', filter: 'brightness(2.5)' }}>🛒</span>
+                        Select
+                      </>
+                    )}
                   </button>
                 </div>
               )}
@@ -711,7 +721,7 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
         const isSaving = isPending && pendingAction.status === 'saved_for_later'
         const unit = quantityUnits[material.name]
         return (
-          <div className="materials-row" style={selected ? materialRowPricedStyle : materialRowStyle}>
+          <div key={material.name} className="materials-row" style={selected ? materialRowPricedStyle : materialRowStyle}>
             <span style={selected ? pricedTagStyle : notPricedTagStyle}>
               {selected ? '✅ Priced' : '○ Not priced yet'}
             </span>
@@ -720,7 +730,7 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
               {material.notes ? ` — ${material.notes}` : ''}
             </span>
             <label style={quantityLabelStyle}>
-              Qty{unit ? ` (${unit})` : ''}:
+              Qty{unit ? ` (${unit})` : ''}:
               <input
                 type="number"
                 min="1"

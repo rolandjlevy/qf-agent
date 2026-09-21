@@ -27,6 +27,12 @@
   border-color: #15803d !important;
 }
 
+/* Baseline hover for every other button app-wide — darkens whatever
+   background it already has, so new buttons get this for free. */
+button:not(:disabled):not(.select-button):hover {
+  filter: brightness(0.94);
+}
+
 /* app/materials-pricing.js's per-material row — flex-wrap by default so
    fields drop to a new line instead of overflowing; grid opts in at 1024px+. */
 .materials-row {
