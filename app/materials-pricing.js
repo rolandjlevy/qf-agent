@@ -274,16 +274,13 @@ const introStyle = {
 // One card per line, clearly bounded from its neighbours (a plain flex row
 // read as one continuous block once there were more than a few materials).
 // A fixed-width column per field so the same field lines up at the same
-// x-position on every row — the template must stay identical across rows.
+// x-position on every row on desktop — the template must stay identical
+// across rows. The responsive layout itself (flex-wrap up to 1024px, this
+// grid above it, both with phone/tablet/desktop media queries) lives in the
+// .materials-row class (globals.css), not here — inline style objects can't
+// declare those.
 const materialRowStyle = {
-  display: 'grid',
-  gridTemplateColumns: '130px minmax(160px, 1fr) 120px 200px 150px 100px',
-  alignItems: 'center',
-  gap: '0.6rem',
-  padding: '0.75rem',
-  marginBottom: '0.6rem',
   border: '1px solid #e5e7eb',
-  borderRadius: 6,
   background: '#f9fafb',
 }
 
@@ -714,11 +711,11 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
         const isSaving = isPending && pendingAction.status === 'saved_for_later'
         const unit = quantityUnits[material.name]
         return (
-          <div key={material.name} style={selected ? materialRowPricedStyle : materialRowStyle}>
+          <div className="materials-row" style={selected ? materialRowPricedStyle : materialRowStyle}>
             <span style={selected ? pricedTagStyle : notPricedTagStyle}>
               {selected ? '✅ Priced' : '○ Not priced yet'}
             </span>
-            <span>
+            <span className="material-description" style={{ minWidth: 0 }}>
               • {getDisplayName(material.name)}
               {material.notes ? ` — ${material.notes}` : ''}
             </span>
