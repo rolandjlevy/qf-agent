@@ -42,7 +42,22 @@ function formatHeaderLine(traderProfile) {
     .join(' | ')
 }
 
-function assembleQuote(sections, traderProfile) {
+// Exported so app/quote/[id]/page.js can bold this exact line on screen
+// without the saved plain-text content (Copy/Download/DB) itself changing.
+export const FOLLOW_UP_ANSWERS_HEADING = 'Based on what you told us:'
+
+// `bullets` are already-condensed strings (see
+// lib/summarize-follow-up-answers.js — a sub-LLM rewrite of the trader's raw
+// Phase A Q&A pairs into short, readable statements). This function is just
+// assembly: prefix each with a bullet and add the heading. Omitted entirely
+// for CLI/labour-only runs with nothing to show.
+function formatFollowUpAnswers(bullets) {
+  if (!Array.isArray(bullets) || !bullets.length) return ''
+  const list = bullets.map((b) => `• ${b}`).join('\n')
+  return `${FOLLOW_UP_ANSWERS_HEADING}\n${list}`
+}
+
+function assembleQuote(sections, traderProfile, followUpAnswerBullets) {
   const s = (key, fallback = '') => {
     // Accept both snake_case (tool API) and camelCase (KB format)
     const camelMap = { scope: 'scopeOfWork', next_steps: 'nextSteps' }
@@ -50,11 +65,13 @@ function assembleQuote(sections, traderProfile) {
   }
 
   const customerLine = sections.customer_name ? `Dear ${sections.customer_name},\n\n` : ''
+  const answersBlock = formatFollowUpAnswers(followUpAnswerBullets)
 
   const parts = [
     formatHeaderLine(traderProfile),
     '',
     customerLine + s('introduction'),
+    ...(answersBlock ? ['', answersBlock] : []),
     '',
     'MATERIALS & EQUIPMENT',
     s('materials'),
@@ -84,7 +101,7 @@ function assembleQuote(sections, traderProfile) {
 // per run), so the model doesn't need to retype the full quote text or the
 // job context just to trigger the save.
 export function saveQuote({ sections: sectionsInput, metadata } = {}, toolContext = {}) {
-  const { traderProfile, sectionStore = {}, trade: ctxTrade, jobDescription: ctxJobDescription } = toolContext
+  const { traderProfile, sectionStore = {}, trade: ctxTrade, jobDescription: ctxJobDescription, followUpAnswerBullets } = toolContext
   const sections = { ...sectionStore, ...sectionsInput }
 
   const missing = SECTION_NAMES.filter((name) => !sections[name])
@@ -97,7 +114,7 @@ export function saveQuote({ sections: sectionsInput, metadata } = {}, toolContex
   const dateStr = isoDate()
 
   const baseFilename = `quote-${dateStr}-${trade}-${jobSlug}`
-  const content = assembleQuote(sections, traderProfile)
+  const content = assembleQuote(sections, traderProfile, followUpAnswerBullets)
 
   // Writing to the local output/ dir is best-effort: on Vercel the
   // filesystem is read-only outside /tmp (and /tmp is ephemeral), so a
