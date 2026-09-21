@@ -1,8 +1,5 @@
-/* Standard skeleton-loading pulse, shared by any loading placeholder in the
-   app (currently app/materials-refinement.js's MaterialsSkeleton) — a plain
-   opacity pulse is the conventional pattern (same technique as Tailwind's
-   `animate-pulse`, MUI's Skeleton, etc.), not achievable via inline styles
-   since React inline style objects can't declare @keyframes. */
+/* Shared skeleton-loading pulse (MaterialsSkeleton) — CSS-only since React
+   inline style objects can't declare @keyframes. */
 @keyframes skeleton-pulse {
   0%,
   100% {
@@ -28,6 +25,44 @@
 .select-button:not(:disabled):hover {
   background: #15803d !important;
   border-color: #15803d !important;
+}
+
+/* app/materials-pricing.js's per-material row — flex-wrap by default so
+   fields drop to a new line instead of overflowing; grid opts in at 1024px+. */
+.materials-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem;
+  margin-bottom: 0.6rem;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+/* Phone: one field per line — clearest reading order this narrow. */
+@media (max-width: 640px) {
+  .materials-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Scoped to tablet only — under the phone's flex-direction: column, this
+   200px basis would set a forced height instead of a starting width. */
+@media (min-width: 641px) and (max-width: 1023px) {
+  .material-description {
+    flex: 1 1 200px;
+  }
+}
+
+/* Desktop: row is reliably wide enough (~930px) for the aligned grid to
+   fit without overflowing. */
+@media (min-width: 1024px) {
+  .materials-row {
+    display: grid;
+    grid-template-columns: 130px minmax(160px, 1fr) 120px 200px 150px 100px;
+  }
 }
 
 /* Browsers don't give <button> a pointer cursor by default. Covers every
