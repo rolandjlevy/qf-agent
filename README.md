@@ -35,6 +35,12 @@ node qf.js profile               # set your business name, contact details, rate
 npm run dev         # http://localhost:3000
 ```
 
+## No port in Ports tab
+
+URL needs to end with `-3000.app.github.dev`
+
+## Pages
+
 - `/profile` — set your business details (name, contact, rate, T&Cs)
 - `/quote/new` — describe a job, watch the agent work in real time, answer any clarifying questions it asks
 - `/quotes` — browse quotes you've generated
