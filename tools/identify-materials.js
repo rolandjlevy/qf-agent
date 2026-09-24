@@ -36,6 +36,7 @@ RULES — follow these exactly:
 - Include quantity where clearly determinable from the job description (e.g. "8" for 8 MCBs)
 - Include a brief notes field only if there is a genuinely useful constraint (e.g. "must be RCBO type")
 - Limit to 4–8 materials — only the key purchasable items, not every small consumable
+- If the job description shows that materials genuinely can't be specified yet — the work is, or has resolved to, a professional inspection/diagnosis before the actual job can be scoped (e.g. an undiagnosed fault) — return an empty "materials" array rather than inventing an "inspection"/"assessment"/"survey" line as if it were a purchasable product
 - Include a confidence field: "certain" if the job description explicitly names or clearly implies this material is needed, "inferred" if it's a reasonable but non-obligatory addition you're inferring from trade norms
 
 EXAMPLES of the desired style — do not copy these, generate materials specific to the actual job description above:

@@ -89,4 +89,31 @@ describe('draftSection', () => {
     await expect(draftSection({ section: 'introduction' }, {})).rejects.toThrow(/missing required context/);
     expect(createMessage).not.toHaveBeenCalled();
   });
+
+  it('asks for a "no materials needed" message instead of a bullet list when materials is empty', async () => {
+    createMessage.mockResolvedValueOnce(
+      textResponse('No materials needed at this stage\n• Professional assessment required before materials can be specified.'),
+    );
+
+    const toolContext = { ...baseToolContext(), materials: [] };
+    await draftSection({ section: 'materials' }, toolContext);
+
+    const prompt = createMessage.mock.calls[0][1].messages[0].content;
+    expect(prompt).toContain('No materials needed at this stage');
+    expect(prompt).not.toContain('List each material on its own line');
+    expect(toolContext.sectionStore.materials).toBe(
+      'No materials needed at this stage\n• Professional assessment required before materials can be specified.',
+    );
+  });
+
+  it('drafts a normal bullet list when materials are present', async () => {
+    createMessage.mockResolvedValueOnce(textResponse('• Consumer unit 10-way RCBO [Price TBC]'));
+
+    const toolContext = { ...baseToolContext(), materials: [{ name: 'Consumer unit 10-way RCBO' }] };
+    await draftSection({ section: 'materials' }, toolContext);
+
+    const prompt = createMessage.mock.calls[0][1].messages[0].content;
+    expect(prompt).toContain('List each material on its own line');
+    expect(prompt).not.toContain('No materials needed at this stage');
+  });
 });

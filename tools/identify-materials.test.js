@@ -29,6 +29,10 @@ describe('isRejectedMaterial', () => {
     expect(isRejectedMaterial({ name: 'Disposal fee' })).toBe(true);
   });
 
+  it('rejects a non-physical inspection/diagnostic "material" (job needs diagnosis before materials can be specified)', () => {
+    expect(isRejectedMaterial({ name: 'Wardrobe inspection and diagnostic service' })).toBe(true);
+  });
+
   it('does not reject a legitimate product name that merely contains a skip-keyword substring', () => {
     // "hire" is a skip keyword; "Yorkshire" contains it as a substring
     // ("...ks-HIRE...") but is not the whole word "hire".

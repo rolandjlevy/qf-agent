@@ -72,7 +72,27 @@ RULES:
 - Return plain text bullets only — no markdown headings, no tables.`,
 
   materials: (ctx, traderContext, priorSections) => {
-    const materialLines = buildMaterialLines(ctx.materials || ctx.materials_with_prices || [])
+    const materials = ctx.materials || ctx.materials_with_prices || []
+
+    if (!materials.length) {
+      return `Write the materials and equipment section for a trade quote, for a job where no purchasable materials have been identified.
+
+Trade: ${ctx.trade}
+${toneInstruction(ctx.tone)}
+${UNTRUSTED_DATA_NOTE}
+${wrapJobDescription(ctx.job_description)}
+${ctx.follow_up_answers ? `Additional details: ${JSON.stringify(ctx.follow_up_answers)}` : ''}
+${priorSections ? `\n${priorSections}\n` : ''}
+
+RULES:
+- First line, exactly: "No materials needed at this stage"
+- Second line, ONE short bullet ("•") explaining why, grounded in the actual job description and any additional details above — e.g. the work is a professional inspection/diagnosis visit before the job can be scoped, or this is genuinely a labour-only job with nothing to purchase. Never invent a generic excuse unconnected to the job description.
+- Do NOT list any purchasable products, quantities, or "[Price TBC]" placeholders — there is nothing to price yet.
+- No markdown tables.
+- Return plain text only — no headings.`
+    }
+
+    const materialLines = buildMaterialLines(materials)
     return `Write the materials and equipment section for a trade quote.
 
 Trade: ${ctx.trade}

@@ -142,9 +142,16 @@ const changeButtonStyle = {
 
 // Same green-600 as findPricesButtonStyle — the hover state (globals.css's
 // .select-button rule) steps to green-700 for a slightly darker press state.
+// Fixed height + flex centering (rather than vertical padding alone) so the
+// button's height doesn't inflate when the unselected state's larger 1.3em
+// emoji glyph sets a taller line box than the "✓ Selected"/"⏳ Saving…" text.
 const selectButtonStyle = {
   ...buttonStyle,
-  padding: '0.5rem 1.1rem',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: 37,
+  padding: '0 1.1rem',
   fontSize: '0.95rem',
   fontWeight: 'bold',
   color: '#fff',
