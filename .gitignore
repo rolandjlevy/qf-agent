@@ -9,3 +9,4 @@ data/uploads/
 .next/
 .vercel
 .env*
+docs/test-photos/

@@ -19,6 +19,7 @@ import { formatTraderContext } from '../../../lib/trader-context.js'
 import { VALID_TRADES, VALID_TONES } from '../../../lib/constants.js'
 import { waitForAnswer } from '../../../lib/quote-runs.js'
 import { summarizeFollowUpAnswers } from '../../../lib/summarize-follow-up-answers.js'
+import { sanitizePhotoFindings } from '../../../lib/photo-findings.js'
 
 // save_quote (via tools/save-quote.js) uses Node's fs module — must run in
 // the Node runtime, not edge.
@@ -101,6 +102,7 @@ export async function POST(request) {
   const jobDescription = typeof body?.jobDescription === 'string' ? body.jobDescription.trim() : ''
   const materials = validateMaterials(body?.materials)
   const followUpAnswers = sanitizeFollowUpAnswers(body?.followUpAnswers)
+  const photoFindings = sanitizePhotoFindings(body?.photoFindings)
 
   if (!VALID_TRADES.includes(trade)) {
     return Response.json({ error: `trade must be one of: ${VALID_TRADES.join(', ')}` }, { status: 400 })
@@ -219,7 +221,7 @@ export async function POST(request) {
       const traderContext = formatTraderContext(traderProfile)
       const phaseBPrompt = buildPhaseBSystemPrompt()
       const systemPrompt = traderContext ? `${phaseBPrompt}\n\n${traderContext}` : phaseBPrompt
-      const initialMessage = buildInitialMessage({ trade, tone, jobDescription, followUpAnswers })
+      const initialMessage = buildInitialMessage({ trade, tone, jobDescription, followUpAnswers, photoFindings })
 
       // The trader-refined list from the materials-refinement UI — already
       // final by this point (see validateMaterials/toLegacyMaterialShape
