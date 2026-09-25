@@ -1,4 +1,4 @@
-import { createClient, createMessage, getModel } from '../lib/anthropic-client.js'
+import { createClient, createMessage, getIdentifyMaterialsModel } from '../lib/anthropic-client.js'
 import { NEVER_DO_RULES } from '../prompts/system.js'
 import { isRejectedLabel } from '../lib/material-rules.js'
 
@@ -87,7 +87,7 @@ Return this exact JSON structure:
   const response = await createMessage(
     anthropic,
     {
-      model: getModel(),
+      model: getIdentifyMaterialsModel(),
       max_tokens: 1024,
       temperature: 0.2,
       system: NEVER_DO_RULES,

@@ -212,6 +212,19 @@ const SECTION_BUDGETS = {
   disclaimers: { maxWords: 100 },
 }
 
+// Tight max_tokens caps runaway output; each ceiling is still several times its SECTION_BUDGETS
+// size, since hitting it throws TruncatedResponseError (lib/anthropic-client.js) rather than repairing.
+const SECTION_MAX_TOKENS = {
+  introduction: 400,
+  assumptions: 400,
+  exclusions: 400,
+  next_steps: 400,
+  scope: 600,
+  disclaimers: 600,
+  materials: 800,
+}
+const DEFAULT_SECTION_MAX_TOKENS = 600
+
 function countWords(text) {
   return text ? text.split(/\s+/).filter(Boolean).length : 0
 }
@@ -263,7 +276,7 @@ export async function draftSection({ section, context } = {}, toolContext = {}) 
   const messages = [{ role: 'user', content: prompt }]
   const baseRequest = {
     model: getModel(),
-    max_tokens: 1024,
+    max_tokens: SECTION_MAX_TOKENS[section] ?? DEFAULT_SECTION_MAX_TOKENS, // per-section cap, see SECTION_MAX_TOKENS
     temperature: 0.4,
     system: NEVER_DO_RULES,
   }
