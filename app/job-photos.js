@@ -36,8 +36,8 @@ export function PhotoPicker({ photos, onAdd, onRemove }) {
         Photos <small style={{ color: '#666' }}>(optional, up to {MAX_JOB_PHOTOS})</small>
       </span>
       <small style={{ color: '#666' }}>
-        Photos of the existing installation, labels and data plates, and access help us ask fewer questions and
-        write a more accurate quote.
+        Add photos of what you'll be working on, plus any labels or model plates. The more we can see, the
+        fewer questions we'll ask and the more accurate your quote will be.
       </small>
 
       {photos.length > 0 && (
