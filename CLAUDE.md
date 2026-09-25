@@ -155,6 +155,8 @@ ANTHROPIC_API_KEY=        # required
 CLAUDE_MODEL=             # optional, defaults to claude-sonnet-4-6
 PHASE_A_MODEL=            # optional, defaults to claude-haiku-4-5-20251001; web UI's materials-proposal step (see "Materials refinement" above)
 PHASE_B_MODEL=            # optional, defaults to CLAUDE_MODEL/getModel(); web UI's quote-generation step
+PHOTO_ANALYSIS_MODEL=     # optional, defaults to CLAUDE_MODEL/getModel(); one vision call per job over the trader's site photos (lib/analyse-job-photos.js)
+BLOB_READ_WRITE_TOKEN=    # optional; private Vercel Blob store for job photos (lib/job-photos.js). Unset = photo routes return 503
 REQUEST_TIMEOUT_MS=       # optional, defaults to 60000; Anthropic client request timeout (lib/anthropic-client.js)
 DATABASE_URL=             # required; Neon/Postgres connection string, used by lib/db.js and scripts/migrate.mjs
 SERPER_API_KEY=           # optional; Google Shopping price search (see "Pricing" above). Unset = mock data

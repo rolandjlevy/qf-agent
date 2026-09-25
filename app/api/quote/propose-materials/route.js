@@ -1,5 +1,6 @@
 import { proposeMaterials } from '../../../../lib/propose-materials.js'
 import { VALID_TRADES } from '../../../../lib/constants.js'
+import { sanitizePhotoFindings } from '../../../../lib/photo-findings.js'
 
 // No fs/inquirer dependency, but kept consistent with the sibling /api/quote
 // route (which does need Node for save_quote's fs.writeFileSync).
@@ -30,6 +31,7 @@ export async function POST(request) {
   const trade = body?.trade
   const jobDescription = typeof body?.jobDescription === 'string' ? body.jobDescription.trim() : ''
   const priorQuestions = sanitizeQaPairs(body?.priorQuestions)
+  const photoFindings = sanitizePhotoFindings(body?.photoFindings)
 
   if (!VALID_TRADES.includes(trade)) {
     return Response.json({ error: `trade must be one of: ${VALID_TRADES.join(', ')}` }, { status: 400 })
@@ -39,7 +41,7 @@ export async function POST(request) {
   }
 
   try {
-    const result = await proposeMaterials({ trade, jobDescription, priorQuestions })
+    const result = await proposeMaterials({ trade, jobDescription, priorQuestions, photoFindings })
     return Response.json(result)
   } catch (err) {
     // Auth/permission errors can't be fixed by the caller retrying — surface

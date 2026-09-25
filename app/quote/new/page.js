@@ -2,13 +2,15 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { VALID_TRADES, VALID_TONES } from '../../../lib/constants.js';
+import { VALID_TRADES, VALID_TONES, MAX_JOB_PHOTOS } from '../../../lib/constants.js';
+import { compressImages } from '../../../lib/compress-image.js';
 import MaterialsRefinement, {
   MaterialsSkeleton,
 } from '../../materials-refinement.js';
 import { recordRefinementEvents } from '../../../lib/actions/log-refinement.js';
 import AskQuestionForm from '../../ask-question-form.js';
 import { buttonStyle } from '../../button-style.js';
+import { PhotoPicker, PhotoAnalysisSkeleton, PhotoFindingsReview } from '../../job-photos.js';
 
 // Quick-start examples for the job description form — each pairs a short,
 // realistic job description with the trade it actually belongs to, so
@@ -153,6 +155,8 @@ export default function NewQuotePage() {
   // only tracks the dropdown's own selection, not whether trade/jobDescription
   // still match it, so editing either afterwards doesn't fight the trader.
   const [exampleChoice, setExampleChoice] = useState('');
+  // With photos, 'form' -> 'analysingPhotos' -> 'reviewingPhotos' (trader confirms what the
+  // photos show) comes first, then the same flow below. Without photos it's skipped entirely.
   // 'form' -> 'proposing' (Phase A in flight) <-> 'clarifying' (Phase A asked
   // a question; loops back to 'proposing' once answered) -> 'refining'
   // (trader reviews the materials proposal) -> 'generating' (Phase B request
@@ -183,6 +187,12 @@ export default function NewQuotePage() {
   // auth/user concept (the app is single-tenant, see CLAUDE.md's Phase 4
   // roadmap note).
   const [sessionId, setSessionId] = useState(null);
+  // `{ id, previewUrl, status, pathname?, error? }[]` — see app/job-photos.js's PhotoPicker.
+  const [photos, setPhotos] = useState([]);
+  // analyse-photos response, with an id + checked flag per observation and the photos it covered.
+  const [photoAnalysis, setPhotoAnalysis] = useState(null);
+  // Which trade/description/photos photoAnalysis was run for, so Back-then-Continue reuses it.
+  const photoAnalysisKeyRef = useRef(null);
   const [steps, setSteps] = useState([]);
   const [question, setQuestion] = useState(null);
   // True from the moment an answer is submitted until we know whether the
@@ -343,12 +353,123 @@ export default function NewQuotePage() {
     setAnswerDraftsByQuestion({});
     setProposeCache({});
     setSessionId(null);
+    photos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+    setPhotos([]);
+    setPhotoAnalysis(null);
+    photoAnalysisKeyRef.current = null;
     setSteps([]);
     setQuestion(null);
     setWaiting(false);
     waitingSinceLenRef.current = 0;
     setSubmittingAnswer(false);
     setError(null);
+  }
+
+  function updatePhoto(id, patch) {
+    setPhotos((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  }
+
+  // Compresses then uploads straight to the private Blob store as soon as photos are chosen,
+  // so they're usually ready by the time the trader has finished typing.
+  async function handleAddPhotos(files) {
+    if (!files.length) return;
+    const entries = files.map((file) => ({
+      id: crypto.randomUUID(),
+      previewUrl: URL.createObjectURL(file),
+      status: 'compressing',
+    }));
+    setPhotos((prev) => [...prev, ...entries].slice(0, MAX_JOB_PHOTOS));
+
+    // Loaded on demand: the Blob client is most of this page's JS, and most quotes have no photos.
+    const [{ upload }, results] = await Promise.all([import('@vercel/blob/client'), compressImages(files)]);
+    await Promise.all(
+      results.map(async (r, i) => {
+        const { id } = entries[i];
+        if (r.error) {
+          updatePhoto(id, { status: 'failed', error: "This photo couldn't be read. Try a JPEG or PNG." });
+          return;
+        }
+        updatePhoto(id, { status: 'uploading' });
+        try {
+          const blob = await upload(`job-photos/${id}.jpg`, r.blob, {
+            access: 'private',
+            handleUploadUrl: '/api/quote/photos/upload',
+            contentType: 'image/jpeg',
+          });
+          updatePhoto(id, { status: 'ready', pathname: blob.pathname });
+        } catch {
+          updatePhoto(id, { status: 'failed', error: 'Upload failed. Remove it and try again.' });
+        }
+      }),
+    );
+  }
+
+  function handleRemovePhoto(id) {
+    setPhotos((prev) => {
+      const photo = prev.find((p) => p.id === id);
+      if (photo) URL.revokeObjectURL(photo.previewUrl);
+      return prev.filter((p) => p.id !== id);
+    });
+  }
+
+  function handleTogglePhotoObservation(id) {
+    setPhotoAnalysis((prev) => ({
+      ...prev,
+      observations: prev.observations.map((o) => (o.id === id ? { ...o, checked: !o.checked } : o)),
+    }));
+  }
+
+  // What Phase A and Phase B get: only ticked observations. Resolved topics aren't tied to single
+  // observations, so they're dropped once no ticked observation comes from a photo of the property itself.
+  function confirmedPhotoFindings(analysis = photoAnalysis) {
+    if (!analysis) return undefined;
+    const checked = analysis.observations.filter((o) => o.checked);
+    const hasSiteEvidence = checked.some((o) => analysis.photos[o.imageIndex - 1]?.kind === 'site');
+    return {
+      observations: checked.map((o) => o.observation),
+      resolved: hasSiteEvidence ? analysis.resolved : [],
+      unclear: analysis.unclear,
+    };
+  }
+
+  async function analysePhotos(readyPhotos) {
+    const key = JSON.stringify({ trade, jobDescription, photos: readyPhotos.map((p) => p.pathname) });
+    if (photoAnalysis && photoAnalysisKeyRef.current === key) {
+      setPhase('reviewingPhotos');
+      return;
+    }
+    setPhase('analysingPhotos');
+
+    let response;
+    try {
+      response = await fetch('/api/quote/analyse-photos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trade, jobDescription, photos: readyPhotos.map((p) => p.pathname) }),
+      });
+    } catch {
+      setError('Could not reach the server. Please try again.');
+      setPhase('form');
+      return;
+    }
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      setError(
+        `Couldn't analyse the photos (${errorBody?.error || `request failed, ${response.status}`}). Try again, or remove the photos to continue without them.`,
+      );
+      setPhase('form');
+      return;
+    }
+
+    const data = await response.json();
+    setPhotoAnalysis({
+      ...data,
+      sourcePhotos: readyPhotos,
+      // A tentative reading only goes into the quote if the trader ticks it themselves.
+      observations: data.observations.map((o) => ({ ...o, id: crypto.randomUUID(), checked: o.confidence !== 'low' })),
+    });
+    photoAnalysisKeyRef.current = key;
+    setPhase('reviewingPhotos');
   }
 
   // Hard stop, not an answer — resets local state immediately rather than
@@ -397,10 +518,14 @@ export default function NewQuotePage() {
 
   // cache/drafts default to live state for the same reason as above — see
   // handleProposeMaterials for the one caller that must override them.
-  async function callProposeMaterials(priorQs, { cache = proposeCache, drafts = answerDraftsByQuestion } = {}) {
+  async function callProposeMaterials(
+    priorQs,
+    { cache = proposeCache, drafts = answerDraftsByQuestion, photoFindings = confirmedPhotoFindings() } = {},
+  ) {
     setPhase('proposing');
 
-    const cacheKey = JSON.stringify(priorQs);
+    // Findings are part of the key: unticking an observation changes what Phase A should propose.
+    const cacheKey = JSON.stringify({ priorQs, photoFindings });
     if (Object.hasOwn(cache, cacheKey)) {
       applyProposeMaterialsResult(cache[cacheKey], drafts);
       return;
@@ -415,6 +540,7 @@ export default function NewQuotePage() {
           trade,
           jobDescription,
           priorQuestions: priorQs,
+          photoFindings,
         }),
       });
     } catch {
@@ -461,15 +587,31 @@ export default function NewQuotePage() {
     setExampleChoice('');
   }
 
-  async function handleProposeMaterials(e) {
-    e.preventDefault();
+  function resetClarifyingState() {
     setError(null);
     setAnsweredQuestions([]);
     setAnswerDraftsByQuestion({});
     setProposeCache({});
     setClarifyingQuestion(null);
+  }
+
+  async function handleProposeMaterials(e) {
+    e.preventDefault();
+    resetClarifyingState();
+    const readyPhotos = photos.filter((p) => p.status === 'ready');
+    if (readyPhotos.length) {
+      await analysePhotos(readyPhotos);
+      return;
+    }
+    setPhotoAnalysis(null);
+    photoAnalysisKeyRef.current = null;
     // Passed explicitly (not read back from state) — the resets above
     // haven't landed yet within this same synchronous handler.
+    await callProposeMaterials([], { cache: {}, drafts: {}, photoFindings: undefined });
+  }
+
+  async function handleContinueFromPhotos() {
+    resetClarifyingState();
     await callProposeMaterials([], { cache: {}, drafts: {} });
   }
 
@@ -493,7 +635,7 @@ export default function NewQuotePage() {
   // 'refining') rather than jumping straight to the form in one go.
   function handleBack() {
     if (answeredQuestions.length === 0) {
-      setPhase('form');
+      setPhase(photoAnalysis ? 'reviewingPhotos' : 'form');
       setAnsweredQuestions([]);
       setClarifyingQuestion(null);
       setRefinementMaterials([]);
@@ -567,6 +709,7 @@ export default function NewQuotePage() {
             question: e.question.question,
             answer: e.answer,
           })),
+          photoFindings: confirmedPhotoFindings(),
         }),
       });
     } catch {
@@ -628,6 +771,7 @@ export default function NewQuotePage() {
   }
 
   const turnLog = groupStepsByTurn(steps);
+  const photosBusy = photos.some((p) => p.status === 'compressing' || p.status === 'uploading');
   const checkedMaterialsCount = refinementMaterials.filter(
     (m) => m.checked,
   ).length;
@@ -642,9 +786,9 @@ export default function NewQuotePage() {
           style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
         >
           <div style={{ color: '#666', fontSize: '0.9rem' }}>
-            Describe the job and pick a trade and tone — we'll ask a quick
-            question first if needed, then propose a materials list for you to
-            review before drafting the quote.
+            Describe the job and pick a trade and tone, and add photos if you
+            have them — we'll ask a quick question first if needed, then propose
+            a materials list for you to review before drafting the quote.
           </div>
 
           <section style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
@@ -706,12 +850,14 @@ export default function NewQuotePage() {
             </a>
           </label>
 
+          <PhotoPicker photos={photos} onAdd={handleAddPhotos} onRemove={handleRemovePhoto} />
+
           <button
             type="submit"
             style={{ ...buttonStyle, width: 'fit-content', padding: '0.5rem 1rem' }}
-            disabled={!jobDescription.trim()}
+            disabled={!jobDescription.trim() || photosBusy}
           >
-            ➡️ Continue
+            {photosBusy ? '⏳ Uploading photos…' : '➡️ Continue'}
           </button>
         </form>
       )}
@@ -755,6 +901,20 @@ export default function NewQuotePage() {
           </div>
         </form>
       </dialog>
+
+      {phase === 'analysingPhotos' && (
+        <PhotoAnalysisSkeleton count={photos.filter((p) => p.status === 'ready').length} />
+      )}
+
+      {phase === 'reviewingPhotos' && photoAnalysis && (
+        <PhotoFindingsReview
+          photos={photoAnalysis.sourcePhotos}
+          analysis={photoAnalysis}
+          onToggle={handleTogglePhotoObservation}
+          onBack={() => setPhase('form')}
+          onContinue={handleContinueFromPhotos}
+        />
+      )}
 
       {phase === 'proposing' && <MaterialsSkeleton />}
 
