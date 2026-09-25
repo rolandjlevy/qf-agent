@@ -197,14 +197,10 @@ export function PhotoFindingsReview({ photos, analysis, onToggle, onBack, onCont
       </ul>
 
       {analysis.unclear.length > 0 && (
-        <details style={{ marginBottom: '1rem', color: '#444' }}>
-          <summary>Things the photos can't show ({analysis.unclear.length})</summary>
-          <ul>
-            {analysis.unclear.map((t) => (
-              <li key={t}>{t}</li>
-            ))}
-          </ul>
-        </details>
+        <p style={{ color: '#444' }}>
+          Next, {analysis.unclear.length === 1 ? 'one quick question' : `${analysis.unclear.length} quick questions`}{' '}
+          about things the photos can't show.
+        </p>
       )}
 
       <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -216,5 +212,80 @@ export function PhotoFindingsReview({ photos, analysis, onToggle, onBack, onCont
         </button>
       </div>
     </div>
+  );
+}
+
+export const PHOTO_OTHER_OPTION = 'Other';
+export const PHOTO_NOT_SURE_OPTION = 'Not sure – assume for now';
+
+// The trader's answer to one "can't show" question, or null when they left it or weren't sure.
+export function photoQuestionAnswer(entry) {
+  if (!entry?.choice || entry.choice === PHOTO_NOT_SURE_OPTION) return null;
+  if (entry.choice === PHOTO_OTHER_OPTION) return entry.otherText?.trim() || null;
+  return entry.choice;
+}
+
+// Every "can't show" topic on one page rather than one AI round-trip each. Anything left
+// unanswered becomes a stated assumption in the quote (see lib/photo-findings.js).
+export function PhotoQuestions({ questions, answers, onChange, onBack, onContinue }) {
+  const setEntry = (topic, patch) => onChange({ ...answers, [topic]: { ...answers[topic], ...patch } });
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onContinue();
+      }}
+    >
+      <h2>Things the photos can't show</h2>
+      <p style={{ color: '#666' }}>
+        Answer what you can. Anything you skip or aren't sure about is written into the quote as an assumption.
+      </p>
+
+      {questions.map((q, i) => {
+        const entry = answers[q.topic] ?? {};
+        return (
+          <fieldset
+            key={q.topic}
+            style={{ border: '1px solid #ddd', borderRadius: 4, padding: '0.5rem 0.75rem', marginBottom: '0.75rem' }}
+          >
+            <legend>
+              <strong>{q.question}</strong>
+            </legend>
+            {[...q.options, PHOTO_OTHER_OPTION, PHOTO_NOT_SURE_OPTION].map((option) => (
+              <label key={option} style={{ display: 'block' }}>
+                <input
+                  type="radio"
+                  name={`photo-question-${i}`}
+                  value={option}
+                  checked={entry.choice === option}
+                  onChange={() => setEntry(q.topic, { choice: option })}
+                />{' '}
+                {option}
+              </label>
+            ))}
+            {entry.choice === PHOTO_OTHER_OPTION && (
+              <input
+                type="text"
+                placeholder="Please specify"
+                value={entry.otherText ?? ''}
+                onChange={(e) => setEntry(q.topic, { otherText: e.target.value })}
+                style={{ marginTop: '0.25rem', marginLeft: '1.4rem', padding: '0.5rem', fontFamily: 'inherit', fontSize: 'inherit' }}
+                autoFocus
+              />
+            )}
+          </fieldset>
+        );
+      })}
+
+      <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <button type="button" style={buttonStyle} onClick={onBack}>
+          ⬅️ Back
+        </button>
+        <button type="submit" style={buttonStyle}>
+          ➡️ Continue
+        </button>
+      </div>
+    </form>
   );
 }

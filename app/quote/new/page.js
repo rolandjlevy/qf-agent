@@ -10,7 +10,13 @@ import MaterialsRefinement, {
 import { recordRefinementEvents } from '../../../lib/actions/log-refinement.js';
 import AskQuestionForm from '../../ask-question-form.js';
 import { buttonStyle } from '../../button-style.js';
-import { PhotoPicker, PhotoAnalysisSkeleton, PhotoFindingsReview } from '../../job-photos.js';
+import {
+  PhotoPicker,
+  PhotoAnalysisSkeleton,
+  PhotoFindingsReview,
+  PhotoQuestions,
+  photoQuestionAnswer,
+} from '../../job-photos.js';
 
 // Quick-start examples for the job description form — each pairs a short,
 // realistic job description with the trade it actually belongs to, so
@@ -156,7 +162,7 @@ export default function NewQuotePage() {
   // still match it, so editing either afterwards doesn't fight the trader.
   const [exampleChoice, setExampleChoice] = useState('');
   // With photos, 'form' -> 'analysingPhotos' -> 'reviewingPhotos' (trader confirms what the
-  // photos show) comes first, then the same flow below. Without photos it's skipped entirely.
+  // photos show) -> 'photoQuestions' (only if the photos left gaps) comes first, then the same flow below. Without photos it's skipped entirely.
   // 'form' -> 'proposing' (Phase A in flight) <-> 'clarifying' (Phase A asked
   // a question; loops back to 'proposing' once answered) -> 'refining'
   // (trader reviews the materials proposal) -> 'generating' (Phase B request
@@ -193,6 +199,8 @@ export default function NewQuotePage() {
   const [photoAnalysis, setPhotoAnalysis] = useState(null);
   // Which trade/description/photos photoAnalysis was run for, so Back-then-Continue reuses it.
   const photoAnalysisKeyRef = useRef(null);
+  // `{ [topic]: { choice, otherText } }` for photoAnalysis.unclear — see app/job-photos.js's PhotoQuestions.
+  const [photoAnswers, setPhotoAnswers] = useState({});
   const [steps, setSteps] = useState([]);
   const [question, setQuestion] = useState(null);
   // True from the moment an answer is submitted until we know whether the
@@ -357,6 +365,7 @@ export default function NewQuotePage() {
     setPhotos([]);
     setPhotoAnalysis(null);
     photoAnalysisKeyRef.current = null;
+    setPhotoAnswers({});
     setSteps([]);
     setQuestion(null);
     setWaiting(false);
@@ -421,6 +430,7 @@ export default function NewQuotePage() {
 
   // What Phase A and Phase B get: only ticked observations. Resolved topics aren't tied to single
   // observations, so they're dropped once no ticked observation comes from a photo of the property itself.
+  // `unclear` keeps only the gaps the trader couldn't answer; answered ones go out via photoQuestionPairs.
   function confirmedPhotoFindings(analysis = photoAnalysis) {
     if (!analysis) return undefined;
     const checked = analysis.observations.filter((o) => o.checked);
@@ -428,8 +438,16 @@ export default function NewQuotePage() {
     return {
       observations: checked.map((o) => o.observation),
       resolved: hasSiteEvidence ? analysis.resolved : [],
-      unclear: analysis.unclear,
+      unclear: analysis.unclear.filter((q) => !photoQuestionAnswer(photoAnswers[q.topic])).map((q) => q.topic),
     };
+  }
+
+  // Answered "can't show" questions as { question, answer }, sent ahead of Phase A's own Q&A.
+  function photoQuestionPairs() {
+    if (!photoAnalysis) return [];
+    return photoAnalysis.unclear
+      .map((q) => ({ question: q.question, answer: photoQuestionAnswer(photoAnswers[q.topic]) }))
+      .filter((qa) => qa.answer);
   }
 
   async function analysePhotos(readyPhotos) {
@@ -469,6 +487,7 @@ export default function NewQuotePage() {
       observations: data.observations.map((o) => ({ ...o, id: crypto.randomUUID(), checked: o.confidence !== 'low' })),
     });
     photoAnalysisKeyRef.current = key;
+    setPhotoAnswers({});
     setPhase('reviewingPhotos');
   }
 
@@ -524,8 +543,10 @@ export default function NewQuotePage() {
   ) {
     setPhase('proposing');
 
+    // Photo answers count toward Phase A's question cap, same as its own questions.
+    const allPriorQs = photoFindings ? [...photoQuestionPairs(), ...priorQs] : priorQs;
     // Findings are part of the key: unticking an observation changes what Phase A should propose.
-    const cacheKey = JSON.stringify({ priorQs, photoFindings });
+    const cacheKey = JSON.stringify({ allPriorQs, photoFindings });
     if (Object.hasOwn(cache, cacheKey)) {
       applyProposeMaterialsResult(cache[cacheKey], drafts);
       return;
@@ -539,7 +560,7 @@ export default function NewQuotePage() {
         body: JSON.stringify({
           trade,
           jobDescription,
-          priorQuestions: priorQs,
+          priorQuestions: allPriorQs,
           photoFindings,
         }),
       });
@@ -611,6 +632,14 @@ export default function NewQuotePage() {
   }
 
   async function handleContinueFromPhotos() {
+    if (photoAnalysis.unclear.length) {
+      setPhase('photoQuestions');
+      return;
+    }
+    await handleContinueFromPhotoQuestions();
+  }
+
+  async function handleContinueFromPhotoQuestions() {
     resetClarifyingState();
     await callProposeMaterials([], { cache: {}, drafts: {} });
   }
@@ -635,7 +664,8 @@ export default function NewQuotePage() {
   // 'refining') rather than jumping straight to the form in one go.
   function handleBack() {
     if (answeredQuestions.length === 0) {
-      setPhase(photoAnalysis ? 'reviewingPhotos' : 'form');
+      if (!photoAnalysis) setPhase('form');
+      else setPhase(photoAnalysis.unclear.length ? 'photoQuestions' : 'reviewingPhotos');
       setAnsweredQuestions([]);
       setClarifyingQuestion(null);
       setRefinementMaterials([]);
@@ -705,10 +735,13 @@ export default function NewQuotePage() {
           tone,
           jobDescription,
           materials: materialsPayload,
-          followUpAnswers: answeredQuestions.map((e) => ({
-            question: e.question.question,
-            answer: e.answer,
-          })),
+          followUpAnswers: [
+            ...photoQuestionPairs(),
+            ...answeredQuestions.map((e) => ({
+              question: e.question.question,
+              answer: e.answer,
+            })),
+          ],
           photoFindings: confirmedPhotoFindings(),
         }),
       });
@@ -913,6 +946,16 @@ export default function NewQuotePage() {
           onToggle={handleTogglePhotoObservation}
           onBack={() => setPhase('form')}
           onContinue={handleContinueFromPhotos}
+        />
+      )}
+
+      {phase === 'photoQuestions' && photoAnalysis && (
+        <PhotoQuestions
+          questions={photoAnalysis.unclear}
+          answers={photoAnswers}
+          onChange={setPhotoAnswers}
+          onBack={() => setPhase('reviewingPhotos')}
+          onContinue={handleContinueFromPhotoQuestions}
         />
       )}
 
