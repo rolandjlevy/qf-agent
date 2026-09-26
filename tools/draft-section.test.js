@@ -85,6 +85,39 @@ describe('draftSection', () => {
     expect(result.words).toBe(3);
   });
 
+  it('asks once for a rewrite when a draft makes a compliance claim', async () => {
+    createMessage
+      .mockResolvedValueOnce(textResponse('• Remedial work to wiring found to be non-compliant\n• Decorating'))
+      .mockResolvedValueOnce(textResponse('• Remedial work to damaged existing wiring\n• Decorating'));
+    const toolContext = { trade: 'electrician', tone: 'professional', jobDescription: 'Add sockets.', sectionStore: {} };
+    await draftSection({ section: 'exclusions' }, toolContext);
+    expect(createMessage).toHaveBeenCalledTimes(2);
+    expect(toolContext.sectionStore.exclusions).toBe('• Remedial work to damaged existing wiring\n• Decorating');
+  });
+
+  it('cuts the offending bullet in code if the rewrite still makes the claim', async () => {
+    createMessage
+      .mockResolvedValueOnce(textResponse('• Work to Part P\n• Decorating'))
+      .mockResolvedValueOnce(textResponse('• Work certified to Part P\n• Decorating'));
+    const toolContext = { trade: 'electrician', tone: 'professional', jobDescription: 'Add sockets.', sectionStore: {} };
+    await draftSection({ section: 'exclusions' }, toolContext);
+    expect(createMessage).toHaveBeenCalledTimes(2);
+    expect(toolContext.sectionStore.exclusions).toBe('• Decorating');
+  });
+
+  it("lets the trader's own certifications through without a rewrite", async () => {
+    createMessage.mockResolvedValueOnce(textResponse('We are Gas Safe registered and look forward to helping.'));
+    const toolContext = {
+      trade: 'gas-engineer',
+      tone: 'friendly',
+      jobDescription: 'Service the boiler.',
+      sectionStore: {},
+      traderProfile: { certifications: 'Gas Safe registered' },
+    };
+    await draftSection({ section: 'introduction' }, toolContext);
+    expect(createMessage).toHaveBeenCalledTimes(1);
+  });
+
   it('throws when required context is missing', async () => {
     await expect(draftSection({ section: 'introduction' }, {})).rejects.toThrow(/missing required context/);
     expect(createMessage).not.toHaveBeenCalled();

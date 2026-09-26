@@ -168,6 +168,8 @@ These are safety guardrails, not style preferences:
 
 These rules are enforced two ways, not just by prompt instruction: `NEVER_DO_RULES` (exported from `prompts/system.js`) is passed as the `system` parameter to the `identify_materials`, `propose_materials`, and `draft_section` sub-LLM calls in addition to being part of the main loop's `SYSTEM_PROMPT`, and the materials skip-rule is additionally enforced in code via `isRejectedLabel` (`lib/material-rules.js`) — a post-filter used by both `tools/identify-materials.js`'s `isRejectedMaterial` (the CLI's and old web flow's in-loop extraction) and `lib/propose-materials.js` (the web UI's Phase A, see "Materials refinement" above) rather than relying on the model alone.
 
+The compliance-claims rule is also enforced in code: `draft_section` checks each drafted section with `hasComplianceWording` (`lib/compliance-wording.js`). On a hit it asks the model once to rewrite without it (the same single bounded repair as the over-budget retry), and if the rewrite still has it, `stripComplianceWording` cuts the offending bullets or sentences. Phrases from the trader profile's `certifications` field are allowed, since those may be stated verbatim. Evals showed the model writing "non-compliant" into electrical exclusions despite the prompt.
+
 ## Environment
 
 ```
