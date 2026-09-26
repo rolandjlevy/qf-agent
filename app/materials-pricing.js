@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { buttonStyle } from './button-style.js'
+import { buttonStyle, closeButtonStyle } from './button-style.js'
 import { selectLinePrice, updateLineQuantity, updateLineStatus } from '../lib/actions/quote-prices.js'
 import { MERCHANT_CATEGORIES, merchantCategory } from '../lib/pricing/merchant-category.js'
 import { extractIntegerQuantity, splitQuantity, joinQuantity } from '../lib/quantity.js'
@@ -39,22 +39,6 @@ const dialogResultsStyle = {
   flex: 1,
   overflowY: 'auto',
   padding: '0.75rem 1.25rem 1.25rem',
-}
-
-const closeButtonStyle = {
-  position: 'absolute',
-  top: '0.75rem',
-  right: '0.75rem',
-  width: '2rem',
-  height: '2rem',
-  lineHeight: '2rem',
-  padding: 0,
-  textAlign: 'center',
-  border: '1px solid #ddd',
-  borderRadius: '50%',
-  background: '#fff',
-  cursor: 'pointer',
-  fontSize: '1.1rem',
 }
 
 const inputStyle = {

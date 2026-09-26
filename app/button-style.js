@@ -13,3 +13,20 @@ export const buttonStyle = {
   color: '#111827',
   boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
 }
+
+// Round × in a modal's top-right corner, shared by the Find prices and examples dialogs.
+export const closeButtonStyle = {
+  position: 'absolute',
+  top: '0.75rem',
+  right: '0.75rem',
+  width: '2rem',
+  height: '2rem',
+  lineHeight: '2rem',
+  padding: 0,
+  textAlign: 'center',
+  border: '1px solid #ddd',
+  borderRadius: '50%',
+  background: '#fff',
+  cursor: 'pointer',
+  fontSize: '1.1rem',
+}
