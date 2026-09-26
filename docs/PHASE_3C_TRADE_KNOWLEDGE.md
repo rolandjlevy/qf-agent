@@ -327,3 +327,25 @@ All 22 entries were reviewed and set to `reviewed: true` on 2026-09-26. These we
 - **overboard-ceiling:** Is overboarding the right default when an artex ceiling hasn't been tested?
 - **render-repair:** Is a waterproofer in the mix standard for sand and cement patches?
 
+## Phase A: stop re-asking what the description says (2026-09-27)
+
+Across all 9 packed trades, Phase A re-asked something the job description already stated in about 1 question in 6, e.g. "What do the gutters need?" for "Gutter needs clearing", or "How does the tap turn off?" for "It takes several turns to shut off". Mostly it picked a pack's diagnostic question without checking the description.
+
+**Fix:** before any question is shown, `questionAlreadyAnswered` (in `lib/propose-materials.js`) asks the Phase A model whether the description, photos or answers already state the answer. It must quote the words that do, and code checks that the quote exists and supports the answer. A skipped question becomes an inferred answer, so Phase A moves on to its next real question.
+
+**Measured** with a new `no-reask` eval check: `mustNotAsk` patterns on the affected cases.
+
+| | Before | After (2 runs, 5 trades) |
+|---|---|---|
+| Case runs that re-asked | 23 of 27 | 1 of about 20* |
+
+\*The one remaining failure was a legitimate question matched too broadly by its pattern (fixed). Totals held or rose, e.g. roofer 124.5/126 and decorator 123.5/124.
+
+**What it took to get there:**
+- A first version with no quote requirement skipped about 6 of 50 questions by guessing. For example, "What's on the wall now?" was answered "Paint" for a wallpaper job that never says so.
+- Requiring a quote wasn't enough on its own, because a true quote can sit next to a guessed answer (quote "feature wall", answer "Paint").
+- The final rule also requires the quote to contain most of the answer's key words.
+- After that, the skipped questions reviewed were all stated in the description, apart from small over-specifications such as "Smooth render" for "It is rendered".
+
+**Cost:** one extra Haiku call per question shown, typically 1 or 2 per quote.
+
