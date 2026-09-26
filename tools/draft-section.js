@@ -1,7 +1,7 @@
 import { createClient, createMessage, getModel } from '../lib/anthropic-client.js'
 import { NEVER_DO_RULES } from '../prompts/system.js'
 import { formatTraderContext } from '../lib/trader-context.js'
-import { TONE_GUIDES } from '../lib/constants.js'
+import { TONE_GUIDES, tradeLabel } from '../lib/constants.js'
 import { extractIntegerQuantity } from '../lib/quantity.js'
 
 const UNTRUSTED_DATA_NOTE =
@@ -34,7 +34,7 @@ export function buildPriorSectionsContext(sectionStore, currentSection) {
 const SECTION_PROMPTS = {
   introduction: (ctx, traderContext, priorSections) => `Write the introduction section for a trade quote.
 
-Trade: ${ctx.trade}
+Trade: ${tradeLabel(ctx.trade)}
 ${toneInstruction(ctx.tone)}
 ${UNTRUSTED_DATA_NOTE}
 ${wrapJobDescription(ctx.job_description)}
@@ -52,7 +52,7 @@ RULES:
 
   scope: (ctx, traderContext, priorSections) => `Write the scope of work section for a trade quote.
 
-Trade: ${ctx.trade}
+Trade: ${tradeLabel(ctx.trade)}
 ${toneInstruction(ctx.tone)}
 ${UNTRUSTED_DATA_NOTE}
 ${wrapJobDescription(ctx.job_description)}
@@ -66,7 +66,7 @@ RULES:
 - Flat bullet list of the main tasks to be performed. No nested bullets.
 - 6–8 items maximum. Each item on its own line starting with "•".
 - Around 120 words total.
-- Safety considerations for ${ctx.trade} included only where genuinely applicable.
+- Safety considerations for ${tradeLabel(ctx.trade)} included only where genuinely applicable.
 - No padding or filler items.
 - No prices, no compliance guarantees.
 - Return plain text bullets only — no markdown headings, no tables.`,
@@ -77,7 +77,7 @@ RULES:
     if (!materials.length) {
       return `Write the materials and equipment section for a trade quote, for a job where no purchasable materials have been identified.
 
-Trade: ${ctx.trade}
+Trade: ${tradeLabel(ctx.trade)}
 ${toneInstruction(ctx.tone)}
 ${UNTRUSTED_DATA_NOTE}
 ${wrapJobDescription(ctx.job_description)}
@@ -95,7 +95,7 @@ RULES:
     const materialLines = buildMaterialLines(materials)
     return `Write the materials and equipment section for a trade quote.
 
-Trade: ${ctx.trade}
+Trade: ${tradeLabel(ctx.trade)}
 ${toneInstruction(ctx.tone)}
 
 Materials identified for this job:
@@ -116,7 +116,7 @@ RULES:
 
   assumptions: (ctx, traderContext, priorSections) => `Write the assumptions section for a trade quote.
 
-Trade: ${ctx.trade}
+Trade: ${tradeLabel(ctx.trade)}
 ${toneInstruction(ctx.tone)}
 ${UNTRUSTED_DATA_NOTE}
 ${wrapJobDescription(ctx.job_description)}
@@ -135,7 +135,7 @@ RULES:
 
   exclusions: (ctx, traderContext, priorSections) => `Write the exclusions section for a trade quote.
 
-Trade: ${ctx.trade}
+Trade: ${tradeLabel(ctx.trade)}
 ${toneInstruction(ctx.tone)}
 ${UNTRUSTED_DATA_NOTE}
 ${wrapJobDescription(ctx.job_description)}
@@ -153,7 +153,7 @@ RULES:
 
   next_steps: (ctx, traderContext, priorSections) => `Write the next steps section for a trade quote.
 
-Trade: ${ctx.trade}
+Trade: ${tradeLabel(ctx.trade)}
 ${toneInstruction(ctx.tone)}
 ${traderContext ? `\n${traderContext}\n` : ''}
 ${priorSections ? `\n${priorSections}\n` : ''}
@@ -168,7 +168,7 @@ RULES:
 
   disclaimers: (ctx, traderContext, priorSections) => `Write the disclaimers section for a trade quote.
 
-Trade: ${ctx.trade}
+Trade: ${tradeLabel(ctx.trade)}
 ${traderContext ? `\n${traderContext}\n` : ''}
 ${priorSections ? `\n${priorSections}\n` : ''}
 

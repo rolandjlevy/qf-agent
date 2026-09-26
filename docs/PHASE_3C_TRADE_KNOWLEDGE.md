@@ -63,7 +63,7 @@ Richer knowledge makes it more tempting for the model to state things like "comp
 3. Wire the pack into Phase A and Phase B.
 4. Compare quotes before and after.
 
-If it clearly helps, the same format extends to the other 16 trades.
+If it clearly helps, the same format extends to the other 19 trades. When the tree-surgeon pack is written, cover Tree Preservation Orders and conservation areas as a pitfall or assumption: its key questions deliberately don't ask about them.
 
 **How this fits with Phase 3b:** key questions stay as the fixed questions for each trade, and the packs add questions specific to each job within that trade.
 

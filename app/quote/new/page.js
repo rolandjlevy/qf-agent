@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { VALID_TRADES, VALID_TONES, MAX_JOB_PHOTOS } from '../../../lib/constants.js';
+import { VALID_TRADES, VALID_TONES, MAX_JOB_PHOTOS, tradeLabel } from '../../../lib/constants.js';
+
+// Slugs stay the submitted values; the picker shows labels, sorted by label.
+const TRADES_BY_LABEL = [...VALID_TRADES].sort((a, b) => tradeLabel(a).localeCompare(tradeLabel(b)));
 import { compressImages } from '../../../lib/compress-image.js';
 import MaterialsRefinement, {
   MaterialsSkeleton,
@@ -149,7 +152,7 @@ function groupStepsByTurn(steps) {
 
 export default function NewQuotePage() {
   const router = useRouter();
-  const [trade, setTrade] = useState(VALID_TRADES[0]);
+  const [trade, setTrade] = useState(TRADES_BY_LABEL[0]);
   const [tone, setTone] = useState(VALID_TONES[0]);
   const [jobDescription, setJobDescription] = useState('');
   // Index into EXAMPLE_JOBS of whichever example is currently loaded into
@@ -348,7 +351,7 @@ export default function NewQuotePage() {
   function resetToInitialState() {
     stopPolling();
     runIdRef.current = null;
-    setTrade(VALID_TRADES[0]);
+    setTrade(TRADES_BY_LABEL[0]);
     setTone(VALID_TONES[0]);
     setJobDescription('');
     setExampleChoice('');
@@ -847,9 +850,9 @@ export default function NewQuotePage() {
                 value={trade}
                 onChange={(e) => setTrade(e.target.value)}
               >
-                {VALID_TRADES.map((t) => (
+                {TRADES_BY_LABEL.map((t) => (
                   <option key={t} value={t}>
-                    {t}
+                    {tradeLabel(t)}
                   </option>
                 ))}
               </select>
