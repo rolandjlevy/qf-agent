@@ -220,23 +220,25 @@ Saved quotes per trade, 3–26 Sept (175 in total):
 
 8 cases per trade, including one job each pack doesn't cover. The range across runs is in brackets.
 
-| Trade | Without pack | With pack | Change |
+| Trade | Without pack | With pack, first round | With pack, after review |
 |---|---|---|---|
-| Bathroom fitter | 108/117 (107–109) | 114.7/117 (114–115) | +6.7 |
-| Electrician | 106/114 (104–108) | 113/114 (111–114) | +7 |
-| Carpenter | 107.7/110 (107–108) | 108.3/110 (108–109) | +0.6 |
-| Roofer | 113.7/116 (113–114) | 114/116, 2 runs | +0.3 |
+| Bathroom fitter | 108/117 (107–109) | 114.7/117 (114–115) | 115.3/117 (115–116) |
+| Electrician | 106/114 (104–108) | 113/114 (111–114) | 111/114 (109–112) |
+| Carpenter | 107.7/110 (107–108) | 108.3/110 (108–109) | 108.7/110 (108–109) |
+| Roofer | 113.7/116 (113–114) | 114/116 (2 runs) | 113.7/116 (113–114) |
+
+The review changed only the `reviewed` flags, not pack content, so the two with-pack rounds measure the same packs; the difference between them is run-to-run noise.
 
 - **Bathroom fitter and electrician clearly improve.** The ranges don't overlap. The gains are in job-specific questions (bathroom 2.7/7 → 7/7) and materials (bathroom 12.3 → 14/14), and for the electrician in exclusions, assumptions and forbidden wording (69 → 71.7/72).
 - **Carpenter and roofer barely move, because their baselines were already near the top** (98% each). These checks can't show a gain there. The packs still add the diagnostic questions and pitfalls, but proving they help needs harder cases, e.g. non-standard doors, trussed roofs, or matching discontinued tiles.
-- **Roofer's third with-pack run is incomplete.** The Anthropic account ran out of credit on its last case (`fascias-soffits`). Its two complete runs both scored 114/116, so the figure above uses those 2 runs. Re-run it once credit is topped up.
+- **Roofer shows no gain on these checks.** Its first round ran out of API credit on the last case; the full re-run after review matched the baseline exactly (113.7/116). Harder roofer cases are needed before the pack's value can be measured.
 - **Remaining failures are Phase A and Phase B faults, not pack faults:**
   - With the roofer pack, Phase A asked "What do the gutters need?" when the description already said "needs clearing". This is the known "re-asks the description" fault.
-  - Phase B sometimes writes "non-compliant" or "certification" into exclusions ("wiring found to be non-compliant"). It happens with and without a pack, and mostly on jobs outside the pack. It breaks the never-do rules, so it's worth its own fix: a code-level check on drafted sections, like the Phase A ones.
+  - Phase B sometimes writes "non-compliant" or "certification" into exclusions ("wiring found to be non-compliant"). It happens with and without a pack, and mostly for electrical work. It breaks the never-do rules, so it's worth its own fix: a code-level check on drafted sections, like the Phase A ones. (One flagged hit, "an approved voltage tester", is harmless; the check is deliberately broad.)
 
 ## Stage 2, batch 1: review checklist
 
-Each entry is `reviewed: false`. Check these points with someone in the trade, correct anything wrong, then set `reviewed: true` on each entry.
+All 28 entries were reviewed and set to `reviewed: true` on 2026-09-26. These were the points checked:
 
 **Bathroom fitter** (`lib/trade-knowledge/bathroom-fitter.js`)
 - **full-refit:** Is a steel bath the right default over acrylic? Are backer board and tile adhesive the right minimum for tiled walls?
