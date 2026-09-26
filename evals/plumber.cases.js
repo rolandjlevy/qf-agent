@@ -12,6 +12,8 @@ const key = (pipework, access, makingGood = 'Customer or another trade', supplie
 export const PLUMBER_CASES = [
   {
     id: 'mixer-dripping',
+    // Already stated in the description, so never asked.
+    mustNotAsk: [/where is the water coming from|where does it drip/i],
     jobDescription: 'Kitchen mixer tap keeps dripping from the spout even when turned off hard.',
     keyAnswers: key('Copper', 'Exposed or easy to reach'),
     answers: [[/lever|mixer|handle|turn/i, 'Single lever mixer'], [/where|coming from/i, 'Drips from the spout'], [/isolat|valve/i, 'Yes, both pipes']],
@@ -23,6 +25,8 @@ export const PLUMBER_CASES = [
   },
   {
     id: 'pillar-tap-drip',
+    // Already stated in the description, so never asked.
+    mustNotAsk: [/how does the tap turn off|turns? to (shut|turn) off/i],
     jobDescription: 'Old bathroom basin hot tap drips constantly. It takes several turns to shut off.',
     keyAnswers: key('Copper', 'Exposed or easy to reach'),
     answers: [[/turn off|mechanism/i, 'Several full turns'], [/where|coming from/i, 'Drips from the spout'], [/isolat|valve/i, 'No valves']],
@@ -112,6 +116,8 @@ export const PLUMBER_CASES = [
   },
   {
     id: 'new-kitchen-tap',
+    // Already stated in the description, so never asked.
+    mustNotAsk: [/(type|kind) of tap|who is supplying|customer providing|being supplied/i],
     jobDescription: 'Customer has bought a new kitchen mixer tap and wants it fitted in place of the old one.',
     keyAnswers: key('Copper', 'Exposed or easy to reach', 'Customer or another trade', 'Customer supplies everything'),
     answers: [[/hole/i, 'One hole'], [/pressure|boiler|system/i, 'Combi boiler']],

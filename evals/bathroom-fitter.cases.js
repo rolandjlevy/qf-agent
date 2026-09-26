@@ -64,6 +64,8 @@ export const BATHROOM_FITTER_CASES = [
   },
   {
     id: 'replace-toilet',
+    // Already stated in the description, so never asked.
+    mustNotAsk: [/(type|kind) of toilet/i],
     jobDescription: 'Replace the cracked toilet with a new close coupled one.',
     keyAnswers: key({ 'extent of refit': 'One or two items' }),
     answers: [[/type/i, 'Close coupled'], [/waste|soil/i, 'Straight back through the wall']],

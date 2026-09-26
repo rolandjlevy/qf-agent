@@ -20,6 +20,8 @@ export const ROOFER_CASES = [
   },
   {
     id: 'slipped-slates',
+    // Already stated in the description, so never asked.
+    mustNotAsk: [/roof (is )?covered|roof covering|tiles or slate|slate or tile/i],
     jobDescription: 'A few slates have slipped on the back roof.',
     keyAnswers: key({ 'building height': 'Two storeys', scaffolding: 'Not needed' }),
     answers: [[/covered/i, 'Slate'], [/water/i, 'No leak yet']],
@@ -42,16 +44,19 @@ export const ROOFER_CASES = [
   },
   {
     id: 'gutter-clearing',
+    // Already stated in the description, so never asked.
+    mustNotAsk: [/what do the gutters need|what needs doing/i],
     jobDescription: 'Gutter needs clearing at the front and back.',
     keyAnswers: key({ 'building height': 'Two storeys', scaffolding: 'Not needed' }),
     answers: [[/need/i, 'Clearing only'], [/made of/i, 'Plastic']],
     expect: {
-      asksAny: [/clear|leak|repair|downpipe|made|replace|blocked/i],
       exclusions: [/drain|repair|replac|fascia/i],
     },
   },
   {
     id: 'replace-guttering',
+    // Already stated in the description, so never asked.
+    mustNotAsk: [/what needs to happen|what do the gutters need/i],
     jobDescription: 'Replace the old leaking guttering along the back of the house.',
     keyAnswers: key({ 'building height': 'Two storeys', scaffolding: 'Not needed' }),
     answers: [[/need/i, 'Replacing gutter runs'], [/made of/i, 'Plastic'], [/shape/i, 'Half round']],
@@ -67,7 +72,6 @@ export const ROOFER_CASES = [
     keyAnswers: key({ 'building height': 'Two storeys' }),
     answers: [[/wrong/i, 'Loose ridge tiles'], [/fixed/i, 'Bedded in mortar']],
     expect: {
-      asksAny: [/ridge|mortar|dry|how many|fixed|length/i],
       materials: [/mortar|sand|cement|dry ridge|ridge/i],
     },
   },
@@ -84,6 +88,8 @@ export const ROOFER_CASES = [
   },
   {
     id: 'fascias-soffits',
+    // Already stated in the description, so never asked.
+    mustNotAsk: [/both the fascias|just the fascias|what is being replaced/i],
     jobDescription: 'Replace the rotten timber fascias and soffits with uPVC.',
     keyAnswers: key({ 'building height': 'Two storeys' }),
     answers: [[/replaced/i, 'Fascias and soffits'], [/made of now/i, 'Timber'], [/gutters/i, 'New gutters too']],

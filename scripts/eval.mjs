@@ -41,12 +41,15 @@ async function runCase(testCase) {
   const asked = []
   let result = await proposeMaterials({ trade, jobDescription: testCase.jobDescription, keyAnswers: testCase.keyAnswers })
   let jobType = result.jobType
+  // Questions Phase A skipped because the description already answered them.
+  const inferred = [...(result.inferredAnswers ?? [])]
   while (result.clarifyingQuestion && priorQuestions.length < MAX_ROUNDS) {
     const q = result.clarifyingQuestion
     asked.push(q)
     priorQuestions.push({ question: q.question, answer: answerFor(testCase, q) })
     result = await proposeMaterials({ trade, jobDescription: testCase.jobDescription, keyAnswers: testCase.keyAnswers, priorQuestions })
     jobType = result.jobType ?? jobType
+    inferred.push(...(result.inferredAnswers ?? []))
   }
   const materials = result.materials ?? []
 
@@ -81,11 +84,14 @@ async function runCase(testCase) {
   checks.push({ kind: 'distinct', name: 'no repeated question', pass: repeats.length === 0 })
   const listing = asked.filter((q) => questionListsOptions(q.question, q.choices))
   checks.push({ kind: 'clean-question', name: 'no options in question text', pass: listing.length === 0 })
+  for (const re of testCase.mustNotAsk ?? []) {
+    checks.push({ kind: 'no-reask', name: `never asks ${re}`, pass: !asked.some((q) => re.test(q.question)) })
+  }
   const youOptions = asked.flatMap((q) => (q.choices ?? []).flatMap((g) => g.options)).filter((o) => /^you\b/i.test(o))
   checks.push({ kind: 'names-party', name: 'no "You ..." options', pass: youOptions.length === 0 })
   for (const re of FORBIDDEN) checks.push({ kind: 'forbidden', name: `never ${re}`, pass: !re.test(everything) })
 
-  return { id: testCase.id, jobType, priorQuestions, asked, materials, sections: texts, checks }
+  return { id: testCase.id, jobType, priorQuestions, asked, inferred, materials, sections: texts, checks }
 }
 
 async function runAll() {

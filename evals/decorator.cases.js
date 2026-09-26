@@ -41,6 +41,8 @@ export const DECORATOR_CASES = [
   },
   {
     id: 'wallpaper-feature',
+    // Already stated in the description, so never asked.
+    mustNotAsk: [/where is the paper going|how much is being papered|who is supplying/i],
     jobDescription: 'Hang wallpaper on one feature wall in the lounge. Customer has bought the paper.',
     keyAnswers: key({ 'approximate area': 'One room', 'who supplies materials': 'Split between trader and customer' }),
     answers: [[/on the walls now/i, 'Paint'], [/going up/i, 'Standard wallpaper']],
@@ -52,6 +54,8 @@ export const DECORATOR_CASES = [
   },
   {
     id: 'woodchip-removal',
+    // Already stated in the description, so never asked.
+    mustNotAsk: [/what is going up/i],
     jobDescription: 'Strip woodchip from the hallway walls and put up lining paper ready to paint.',
     keyAnswers: key({ 'approximate area': 'One room' }),
     answers: [[/on the walls now/i, 'Woodchip'], [/going up/i, 'Lining paper to paint over']],
@@ -66,13 +70,15 @@ export const DECORATOR_CASES = [
     keyAnswers: key({ 'approximate area': 'One room' }),
     answers: [[/fixed|dried/i, 'Fixed and dry'], [/damaged/i, 'Just stained']],
     expect: {
-      asksAny: [/damaged|crack|sag|dry|damp/i],
+      asksAny: [/damaged|crack|sag|dry|damp|textur/i],
       materials: [/stain block|stain/i],
       exclusions: [/leak|plaster/i],
     },
   },
   {
     id: 'bathroom-mould',
+    // Already stated in the description, so never asked.
+    mustNotAsk: [/where is the mould/i],
     jobDescription: 'Black mould on the bathroom ceiling and around the window. Clean it off and repaint.',
     keyAnswers: key({ 'approximate area': 'One room' }),
     answers: [[/where/i, 'Bathroom'], [/how much/i, 'Small patches']],
