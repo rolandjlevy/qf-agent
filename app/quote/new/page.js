@@ -10,13 +10,9 @@ import MaterialsRefinement, {
 import { recordRefinementEvents } from '../../../lib/actions/log-refinement.js';
 import AskQuestionForm from '../../ask-question-form.js';
 import { buttonStyle } from '../../button-style.js';
-import {
-  PhotoPicker,
-  PhotoAnalysisSkeleton,
-  PhotoFindingsReview,
-  PhotoQuestions,
-  photoQuestionAnswer,
-} from '../../job-photos.js';
+import { PhotoPicker, PhotoAnalysisSkeleton, PhotoFindingsReview } from '../../job-photos.js';
+import { KeyQuestions, keyQuestionAnswer } from '../../key-questions-form.js';
+import { keyQuestionsFor } from '../../../lib/key-questions.js';
 
 // Quick-start examples for the job description form — each pairs a short,
 // realistic job description with the trade it actually belongs to, so
@@ -161,8 +157,9 @@ export default function NewQuotePage() {
   // only tracks the dropdown's own selection, not whether trade/jobDescription
   // still match it, so editing either afterwards doesn't fight the trader.
   const [exampleChoice, setExampleChoice] = useState('');
+  // 'keyQuestions' (lib/key-questions.js, plus any gaps the photos found) always comes first.
   // With photos, 'form' -> 'analysingPhotos' -> 'reviewingPhotos' (trader confirms what the
-  // photos show) -> 'photoQuestions' (only if the photos left gaps) comes first, then the same flow below. Without photos it's skipped entirely.
+  // photos show) comes before it and can skip questions the photos answer.
   // 'form' -> 'proposing' (Phase A in flight) <-> 'clarifying' (Phase A asked
   // a question; loops back to 'proposing' once answered) -> 'refining'
   // (trader reviews the materials proposal) -> 'generating' (Phase B request
@@ -199,8 +196,8 @@ export default function NewQuotePage() {
   const [photoAnalysis, setPhotoAnalysis] = useState(null);
   // Which trade/description/photos photoAnalysis was run for, so Back-then-Continue reuses it.
   const photoAnalysisKeyRef = useRef(null);
-  // `{ [topic]: { choice, otherText } }` for photoAnalysis.unclear — see app/job-photos.js's PhotoQuestions.
-  const [photoAnswers, setPhotoAnswers] = useState({});
+  // `{ [topic]: { choice, otherText } }` for keyQuestionsToAsk() — see app/key-questions-form.js.
+  const [keyAnswers, setKeyAnswers] = useState({});
   const [steps, setSteps] = useState([]);
   const [question, setQuestion] = useState(null);
   // True from the moment an answer is submitted until we know whether the
@@ -365,7 +362,7 @@ export default function NewQuotePage() {
     setPhotos([]);
     setPhotoAnalysis(null);
     photoAnalysisKeyRef.current = null;
-    setPhotoAnswers({});
+    setKeyAnswers({});
     setSteps([]);
     setQuestion(null);
     setWaiting(false);
@@ -428,25 +425,38 @@ export default function NewQuotePage() {
     }));
   }
 
+  function hasCheckedSiteEvidence(analysis) {
+    return analysis.observations.some((o) => o.checked && analysis.photos[o.imageIndex - 1]?.kind === 'site');
+  }
+
+  // Without photos, the trade's key questions. With them, the analysis's list, minus any key
+  // question the photos answered, unless the trader unticked every observation of the property.
+  function keyQuestionsToAsk(analysis = photoAnalysis) {
+    if (!analysis) return keyQuestionsFor(trade);
+    const siteEvidence = hasCheckedSiteEvidence(analysis);
+    return analysis.unclear.filter((q) => !q.answeredByPhotos || !siteEvidence);
+  }
+
   // What Phase A and Phase B get: only ticked observations. Resolved topics aren't tied to single
   // observations, so they're dropped once no ticked observation comes from a photo of the property itself.
-  // `unclear` keeps only the gaps the trader couldn't answer; answered ones go out via photoQuestionPairs.
-  function confirmedPhotoFindings(analysis = photoAnalysis) {
-    if (!analysis) return undefined;
+  // `unclear` keeps only the questions the trader couldn't answer; answered ones go out via keyQuestionPairs.
+  function jobFindings(analysis = photoAnalysis) {
+    const unclear = keyQuestionsToAsk(analysis)
+      .filter((q) => !keyQuestionAnswer(keyAnswers[q.topic]))
+      .map((q) => q.topic);
+    if (!analysis) return unclear.length ? { observations: [], resolved: [], unclear } : undefined;
     const checked = analysis.observations.filter((o) => o.checked);
-    const hasSiteEvidence = checked.some((o) => analysis.photos[o.imageIndex - 1]?.kind === 'site');
     return {
       observations: checked.map((o) => o.observation),
-      resolved: hasSiteEvidence ? analysis.resolved : [],
-      unclear: analysis.unclear.filter((q) => !photoQuestionAnswer(photoAnswers[q.topic])).map((q) => q.topic),
+      resolved: hasCheckedSiteEvidence(analysis) ? analysis.resolved : [],
+      unclear,
     };
   }
 
-  // Answered "can't show" questions as { question, answer }, sent ahead of Phase A's own Q&A.
-  function photoQuestionPairs() {
-    if (!photoAnalysis) return [];
-    return photoAnalysis.unclear
-      .map((q) => ({ question: q.question, answer: photoQuestionAnswer(photoAnswers[q.topic]) }))
+  // Answered key questions as { question, answer }, sent ahead of Phase A's own Q&A.
+  function keyQuestionPairs() {
+    return keyQuestionsToAsk()
+      .map((q) => ({ question: q.question, answer: keyQuestionAnswer(keyAnswers[q.topic]) }))
       .filter((qa) => qa.answer);
   }
 
@@ -487,7 +497,6 @@ export default function NewQuotePage() {
       observations: data.observations.map((o) => ({ ...o, id: crypto.randomUUID(), checked: o.confidence !== 'low' })),
     });
     photoAnalysisKeyRef.current = key;
-    setPhotoAnswers({});
     setPhase('reviewingPhotos');
   }
 
@@ -539,12 +548,12 @@ export default function NewQuotePage() {
   // handleProposeMaterials for the one caller that must override them.
   async function callProposeMaterials(
     priorQs,
-    { cache = proposeCache, drafts = answerDraftsByQuestion, photoFindings = confirmedPhotoFindings() } = {},
+    { cache = proposeCache, drafts = answerDraftsByQuestion, photoFindings = jobFindings() } = {},
   ) {
     setPhase('proposing');
 
-    // Photo answers count toward Phase A's question cap, same as its own questions.
-    const allPriorQs = photoFindings ? [...photoQuestionPairs(), ...priorQs] : priorQs;
+    // Key-question answers count toward Phase A's question cap, same as its own questions.
+    const allPriorQs = [...keyQuestionPairs(), ...priorQs];
     // Findings are part of the key: unticking an observation changes what Phase A should propose.
     const cacheKey = JSON.stringify({ allPriorQs, photoFindings });
     if (Object.hasOwn(cache, cacheKey)) {
@@ -626,20 +635,19 @@ export default function NewQuotePage() {
     }
     setPhotoAnalysis(null);
     photoAnalysisKeyRef.current = null;
-    // Passed explicitly (not read back from state) — the resets above
-    // haven't landed yet within this same synchronous handler.
-    await callProposeMaterials([], { cache: {}, drafts: {}, photoFindings: undefined });
+    // Every trade has key questions (lib/key-questions.test.js), so this never skips straight to Phase A.
+    setPhase('keyQuestions');
   }
 
   async function handleContinueFromPhotos() {
-    if (photoAnalysis.unclear.length) {
-      setPhase('photoQuestions');
+    if (keyQuestionsToAsk().length) {
+      setPhase('keyQuestions');
       return;
     }
-    await handleContinueFromPhotoQuestions();
+    await handleContinueFromKeyQuestions();
   }
 
-  async function handleContinueFromPhotoQuestions() {
+  async function handleContinueFromKeyQuestions() {
     resetClarifyingState();
     await callProposeMaterials([], { cache: {}, drafts: {} });
   }
@@ -664,8 +672,8 @@ export default function NewQuotePage() {
   // 'refining') rather than jumping straight to the form in one go.
   function handleBack() {
     if (answeredQuestions.length === 0) {
-      if (!photoAnalysis) setPhase('form');
-      else setPhase(photoAnalysis.unclear.length ? 'photoQuestions' : 'reviewingPhotos');
+      if (keyQuestionsToAsk().length) setPhase('keyQuestions');
+      else setPhase(photoAnalysis ? 'reviewingPhotos' : 'form');
       setAnsweredQuestions([]);
       setClarifyingQuestion(null);
       setRefinementMaterials([]);
@@ -736,13 +744,13 @@ export default function NewQuotePage() {
           jobDescription,
           materials: materialsPayload,
           followUpAnswers: [
-            ...photoQuestionPairs(),
+            ...keyQuestionPairs(),
             ...answeredQuestions.map((e) => ({
               question: e.question.question,
               answer: e.answer,
             })),
           ],
-          photoFindings: confirmedPhotoFindings(),
+          photoFindings: jobFindings(),
         }),
       });
     } catch {
@@ -943,19 +951,21 @@ export default function NewQuotePage() {
         <PhotoFindingsReview
           photos={photoAnalysis.sourcePhotos}
           analysis={photoAnalysis}
+          questionCount={keyQuestionsToAsk().length}
           onToggle={handleTogglePhotoObservation}
           onBack={() => setPhase('form')}
           onContinue={handleContinueFromPhotos}
         />
       )}
 
-      {phase === 'photoQuestions' && photoAnalysis && (
-        <PhotoQuestions
-          questions={photoAnalysis.unclear}
-          answers={photoAnswers}
-          onChange={setPhotoAnswers}
-          onBack={() => setPhase('reviewingPhotos')}
-          onContinue={handleContinueFromPhotoQuestions}
+      {phase === 'keyQuestions' && (
+        <KeyQuestions
+          title={photoAnalysis ? "Things the photos can't show" : 'A few quick questions'}
+          questions={keyQuestionsToAsk()}
+          answers={keyAnswers}
+          onChange={setKeyAnswers}
+          onBack={() => setPhase(photoAnalysis ? 'reviewingPhotos' : 'form')}
+          onContinue={handleContinueFromKeyQuestions}
         />
       )}
 
