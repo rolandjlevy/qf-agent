@@ -275,3 +275,55 @@ All 28 entries were reviewed and set to `reviewed: true` on 2026-09-26. These we
 - **chimney-flashing:** Is Code 4 lead the right default?
 - **fascias-soffits:** Is the asbestos pitfall's "houses built before 2000" the right cut-off?
 - **roof-window:** Is 780mm x 980mm the most common size?
+
+## Stage 2, batch 2: decorator, builder, gardener / landscaper, plasterer (2026-09-26)
+
+The next four trades by saved quotes after batch 1, again leaving out handyman. Job lists combine what was actually quoted (e.g. "remove an internal wall", "paint the front of the house", "remove an old rotten tree stump", "ceiling plaster needs repairing due to a leak") with each trade's common work. Each trade has 8 eval cases, with at least one job its pack doesn't cover.
+
+### Eval results (2026-09-26, Haiku for Phase A, mean of 3 runs)
+
+Measured against the packs after the first review edits. The range across runs is in brackets.
+
+| Trade | Without pack | With pack |
+|---|---|---|
+| Decorator | 114.7/121 (113–117) | 118.3/121 (118–119) |
+| Builder | 115.3/121 (113–117) | 119.3/121 (119–120) |
+| Gardener / landscaper | 111.3/118 (111–112) | 116.7/118 (116–117) |
+| Plasterer | 112.3/121 (112–113) | 115.7/121 (115–116) |
+
+All four packs clearly help: in every trade the lowest with-pack run beats the highest run without it. Unlike carpenter and roofer in batch 1, none of these baselines was near the ceiling. The account ran out of API credit once during the re-run, so two of the three runs for decorator, gardener and plasterer were repeated after a top-up.
+
+### Review checklist
+
+All 22 entries were reviewed and set to `reviewed: true` on 2026-09-26. These were the points checked:
+
+**Decorator** (`lib/trade-knowledge/decorator.js`)
+- **interior-repaint:** Are trade matt emulsion and contract matt (for new plaster) the right defaults?
+- **woodwork:** Should satin be the default over gloss? Is the lead-paint pitfall's "before 1970" the right cut-off?
+- **wallpapering:** Is 1400 grade the usual lining paper?
+- **exterior-painting:** Is a stabilising solution needed on most repaints, or only chalky walls?
+- **stain-cover:** Is a stain block primer plus a full ceiling repaint the normal approach?
+- **mould-treatment:** Is anti-mould bathroom paint the right product to name?
+
+**Builder** (`lib/trade-knowledge/builder.js`)
+- **remove-internal-wall:** "Steel universal beam" has no size on purpose, since an engineer sizes it. Is that right, and are the padstone and intumescent paint the usual extras?
+- **new-opening:** Are a concrete lintel (internal) and a steel cavity lintel (external) the right defaults?
+- **garage-conversion:** Is the missing foundation under the door opening as common as the pitfall says?
+- **single-storey-extension:** Are C25 ready-mix and 100mm blocks sensible defaults? Is the build-over agreement pitfall worded correctly?
+- **wall-crack-repair:** Is helical bar stitching the right default for a stable crack in brickwork?
+
+**Gardener / landscaper** (`lib/trade-knowledge/gardener-landscaper.js`)
+- **patio:** Is 150mm below the damp-proof course the right rule to state? Is a slurry primer always needed for porcelain?
+- **new-lawn:** Are topsoil and pre-turf fertiliser the right minimum?
+- **stump-removal:** Is a 70cm access gap right for a typical grinder?
+- **planting-beds:** Should plants be excluded by default?
+- **garden-clearance:** Mowing and hedge cutting have no materials. Is the nesting season (March to August) worded correctly?
+- **artificial-grass:** Is granite dust the usual laying course?
+
+**Plasterer** (`lib/trade-knowledge/plasterer.js`)
+- **ceiling-repair:** Is cutting out and replacing a damaged section the usual first option?
+- **skim-walls:** Is PVA the right bonding agent to name, or should it be a specific primer?
+- **patch-repair:** Is one coat plaster right for small holes?
+- **overboard-ceiling:** Is overboarding the right default when an artex ceiling hasn't been tested?
+- **render-repair:** Is a waterproofer in the mix standard for sand and cement patches?
+
