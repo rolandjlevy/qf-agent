@@ -7,8 +7,9 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body style={{ fontFamily: 'system-ui, sans-serif', margin: 0 }}>
+    // Browser extensions (e.g. Grammarly) add attributes to html/body before React hydrates.
+    <html lang="en" suppressHydrationWarning>
+      <body style={{ fontFamily: 'system-ui, sans-serif', margin: 0 }} suppressHydrationWarning>
         <nav
           style={{
             display: 'flex',
