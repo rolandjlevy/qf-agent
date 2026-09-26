@@ -144,6 +144,8 @@ Two protections in `app/api/quote/route.js`, each fixing a real production incid
 
 `agent.js`'s `onStep` calls are also wrapped defensively — a bug in the caller's display/formatting code (CLI console output, or the web route's progress-write callback) logs a warning instead of aborting the agent loop mid-turn.
 
+**Trade slugs are permanent identifiers.** `VALID_TRADES` values (`lib/constants.js`) are stored in `generated_quotes`/`quote_runs` rows and used as lookup keys (`keyQuestionsFor`, `jobsFor`), so never rename one. Display text comes from `TRADE_LABELS` via `tradeLabel(slug)` (falls back to the slug), used by the `/quote/new` picker (sorted by label) and in every LLM prompt's trade text.
+
 CLI input is validated up front too: `qf.js`'s `--trade` and `--tone` options use yargs `choices` against `VALID_TRADES`/`VALID_TONES` (in `lib/constants.js`, shared with the web UI), so an invalid value fails fast instead of silently flowing into every prompt. The web route validates the same way against a 400 response.
 
 ## Quote output
@@ -204,5 +206,5 @@ PRICE_CACHE_TTL_SECONDS=  # optional, defaults to 604800 (7 days); price_search_
 - **Phase 2** — Neon Postgres persistence (trader profile, quote history) + Next.js web UI, reusing `agent.js`/`tools/` as-is
 - **Phase 3a** — Live price search: a trader looks up real, current prices per material line via Google Shopping (Serper), triggered on demand from the quote-view page rather than during drafting — see "Pricing" above. Superseded an earlier, fully removed Phase 3 attempt (a Playwright scraper feeding an agent-side `lookup_price` tool) and the Phase 2a trader-price-history import feature, neither of which survived into this build
 - **Phase 3b** — Trade key questions: 3–4 fixed questions per trade (`lib/key-questions.js`) asked on one page before Phase A, with or without photos; unanswered ones become stated assumptions — see "Materials refinement" step 2 above. Full rebuild spec: `docs/PHASE_3B_KEY_QUESTIONS.md`
-- **Phase 3c** (plumber pilot built, entries awaiting review) — Trade knowledge packs: reviewed per-trade, per-job guidance injected into Phase A/B, with a checklist eval per trade — see "Trade knowledge packs" above and `docs/PHASE_3C_TRADE_KNOWLEDGE.md`. Next: review the plumber entries, then roll out to the other 16 trades in batches
+- **Phase 3c** (plumber pilot built, entries awaiting review) — Trade knowledge packs: reviewed per-trade, per-job guidance injected into Phase A/B, with a checklist eval per trade — see "Trade knowledge packs" above and `docs/PHASE_3C_TRADE_KNOWLEDGE.md`. Next: review the plumber entries, then roll out to the other 19 trades in batches
 - **Phase 4** — Optional auth/multi-tenant support (Phase 2 is deliberately single-tenant — one trader per deployment, no login)
