@@ -294,6 +294,8 @@ export default function NewQuotePage() {
   const photoAnalysisKeyRef = useRef(null);
   // `{ [topic]: { choice, otherText } }` for keyQuestionsToAsk() — see app/key-questions-form.js.
   const [keyAnswers, setKeyAnswers] = useState({});
+  // Without photos: the key questions for this description, minus any its matched pack job skips.
+  const [jobKeyQuestions, setJobKeyQuestions] = useState(null);
   const [steps, setSteps] = useState([]);
   const [question, setQuestion] = useState(null);
   // True from the moment an answer is submitted until we know whether the
@@ -460,6 +462,7 @@ export default function NewQuotePage() {
     setPhotoAnalysis(null);
     photoAnalysisKeyRef.current = null;
     setKeyAnswers({});
+    setJobKeyQuestions(null);
     setSteps([]);
     setQuestion(null);
     setWaiting(false);
@@ -545,7 +548,7 @@ export default function NewQuotePage() {
   // Without photos, the trade's key questions. With them, the analysis's list, minus any key
   // question the photos answered, unless the trader unticked every observation of the property.
   function keyQuestionsToAsk(analysis = photoAnalysis) {
-    if (!analysis) return keyQuestionsFor(trade);
+    if (!analysis) return jobKeyQuestions ?? keyQuestionsFor(trade);
     const siteEvidence = hasCheckedSiteEvidence(analysis);
     return analysis.unclear.filter((q) => !q.answeredByPhotos || !siteEvidence);
   }
@@ -807,8 +810,25 @@ export default function NewQuotePage() {
     }
     setPhotoAnalysis(null);
     photoAnalysisKeyRef.current = null;
-    // Every trade has key questions (lib/key-questions.test.js), so this never skips straight to Phase A.
+    setJobKeyQuestions(await fetchJobKeyQuestions());
+    // Every trade has key questions, and no pack job skips all of them, so this never skips Phase A.
     setPhase('keyQuestions');
+  }
+
+  // Falls back to the full trade list (null) if the request fails, which is the old behaviour.
+  async function fetchJobKeyQuestions() {
+    try {
+      const response = await fetch('/api/quote/key-questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trade, jobDescription }),
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      return Array.isArray(data.questions) && data.questions.length ? data.questions : null;
+    } catch {
+      return null;
+    }
   }
 
   async function handleContinueFromPhotos() {

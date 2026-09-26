@@ -349,3 +349,27 @@ Across all 9 packed trades, Phase A re-asked something the job description alrea
 
 **Cost:** one extra Haiku call per question shown, typically 1 or 2 per quote.
 
+## Key questions per job (2026-09-27)
+
+Key questions are fixed per trade, so a roofer quoting "Gutter needs clearing" was asked "How much of the roof is involved?". Pack jobs can now list `skipKeyQuestions`. When the description matches that job (by its title or `matches` phrases, with no API call), those key questions aren't asked. This covers the photo path too.
+
+The skip lists added to reviewed entries, for checking with someone in each trade:
+
+| Trade | Job | Not asked |
+|---|---|---|
+| Roofer | gutters, fascias-soffits | extent of roof work |
+| Bathroom fitter | reseal, replace-toilet, replace-basin | extent of refit, layout change, wall finish |
+| Bathroom fitter | replace-bath, replace-shower-tray | extent of refit, layout change |
+| Electrician | replace-accessories, electrical-fault, replace-consumer-unit | cable routes |
+| Plumber | leaking-tap, toilet-cistern, blocked-waste | making good afterwards |
+| Carpenter | door-lock | wall type, finish on joinery, making good |
+| Carpenter | hang-door, loft-hatch, stair-repair | wall type for fixings |
+| Decorator | stain-cover | approximate area, colour change |
+| Decorator | mould-treatment | colour change |
+| Builder | wall-crack-repair, new-opening, remove-internal-wall | planning permission |
+| Gardener / landscaper | stump-removal | approximate area |
+| Plasterer | patch-repair | approximate area |
+| Plasterer | render-repair, overboard-ceiling | finish required, existing surface |
+
+Against the 72 eval job descriptions, 23 match a job that skips questions. All matches were checked by hand. The only imprecise one is "remove the wall between the kitchen and dining room", which matches `new-opening` instead of `remove-internal-wall`. Both skip only planning permission, so the result is the same.
+
