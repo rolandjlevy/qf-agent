@@ -2,7 +2,7 @@
 // must contain, written from real-world practice rather than copied from the pack.
 export { FORBIDDEN } from './shared.js'
 
-const key = (pipework, access, makingGood = 'Customer or another trade', supplies = 'You supply everything') => [
+const key = (pipework, access, makingGood = 'Customer or another trade', supplies = 'Trader supplies everything') => [
   { question: 'What is the existing pipework made of?', answer: pipework },
   { question: 'How easy is it to get to the pipes?', answer: access },
   { question: 'Who makes good walls, ceilings and floors after the work?', answer: makingGood },

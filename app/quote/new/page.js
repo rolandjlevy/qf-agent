@@ -2,72 +2,163 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { VALID_TRADES, VALID_TONES, MAX_JOB_PHOTOS, tradeLabel } from '../../../lib/constants.js';
+import {
+  VALID_TRADES,
+  VALID_TONES,
+  MAX_JOB_PHOTOS,
+  tradeLabel,
+} from '../../../lib/constants.js';
 
 // Slugs stay the submitted values; the picker shows labels, sorted by label.
-const TRADES_BY_LABEL = [...VALID_TRADES].sort((a, b) => tradeLabel(a).localeCompare(tradeLabel(b)));
+const TRADES_BY_LABEL = [...VALID_TRADES].sort((a, b) =>
+  tradeLabel(a).localeCompare(tradeLabel(b)),
+);
 import { compressImages } from '../../../lib/compress-image.js';
 import MaterialsRefinement, {
   MaterialsSkeleton,
 } from '../../materials-refinement.js';
 import { recordRefinementEvents } from '../../../lib/actions/log-refinement.js';
 import AskQuestionForm from '../../ask-question-form.js';
-import { buttonStyle } from '../../button-style.js';
-import { PhotoPicker, PhotoAnalysisSkeleton, PhotoFindingsReview } from '../../job-photos.js';
+import { buttonStyle, closeButtonStyle } from '../../button-style.js';
+import {
+  PhotoPicker,
+  PhotoAnalysisSkeleton,
+  PhotoFindingsReview,
+} from '../../job-photos.js';
 import { KeyQuestions, keyQuestionAnswer } from '../../key-questions-form.js';
 import { keyQuestionsFor } from '../../../lib/key-questions.js';
+import { ExamplePicker, ExamplePhoto } from '../../example-picker.js';
+import {
+  examplePhoto,
+  unsplashPhotoFileUrl,
+} from '../../../lib/example-photos.js';
 
-// Quick-start examples for the job description form — each pairs a short,
-// realistic job description with the trade it actually belongs to, so
-// picking one fills in both fields at once (the trader can still edit
-// either afterwards, same as typing from scratch). Curated from real job
-// descriptions traders have submitted, one per trade for variety rather
-// than several near-duplicates of the same job.
+// Quick-start examples for the job description form. Each pairs a realistic job
+// description with its trade, so picking one fills in both fields (the trader can
+// still edit either afterwards). One example per trade, ordered roughly by how
+// often each trade quotes. bricklayer, fencer and tree-surgeon rely on the
+// trade-list update adding them to VALID_TRADES.
+// Each example's photo comes from lib/example-photos.js, keyed by its trade.
 const EXAMPLE_JOBS = [
   {
-    label: 'Leaky tap needs fixing',
+    label: 'Dripping kitchen tap',
     trade: 'plumber',
-    jobDescription: 'Leaky tap needs fixing',
+    jobDescription:
+      "Kitchen mixer tap dripping from the spout and won't turn off fully. Customer would rather repair it than replace it.",
   },
   {
-    label: 'Faulty light switch needs replacing',
+    label: 'Old fuse box needs replacing',
     trade: 'electrician',
-    jobDescription: 'Faulty light switch needs replacing',
-  },
-  {
-    label: 'Bedrooms need decorating',
-    trade: 'decorator',
-    jobDescription: 'Bedrooms need decorating',
-  },
-  {
-    label: 'Wardrobe needs assembling',
-    trade: 'handyman',
-    jobDescription: 'Wardrobe needs assembling',
-  },
-  {
-    label: 'Door lock needs fitting',
-    trade: 'carpenter',
-    jobDescription: 'Door lock needs fitting',
-  },
-  {
-    label: 'Shower sealant renewal',
-    trade: 'bathroom-fitter',
-    jobDescription: 'Shower sealant renewal',
-  },
-  {
-    label: 'Gutter needs clearing',
-    trade: 'roofer',
-    jobDescription: 'Gutter needs clearing',
+    jobDescription:
+      'Old fuse box with rewireable fuses in the under-stairs cupboard of a three-bed semi. Replace with a modern consumer unit with RCD protection, about 8 circuits.',
   },
   {
     label: 'TV needs mounting',
     trade: 'handyman',
-    jobDescription: 'TV needs mounting',
+    jobDescription:
+      'Mount a 55-inch TV on the living room wall with a tilting bracket and hide the cables. Customer has already bought the bracket.',
   },
   {
-    label: 'Ceiling plaster needs repairing',
+    label: 'Two bedrooms need decorating',
+    trade: 'decorator',
+    jobDescription:
+      'Repaint walls, ceilings and woodwork in two double bedrooms. A few cracks to fill, and colours are similar to what is there now.',
+  },
+  {
+    label: 'Internal doors need replacing',
+    trade: 'carpenter',
+    jobDescription:
+      'Replace 5 internal doors with white primed shaker doors in a 1990s house, reusing the existing frames. New hinges and handles on each.',
+  },
+  {
+    label: 'Cracked ceiling needs skimming',
     trade: 'plasterer',
-    jobDescription: 'Ceiling plaster needs repairing',
+    jobDescription:
+      'Living room ceiling about 4m x 4m with several long cracks. Board over where needed and skim, ready to paint. Room will be cleared.',
+  },
+  {
+    label: 'Slipped roof tiles',
+    trade: 'roofer',
+    jobDescription:
+      'Several slipped and broken concrete tiles on the back slope of a two-storey house, causing a small leak into a bedroom ceiling.',
+  },
+  {
+    label: 'Full bathroom refit',
+    trade: 'bathroom-fitter',
+    jobDescription:
+      'Strip out a dated bathroom, about 2.5m x 2m, and fit a new bath with a shower over, close coupled toilet and vanity basin. Same layout.',
+  },
+  {
+    label: 'New kitchen fitting',
+    trade: 'kitchen-fitter',
+    jobDescription:
+      'Remove the old kitchen and fit a new one supplied by the customer: 10 units, laminate worktops, sink and built-in oven and hob. Same layout.',
+  },
+  {
+    label: 'Bathroom walls need retiling',
+    trade: 'tiler',
+    jobDescription:
+      'Remove old tiles and retile the bathroom walls around the bath and shower area with large porcelain tiles.',
+  },
+  {
+    label: 'Laminate floor in the lounge',
+    trade: 'flooring-fitter',
+    jobDescription:
+      'Lift the old carpet and fit laminate flooring with underlay in a living room, finished with new beading.',
+  },
+  {
+    label: 'Old boiler swap to a combi',
+    trade: 'gas-engineer',
+    jobDescription:
+      'Replace a 20-year-old regular boiler and hot water cylinder with a combi boiler in a three-bed semi, and remove the tanks from the loft.',
+  },
+  {
+    label: 'Misted double glazing',
+    trade: 'glazier',
+    jobDescription:
+      'Three double-glazed units have misted between the panes in white uPVC frames. Replace the sealed units only, frames are fine.',
+  },
+  {
+    label: 'New patio',
+    trade: 'gardener-landscaper',
+    jobDescription:
+      'Lay an Indian sandstone patio at the back of the house, replacing part of the lawn. Customer wants a slight fall away from the house.',
+  },
+  {
+    label: 'Storm-damaged fence',
+    trade: 'fencer',
+    jobDescription:
+      'Replace 8 storm-damaged fence panels along the back garden boundary with new panels on concrete posts and gravel boards.',
+  },
+  {
+    label: 'Overgrown tree needs cutting back',
+    trade: 'tree-surgeon',
+    jobDescription:
+      "Crown reduction on a large sycamore in the back garden that overhangs the neighbour's garden and blocks light.",
+  },
+  {
+    label: 'Garden wall needs rebuilding',
+    trade: 'bricklayer',
+    jobDescription:
+      'Front garden wall is leaning and cracked. Take it down and rebuild in matching brick with a coping on top.',
+  },
+  {
+    label: 'Knock through kitchen and dining room',
+    trade: 'builder',
+    jobDescription:
+      'Remove the wall between the kitchen and dining room in a 1930s semi to make one open-plan room. The wall is likely load-bearing and will need a steel beam.',
+  },
+  {
+    label: 'New block paved driveway',
+    trade: 'driveway-specialist',
+    jobDescription:
+      'Break out an old cracked concrete driveway at the front of a semi-detached house and replace it with block paving.',
+  },
+  {
+    label: 'Extension foundations',
+    trade: 'groundworker',
+    jobDescription:
+      'Dig and pour strip foundations for a single-storey rear extension about 4m x 3m. Access is down the side of the house.',
   },
 ];
 
@@ -378,27 +469,36 @@ export default function NewQuotePage() {
   }
 
   function updatePhoto(id, patch) {
-    setPhotos((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+    setPhotos((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+    );
   }
 
   // Compresses then uploads straight to the private Blob store as soon as photos are chosen,
   // so they're usually ready by the time the trader has finished typing.
-  async function handleAddPhotos(files) {
+  async function handleAddPhotos(files, meta = {}) {
     if (!files.length) return;
     const entries = files.map((file) => ({
       id: crypto.randomUUID(),
       previewUrl: URL.createObjectURL(file),
       status: 'compressing',
+      ...meta,
     }));
     setPhotos((prev) => [...prev, ...entries].slice(0, MAX_JOB_PHOTOS));
 
     // Loaded on demand: the Blob client is most of this page's JS, and most quotes have no photos.
-    const [{ upload }, results] = await Promise.all([import('@vercel/blob/client'), compressImages(files)]);
+    const [{ upload }, results] = await Promise.all([
+      import('@vercel/blob/client'),
+      compressImages(files),
+    ]);
     await Promise.all(
       results.map(async (r, i) => {
         const { id } = entries[i];
         if (r.error) {
-          updatePhoto(id, { status: 'failed', error: "This photo couldn't be read. Try a JPEG or PNG." });
+          updatePhoto(id, {
+            status: 'failed',
+            error: "This photo couldn't be read. Try a JPEG or PNG.",
+          });
           return;
         }
         updatePhoto(id, { status: 'uploading' });
@@ -410,7 +510,10 @@ export default function NewQuotePage() {
           });
           updatePhoto(id, { status: 'ready', pathname: blob.pathname });
         } catch {
-          updatePhoto(id, { status: 'failed', error: 'Upload failed. Remove it and try again.' });
+          updatePhoto(id, {
+            status: 'failed',
+            error: 'Upload failed. Remove it and try again.',
+          });
         }
       }),
     );
@@ -427,12 +530,16 @@ export default function NewQuotePage() {
   function handleTogglePhotoObservation(id) {
     setPhotoAnalysis((prev) => ({
       ...prev,
-      observations: prev.observations.map((o) => (o.id === id ? { ...o, checked: !o.checked } : o)),
+      observations: prev.observations.map((o) =>
+        o.id === id ? { ...o, checked: !o.checked } : o,
+      ),
     }));
   }
 
   function hasCheckedSiteEvidence(analysis) {
-    return analysis.observations.some((o) => o.checked && analysis.photos[o.imageIndex - 1]?.kind === 'site');
+    return analysis.observations.some(
+      (o) => o.checked && analysis.photos[o.imageIndex - 1]?.kind === 'site',
+    );
   }
 
   // Without photos, the trade's key questions. With them, the analysis's list, minus any key
@@ -450,7 +557,10 @@ export default function NewQuotePage() {
     const unclear = keyQuestionsToAsk(analysis)
       .filter((q) => !keyQuestionAnswer(keyAnswers[q.topic]))
       .map((q) => q.topic);
-    if (!analysis) return unclear.length ? { observations: [], resolved: [], unclear } : undefined;
+    if (!analysis)
+      return unclear.length
+        ? { observations: [], resolved: [], unclear }
+        : undefined;
     const checked = analysis.observations.filter((o) => o.checked);
     return {
       observations: checked.map((o) => o.observation),
@@ -462,12 +572,19 @@ export default function NewQuotePage() {
   // Answered key questions as { question, answer }, sent ahead of Phase A's own Q&A.
   function keyQuestionPairs() {
     return keyQuestionsToAsk()
-      .map((q) => ({ question: q.question, answer: keyQuestionAnswer(keyAnswers[q.topic]) }))
+      .map((q) => ({
+        question: q.question,
+        answer: keyQuestionAnswer(keyAnswers[q.topic]),
+      }))
       .filter((qa) => qa.answer);
   }
 
   async function analysePhotos(readyPhotos) {
-    const key = JSON.stringify({ trade, jobDescription, photos: readyPhotos.map((p) => p.pathname) });
+    const key = JSON.stringify({
+      trade,
+      jobDescription,
+      photos: readyPhotos.map((p) => p.pathname),
+    });
     if (photoAnalysis && photoAnalysisKeyRef.current === key) {
       setPhase('reviewingPhotos');
       return;
@@ -479,7 +596,11 @@ export default function NewQuotePage() {
       response = await fetch('/api/quote/analyse-photos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trade, jobDescription, photos: readyPhotos.map((p) => p.pathname) }),
+        body: JSON.stringify({
+          trade,
+          jobDescription,
+          photos: readyPhotos.map((p) => p.pathname),
+        }),
       });
     } catch {
       setError('Could not reach the server. Please try again.');
@@ -500,7 +621,11 @@ export default function NewQuotePage() {
       ...data,
       sourcePhotos: readyPhotos,
       // A tentative reading only goes into the quote if the trader ticks it themselves.
-      observations: data.observations.map((o) => ({ ...o, id: crypto.randomUUID(), checked: o.confidence !== 'low' })),
+      observations: data.observations.map((o) => ({
+        ...o,
+        id: crypto.randomUUID(),
+        checked: o.confidence !== 'low',
+      })),
     });
     photoAnalysisKeyRef.current = key;
     setPhase('reviewingPhotos');
@@ -532,7 +657,9 @@ export default function NewQuotePage() {
     if (data.jobType) setJobType(data.jobType);
     if (data.clarifyingQuestion) {
       setClarifyingQuestion(data.clarifyingQuestion);
-      setClarifyingInitialAnswer(drafts[data.clarifyingQuestion.question] ?? null);
+      setClarifyingInitialAnswer(
+        drafts[data.clarifyingQuestion.question] ?? null,
+      );
       setPhase('clarifying');
       return;
     }
@@ -555,7 +682,11 @@ export default function NewQuotePage() {
   // handleProposeMaterials for the one caller that must override them.
   async function callProposeMaterials(
     priorQs,
-    { cache = proposeCache, drafts = answerDraftsByQuestion, photoFindings = jobFindings() } = {},
+    {
+      cache = proposeCache,
+      drafts = answerDraftsByQuestion,
+      photoFindings = jobFindings(),
+    } = {},
   ) {
     setPhase('proposing');
 
@@ -611,8 +742,40 @@ export default function NewQuotePage() {
     if (example) {
       setTrade(example.trade);
       setJobDescription(example.jobDescription);
+      attachExamplePhoto(example.trade);
+      // Unsplash requires a download report when a photo is used; failure is ignored.
+      fetch('/api/examples/unsplash-download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trade: example.trade }),
+      }).catch(() => {});
     }
     examplesDialogRef.current?.close();
+  }
+
+  // Adds the example's photo as a job photo, through the same compress-and-upload path as
+  // the trader's own. It replaces any earlier example photo but leaves uploaded ones alone.
+  async function attachExamplePhoto(exampleTrade) {
+    const photo = examplePhoto(exampleTrade);
+    if (!photo) return;
+    setPhotos((prev) => {
+      prev
+        .filter((p) => p.fromExample)
+        .forEach((p) => URL.revokeObjectURL(p.previewUrl));
+      return prev.filter((p) => !p.fromExample);
+    });
+    try {
+      const response = await fetch(unsplashPhotoFileUrl(photo));
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const file = new File(
+        [await response.blob()],
+        `${exampleTrade}-example.jpg`,
+        { type: 'image/jpeg' },
+      );
+      await handleAddPhotos([file], { fromExample: exampleTrade });
+    } catch (err) {
+      console.warn('Could not attach the example photo:', err.message);
+    }
   }
 
   function handleExamplesCancel() {
@@ -822,7 +985,9 @@ export default function NewQuotePage() {
   }
 
   const turnLog = groupStepsByTurn(steps);
-  const photosBusy = photos.some((p) => p.status === 'compressing' || p.status === 'uploading');
+  const photosBusy = photos.some(
+    (p) => p.status === 'compressing' || p.status === 'uploading',
+  );
   const checkedMaterialsCount = refinementMaterials.filter(
     (m) => m.checked,
   ).length;
@@ -897,15 +1062,23 @@ export default function NewQuotePage() {
               }}
               style={{ alignSelf: 'flex-end', fontSize: '0.85rem' }}
             >
-              Examples
+              Try some examples
             </a>
           </label>
 
-          <PhotoPicker photos={photos} onAdd={handleAddPhotos} onRemove={handleRemovePhoto} />
+          <PhotoPicker
+            photos={photos}
+            onAdd={handleAddPhotos}
+            onRemove={handleRemovePhoto}
+          />
 
           <button
             type="submit"
-            style={{ ...buttonStyle, width: 'fit-content', padding: '0.5rem 1rem' }}
+            style={{
+              ...buttonStyle,
+              width: 'fit-content',
+              padding: '0.5rem 1rem',
+            }}
             disabled={!jobDescription.trim() || photosBusy}
           >
             {photosBusy ? '⏳ Uploading photos…' : '➡️ Continue'}
@@ -919,42 +1092,89 @@ export default function NewQuotePage() {
         style={{
           maxWidth: 480,
           width: '90%',
+          // Anchored near the top, not centred: it grows downwards only, so the header and
+          // close button never move under the pointer when the content changes height.
+          marginTop: '8vh',
+          marginBottom: 'auto',
           border: '1px solid #ddd',
           borderRadius: 8,
-          padding: '1.25rem',
+          padding: 0,
+          overflow: 'hidden',
         }}
       >
-        <h2>Try some common examples</h2>
-        <form
-          onSubmit={handleExamplesSubmit}
-          style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+        {/* Same layout as the Find prices modal: sized to its content up to 85vh, with a
+            fixed header and a body that scrolls, so it grows as the list opens or a photo shows. */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: '300px',
+            maxHeight: '85vh',
+          }}
         >
-          <select
-            style={{ padding: '0.25rem' }}
-            value={exampleChoice}
-            onChange={(e) => setExampleChoice(e.target.value)}
+          <div
+            style={{
+              position: 'relative',
+              flexShrink: 0,
+              padding: '1.25rem 3.5rem 0.75rem 1.25rem',
+              borderBottom: '1px solid #eee',
+            }}
           >
-            <option value="">Choose an example…</option>
-            {EXAMPLE_JOBS.map((example, index) => (
-              <option key={example.label} value={index}>
-                {example.label}
-              </option>
-            ))}
-          </select>
-
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button type="button" style={buttonStyle} onClick={handleExamplesCancel}>
-              ❌ Cancel
-            </button>
-            <button type="submit" style={buttonStyle} disabled={exampleChoice === ''}>
-              ✅ Submit
+            <h2 style={{ margin: 0 }}>Try some common examples</h2>
+            <button
+              type="button"
+              style={closeButtonStyle}
+              onClick={handleExamplesCancel}
+              aria-label="Close"
+            >
+              ✕
             </button>
           </div>
-        </form>
+          <form
+            onSubmit={handleExamplesSubmit}
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1rem',
+              padding: '0.75rem 1.25rem 1.25rem',
+            }}
+          >
+            <ExamplePicker
+              examples={EXAMPLE_JOBS}
+              value={exampleChoice}
+              onChange={setExampleChoice}
+            />
+
+            {exampleChoice !== '' && (
+              <ExamplePhoto trade={EXAMPLE_JOBS[Number(exampleChoice)].trade} />
+            )}
+
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto' }}>
+              <button
+                type="button"
+                style={buttonStyle}
+                onClick={handleExamplesCancel}
+              >
+                ❌ Cancel
+              </button>
+              <button
+                type="submit"
+                style={buttonStyle}
+                disabled={exampleChoice === ''}
+              >
+                ✅ Submit
+              </button>
+            </div>
+          </form>
+        </div>
       </dialog>
 
       {phase === 'analysingPhotos' && (
-        <PhotoAnalysisSkeleton count={photos.filter((p) => p.status === 'ready').length} />
+        <PhotoAnalysisSkeleton
+          count={photos.filter((p) => p.status === 'ready').length}
+        />
       )}
 
       {phase === 'reviewingPhotos' && photoAnalysis && (
@@ -970,7 +1190,11 @@ export default function NewQuotePage() {
 
       {phase === 'keyQuestions' && (
         <KeyQuestions
-          title={photoAnalysis ? "Things the photos can't show" : 'A few quick questions'}
+          title={
+            photoAnalysis
+              ? "Things the photos can't show"
+              : 'A few quick questions'
+          }
           questions={keyQuestionsToAsk()}
           answers={keyAnswers}
           onChange={setKeyAnswers}
@@ -992,7 +1216,11 @@ export default function NewQuotePage() {
             actions={
               <button
                 type="button"
-                style={{ ...buttonStyle, width: 'fit-content', padding: '0.5rem 1rem' }}
+                style={{
+                  ...buttonStyle,
+                  width: 'fit-content',
+                  padding: '0.5rem 1rem',
+                }}
                 onClick={handleBack}
               >
                 ⬅️ Back
@@ -1053,7 +1281,11 @@ export default function NewQuotePage() {
             actions={
               <button
                 type="button"
-                style={{ ...buttonStyle, width: 'fit-content', padding: '0.5rem 1rem' }}
+                style={{
+                  ...buttonStyle,
+                  width: 'fit-content',
+                  padding: '0.5rem 1rem',
+                }}
                 onClick={handleCancel}
                 disabled={submittingAnswer}
               >
