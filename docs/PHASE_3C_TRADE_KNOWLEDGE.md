@@ -1,6 +1,6 @@
-# Phase 3c — Trade knowledge packs (proposal)
+# Phase 3c — Trade knowledge packs
 
-**Status:** proposal, not started. Written 2026-09-26.
+**Status:** plumber pilot built and measured 2026-09-26 (140.3/143 with the pack, 131.3/143 without, mean of 3 runs). All plumber entries await review (`reviewed: false`), so nothing is live in production yet. Proposal written 2026-09-26; see "Pilot build" below for what was built.
 **Depends on:** Phase 3b, trade key questions (`docs/PHASE_3B_KEY_QUESTIONS.md`; the work is on the `trade-key-questions` branch and backed up on `trade-key-questions-backup`).
 
 ## The question
@@ -67,9 +67,126 @@ If it clearly helps, the same format extends to the other 16 trades.
 
 **How this fits with Phase 3b:** key questions stay as the fixed questions for each trade, and the packs add questions specific to each job within that trade.
 
-## Open decisions
+## Decisions made
 
-- **Where packs live:** JS modules next to `lib/key-questions.js`, or data files (JSON/Markdown) loaded at runtime.
-- **Matching a job to a pack entry:** keyword match, a cheap classification call in Phase A, or letting Phase A see the trade's whole job list.
-- **Who reviews packs** before they go live, and how corrections get back in.
-- **Eval tooling:** a vitest suite that calls the real API, or a separate script run by hand.
+- **Where packs live:** JS modules in `lib/trade-knowledge/`, one file per trade, following the pattern of `lib/key-questions.js`.
+- **Matching a job to a pack entry:** Phase A sees the trade's whole job list and returns the matched id as `job_type`. There's no separate classification call.
+- **Question budgets:** key questions no longer count toward Phase A's cap. Phase A gets its own 2 questions (`MAX_CLARIFYING_QUESTIONS`), so a trader faces at most 4 key questions plus 2 job-specific ones.
+- **Review:** Claude drafts entries and a person reviews them. An entry goes live only once its `reviewed` flag is set to `true`.
+- **Evals:** a script with checklist checks (`npm run eval`), kept out of `npm test` because it calls the real API.
+
+## Pilot build
+
+### What was built
+
+| Piece | File |
+|---|---|
+| Plumber pack: 8 jobs (leaking tap, replace tap, toilet cistern, blocked waste, replace radiator, leaking pipe, outside tap, appliance plumbing) | `lib/trade-knowledge/plumber.js` |
+| Gating (`jobsFor`, `jobEntry`) and prompt formatters (`formatJobsForPhaseA`, `formatJobForPhaseB`) | `lib/trade-knowledge/index.js` |
+| Phase A: `keyAnswers` input (not counted toward the cap), pack block in the prompt, `jobType` in the result | `lib/propose-materials.js`, `app/api/quote/propose-materials/route.js` |
+| Client: sends key answers separately, keeps `jobType` and sends it to Phase B | `app/quote/new/page.js` |
+| Phase B: matched job's guidance in `toolContext.jobKnowledge`, used by the scope, assumptions and exclusions sections | `app/api/quote/route.js`, `tools/draft-section.js` |
+| Tests: pack guardrails, gating, formatters, Phase A and `draft_section` wiring | `lib/trade-knowledge/*.test.js`, `lib/propose-materials.test.js`, `tools/draft-section.test.js` |
+| Evals: 10 plumber cases and the runner | `evals/plumber.cases.js`, `scripts/eval.mjs` |
+
+### Pack entry schema
+
+```js
+{
+  id: 'leaking-tap',                 // returned by Phase A as job_type
+  title: 'Leaking or dripping tap',
+  matches: 'dripping tap, leaking mixer, …',   // phrasings that should match this job
+  reviewed: false,                   // true only once a person has checked the entry
+  questions: [{ topic, question, options, askWhen? }],   // 2–5 options, never "Other"/"Not sure"; askWhen limits it to some variants
+  variants: [{ when, materials: ['single product label', …] }],
+  assumptions: ['…'], exclusions: ['…'], pitfalls: ['…'],
+}
+```
+
+### Adding a trade
+
+1. Create `lib/trade-knowledge/<trade>.js` exporting its jobs, and register it in `JOBS_BY_TRADE` in `index.js`.
+2. Copy `plumber.test.js` for the new trade, so the guardrail checks run on its content.
+3. Write `evals/<trade>.cases.js`, exporting `<TRADE>_CASES` (e.g. `GAS_ENGINEER_CASES`) and `FORBIDDEN`. Write each case's checks from real-world practice, not from the pack's own wording.
+4. Run `npm run eval -- --trade=<trade> --knowledge=off --runs=3`, then without `--knowledge=off`, and compare the means. Single runs are too noisy to compare.
+5. Have someone who knows the trade review each entry, then set `reviewed: true`.
+
+### Eval results (2026-09-26, Haiku for Phase A, mean of 3 runs)
+
+Measured after the pack fixes and Phase A backstops described below. The range across the 3 runs is in brackets.
+
+| Check type | Without pack | With pack |
+|---|---|---|
+| Asks a job-specific question | 6.3/10 (6–7) | 9/10 (8–10) |
+| Right materials | 7/10 | 10/10 |
+| Key assumptions | 8/8 | 8/8 |
+| Key exclusions | 4/5 (3–5) | 5/5 |
+| No repeated question (`distinct`) | 10/10 | 10/10 |
+| No options listed in the question (`clean-question`) | 6.3/10 (5–8) | 8.3/10 (8–9) |
+| No forbidden wording | 89.7/90 | 90/90 |
+| **Total** | **131.3/143 (130–133)** | **140.3/143 (139–141)** |
+
+The two ranges don't overlap, so the gain is real, not run-to-run noise. The earlier single-run figures (95–98/103 without, 102/103 with) used fewer checks and aren't comparable.
+
+**Stronger Phase A model?** Sonnet 4.6 with the pack scored worse on questions: it asked no questions at all in 12 of 29 cases and went straight to materials (job-specific question 4/9). Its materials were as good (10/10). Keep Haiku as the Phase A default. Sonnet 5 couldn't be tested: Phase A sends `temperature: 0.2`, which Sonnet 5 rejects with a 400. So setting `PHASE_A_MODEL=claude-sonnet-5` would break Phase A until that parameter is dropped for such models.
+
+### What the first run taught us
+
+- **"Skip questions already answered" must name the job description explicitly.** Otherwise the model re-asks what the trader already wrote, such as asking how the tap turns off when the description said "several turns". Fixed in the prompt.
+- **A warning that mentions "compliance" can prime the word.** One exclusion came back saying "non-compliant". The Phase B guidance block no longer mentions compliance at all; `NEVER_DO_RULES` in the system prompt already covers it.
+- **Questions shown as `question (A / B / C)` invite options in the question text.** The Phase A block now asks for the options as "choices" instead.
+
+### Fixes after the first runs
+
+- **Pack:**
+  - The mixer cartridge label was "35mm or 40mm", which broke the no-alternatives rule. It's now 40mm, and a pitfall covers 35mm.
+  - The "who supplies the tap" question was removed, because key question 4 already asks it.
+  - A "WRAS approved" pitfall was reworded, and the guardrail test now rejects "WRAS" and "approved".
+  - Questions can carry `askWhen`, so flush type is only asked for a running toilet, not an overflow.
+- **Phase A backstops** (`lib/propose-materials.js`):
+  - `stripListedOptions` cuts options listed after a dash or colon (`questionListsOptions` flags two or more named options).
+  - A question that `isNearDuplicateQuestion` flags as a re-ask of a key question or earlier question is dropped, and that round returns materials instead. The threshold (0.5 word overlap) was set from the eval runs: real repeats scored 0.53 or more, and distinct questions on the same job 0.40 or less.
+
+### Known issues (Phase A, not the pack)
+
+- About 1 in 6 questions with the pack still lists its options without a dash or colon (e.g. "Is the pipe fed from the mains, or from a tank in the loft?"). The backstop leaves these alone, because cutting mid-sentence reads worse than the repetition.
+- Phase A sometimes asks about something the description already states, e.g. what the toilet is doing when the description says it overflows. Near-duplicates of earlier questions are now caught, but re-asking the description isn't.
+
+## Review checklist
+
+These are the points in each entry that only a working plumber can settle. Correct anything that's wrong, then set `reviewed: true` on the entry in `lib/trade-knowledge/plumber.js`.
+
+- **leaking-tap**
+  - The default mixer cartridge is now 40mm, and the pitfall notes that some are 35mm. Is 40mm the better default?
+  - Is a spindle O-ring set the right part for a traditional tap leaking round the handle, or do older taps still need gland packing?
+  - Should fitting an isolating valve, where there isn't one, be part of this job?
+- **replace-tap**
+  - Are the tap connector sizes right: 15mm x 1/2" for a basin, 22mm x 3/4" for a bath?
+  - Is "Low-pressure rated mixer tap" a label that finds real products?
+  - The "who supplies the tap" question was removed because key question 4 already asks it. Is anything lost?
+- **toilet-cistern**
+  - Are 1/2" bottom-entry and side-entry fill valves the right defaults?
+  - Is a siphon diaphragm washer the right part for a lever toilet that needs several pulls?
+  - Check the new `askWhen` conditions: flush type only when water runs into the pan or it won't flush, pipe position only when it overflows or refills slowly.
+- **blocked-waste**
+  - Are the trap and pipe sizes right: 32mm for a basin, 40mm for a sink or bath?
+  - Should shower trays be in this job at all, given that lifting the tray is excluded?
+- **replace-radiator**
+  - Is a 600mm x 1000mm double panel convector a sensible default for a like-for-like swap?
+  - Should "Thermostatic radiator valve and lockshield 15mm (pair)" stay one line, since it's usually sold as one pack?
+  - Are the 1L inhibitor and the 10mm microbore adaptor right?
+- **leaking-pipe**
+  - For a short repair on copper, is push-fit the usual choice, rather than compression or solder?
+  - Is the advice on lead pipe right?
+- **outside-tap**
+  - Is a kit with a double check valve the right default?
+  - Is a sleeve for going through a cavity wall missing from the materials?
+- **appliance-plumbing**
+  - Is an equal tee with an appliance valve the right default, rather than a self-cutting valve?
+  - Is a 1.5m hose long enough for "ready to connect"?
+
+## Next steps
+
+1. **Review the 8 plumber entries** in `lib/trade-knowledge/plumber.js`. Correct anything a working plumber would disagree with, then set `reviewed: true` on each entry you're happy with. Until then, production behaves exactly as before.
+2. **Try it in the app** with `TRADE_KNOWLEDGE=all` in `.env`, then `npm run dev`, and quote a plumbing job.
+3. **Stage 2 rollout:** add trades in batches of 3–4, each with its own cases file and review pass. Prioritise by quote volume, and by which materials traders most often reject or add in `material_refinement_events`.
