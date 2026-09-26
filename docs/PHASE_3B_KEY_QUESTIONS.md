@@ -177,7 +177,7 @@ return {
 const whoSupplies = {
   topic: 'who supplies materials',
   question: 'Who is supplying the materials?',
-  options: ['You supply everything', 'Customer supplies some', 'Customer supplies everything'],
+  options: ['Trader supplies everything', 'Split between trader and customer', 'Customer supplies everything'],
 }
 
 const makingGood = {
@@ -195,7 +195,7 @@ const wasteRemoval = {
 const roomCleared = {
   topic: 'furniture in the work area',
   question: 'Will the work area be cleared before you start?',
-  options: ['Customer clears it', 'You move and cover things'],
+  options: ['Customer clears it', 'Trader moves and covers things'],
 }
 
 const wallType = {
@@ -240,7 +240,7 @@ export const KEY_QUESTIONS_BY_TRADE = {
   ],
   'flooring-fitter': [
     area('Roughly how much floor is being laid?', ['Under 10m²', '10–25m²', '25–50m²', 'Over 50m²']),
-    { topic: 'existing floor covering', question: 'What happens to the existing floor covering?', options: ['You lift and dispose', 'Customer lifts it', 'Nothing to lift'] },
+    { topic: 'existing floor covering', question: 'What happens to the existing floor covering?', options: ['Trader lifts and disposes', 'Customer lifts it', 'Nothing to lift'] },
     roomCleared,
     whoSupplies,
   ],
