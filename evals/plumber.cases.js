@@ -1,14 +1,13 @@
 // Realistic plumber jobs for scripts/eval.mjs. Each `expect` lists what a good quote
 // must contain, written from real-world practice rather than copied from the pack.
+export { FORBIDDEN } from './shared.js'
+
 const key = (pipework, access, makingGood = 'Customer or another trade', supplies = 'You supply everything') => [
   { question: 'What is the existing pipework made of?', answer: pipework },
   { question: 'How easy is it to get to the pipes?', answer: access },
   { question: 'Who makes good walls, ceilings and floors after the work?', answer: makingGood },
   { question: 'Who is supplying the materials?', answer: supplies },
 ]
-
-// Shared across every case: none of these may appear anywhere in the output.
-export const FORBIDDEN = [/part p/i, /gas safe/i, /bs ?7671/i, /water regulations/i, /complian/i, /certif/i, /wras/i, /approved/i, /£\s?\d/]
 
 export const PLUMBER_CASES = [
   {
