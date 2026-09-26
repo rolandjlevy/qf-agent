@@ -31,6 +31,7 @@ export async function POST(request) {
   const trade = body?.trade
   const jobDescription = typeof body?.jobDescription === 'string' ? body.jobDescription.trim() : ''
   const priorQuestions = sanitizeQaPairs(body?.priorQuestions)
+  const keyAnswers = sanitizeQaPairs(body?.keyAnswers)
   const photoFindings = sanitizePhotoFindings(body?.photoFindings)
 
   if (!VALID_TRADES.includes(trade)) {
@@ -41,7 +42,7 @@ export async function POST(request) {
   }
 
   try {
-    const result = await proposeMaterials({ trade, jobDescription, priorQuestions, photoFindings })
+    const result = await proposeMaterials({ trade, jobDescription, priorQuestions, keyAnswers, photoFindings })
     return Response.json(result)
   } catch (err) {
     // Auth/permission errors can't be fixed by the caller retrying — surface

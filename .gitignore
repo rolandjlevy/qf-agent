@@ -10,3 +10,4 @@ data/uploads/
 .vercel
 .env*
 docs/test-photos/
+evals/results/

@@ -60,7 +60,7 @@ ${ctx.follow_up_answers ? `Additional details: ${JSON.stringify(ctx.follow_up_an
 
 Materials already identified for this job (stay consistent with this list — don't describe work that implies a material not listed here; note anything materials-adjacent as an assumption instead):
 ${buildMaterialLines(ctx.materials || ctx.materials_with_prices || [])}
-${priorSections ? `\n${priorSections}\n` : ''}
+${ctx.jobKnowledge ? `\n${ctx.jobKnowledge}\n` : ''}${priorSections ? `\n${priorSections}\n` : ''}
 
 RULES:
 - Flat bullet list of the main tasks to be performed. No nested bullets.
@@ -123,7 +123,7 @@ ${wrapJobDescription(ctx.job_description)}
 
 Materials already identified for this job:
 ${buildMaterialLines(ctx.materials || ctx.materials_with_prices || [])}
-${priorSections ? `\n${priorSections}\n` : ''}
+${ctx.jobKnowledge ? `\n${ctx.jobKnowledge}\n` : ''}${priorSections ? `\n${priorSections}\n` : ''}
 
 RULES:
 - 3–4 bullet points covering the most important assumptions about site conditions, access, and customer-provided items.
@@ -142,7 +142,7 @@ ${wrapJobDescription(ctx.job_description)}
 
 Materials already identified for this job:
 ${buildMaterialLines(ctx.materials || ctx.materials_with_prices || [])}
-${priorSections ? `\n${priorSections}\n` : ''}
+${ctx.jobKnowledge ? `\n${ctx.jobKnowledge}\n` : ''}${priorSections ? `\n${priorSections}\n` : ''}
 
 RULES:
 - 3–4 bullet points explicitly stating what is NOT included in this quote.
@@ -258,6 +258,8 @@ export async function draftSection({ section, context } = {}, toolContext = {}) 
     job_description: toolContext.jobDescription,
     materials: toolContext.materials,
     ...context,
+    // Server-side only: the model's own context can't override or inject pack guidance.
+    jobKnowledge: toolContext.jobKnowledge,
   }
 
   for (const field of ['trade', 'tone', 'job_description']) {

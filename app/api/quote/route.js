@@ -20,6 +20,7 @@ import { VALID_TRADES, VALID_TONES } from '../../../lib/constants.js'
 import { waitForAnswer } from '../../../lib/quote-runs.js'
 import { summarizeFollowUpAnswers } from '../../../lib/summarize-follow-up-answers.js'
 import { sanitizePhotoFindings } from '../../../lib/photo-findings.js'
+import { jobEntry, formatJobForPhaseB } from '../../../lib/trade-knowledge/index.js'
 
 // save_quote (via tools/save-quote.js) uses Node's fs module — must run in
 // the Node runtime, not edge.
@@ -103,6 +104,8 @@ export async function POST(request) {
   const materials = validateMaterials(body?.materials)
   const followUpAnswers = sanitizeFollowUpAnswers(body?.followUpAnswers)
   const photoFindings = sanitizePhotoFindings(body?.photoFindings)
+  // Phase A's knowledge-pack match; an unknown or unreviewed id is just ignored.
+  const jobKnowledge = formatJobForPhaseB(jobEntry(trade, body?.jobType))
 
   if (!VALID_TRADES.includes(trade)) {
     return Response.json({ error: `trade must be one of: ${VALID_TRADES.join(', ')}` }, { status: 400 })
@@ -254,6 +257,7 @@ export async function POST(request) {
         sectionStore: {},
         materials: legacyMaterials,
         followUpAnswerBullets,
+        jobKnowledge,
       }
 
       // identify_materials and ask_user are deliberately excluded — materials

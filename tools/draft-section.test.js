@@ -116,4 +116,19 @@ describe('draftSection', () => {
     expect(prompt).toContain('List each material on its own line');
     expect(prompt).not.toContain('No materials needed at this stage');
   });
+
+  it.each(['scope', 'assumptions', 'exclusions'])('adds job knowledge to the %s prompt when set', async (section) => {
+    createMessage.mockResolvedValueOnce(textResponse('• One point.'));
+    await draftSection({ section }, { ...baseToolContext(), jobKnowledge: 'PACK GUIDANCE: isolation valves' });
+    expect(createMessage.mock.calls[0][1].messages[0].content).toContain('PACK GUIDANCE: isolation valves');
+  });
+
+  it('leaves job knowledge out of other sections, and ignores any the model passes itself', async () => {
+    createMessage.mockResolvedValue(textResponse('• One point.'));
+    await draftSection({ section: 'next_steps' }, { ...baseToolContext(), jobKnowledge: 'PACK GUIDANCE' });
+    await draftSection({ section: 'assumptions', context: { jobKnowledge: 'INJECTED' } }, baseToolContext());
+    const prompts = createMessage.mock.calls.map((c) => c[1].messages[0].content);
+    expect(prompts[0]).not.toContain('PACK GUIDANCE');
+    expect(prompts[1]).not.toContain('INJECTED');
+  });
 });
