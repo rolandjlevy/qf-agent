@@ -106,8 +106,8 @@ If it clearly helps, the same format extends to the other 19 trades. When the tr
 ### Adding a trade
 
 1. Create `lib/trade-knowledge/<trade>.js` exporting its jobs, and register it in `JOBS_BY_TRADE` in `index.js`.
-2. Copy `plumber.test.js` for the new trade, so the guardrail checks run on its content.
-3. Write `evals/<trade>.cases.js`, exporting `<TRADE>_CASES` (e.g. `GAS_ENGINEER_CASES`) and `FORBIDDEN`. Write each case's checks from real-world practice, not from the pack's own wording.
+2. Run `npx vitest run lib/trade-knowledge`. `packs.test.js` checks every registered pack automatically, including that no pack question repeats one of the trade's key questions.
+3. Write `evals/<trade>.cases.js`, exporting `<TRADE>_CASES` (e.g. `GAS_ENGINEER_CASES`) and re-exporting `FORBIDDEN` from `evals/shared.js`. Build each case's `keyAnswers` with `keyAnswersFor(trade, { topic: answer })`, so they follow `lib/key-questions.js`. Write each case's checks from real-world practice, not from the pack's own wording, and include one job the pack doesn't cover.
 4. Run `npm run eval -- --trade=<trade> --knowledge=off --runs=3`, then without `--knowledge=off`, and compare the means. Single runs are too noisy to compare.
 5. Have someone who knows the trade review each entry, then set `reviewed: true`.
 
@@ -190,3 +190,88 @@ These are the points in each entry that only a working plumber can settle. Corre
 1. **Review the 8 plumber entries** in `lib/trade-knowledge/plumber.js`. Correct anything a working plumber would disagree with, then set `reviewed: true` on each entry you're happy with. Until then, production behaves exactly as before.
 2. **Try it in the app** with `TRADE_KNOWLEDGE=all` in `.env`, then `npm run dev`, and quote a plumbing job.
 3. **Stage 2 rollout:** add trades in batches of 3–4, each with its own cases file and review pass. Prioritise by quote volume, and by which materials traders most often reject or add in `material_refinement_events`.
+
+## Stage 2, batch 1: choosing the trades (2026-09-26)
+
+**Batch 1: bathroom fitter, electrician, carpenter, roofer.** These are the four busiest trades after plumber in the saved quotes. Handyman had the same count as roofer but was left out: "any small job" doesn't break down into a manageable list of common jobs.
+
+Saved quotes per trade, 3–26 Sept (175 in total):
+
+| Trade | Quotes |
+|---|---|
+| Bathroom fitter | 31 |
+| Electrician | 28 |
+| Plumber | 15 |
+| Carpenter | 13 |
+| Roofer, handyman | 11 each |
+| Decorator | 8 |
+| Builder, gardener / landscaper | 7 each |
+| Groundworker | 5 |
+| Unknown | 32 |
+
+**Limits of this data:**
+- Most quotes are test traffic. About half were written on a dev machine (`output_path` under `/workspaces/`), so the counts show what has been tested, not what traders need. Re-check once there's real use.
+- `material_refinement_events` had 2 unticked materials out of 320 proposed, and 8 trader-added ones. That's too few to show any trade's weak spots, so it didn't affect the choice.
+- `generated_quotes` has no trade column, and `quote_runs` rows are deleted after 2 hours. The trade was read from each quote's `tool_call_log` (the `identify_materials` input), or failing that from its filename. For future batches, storing the trade on `generated_quotes` would make this a single query.
+
+**Another finding:** bathroom fitter's count is inflated. It's the first option in the trade picker, so it's the default, and many of its quotes were for other trades ("Sort out the electrics", banisters, strip lights). An empty "Choose a trade" default would fix both the data and the risk of quoting under the wrong trade. That's a separate, small UI change.
+
+## Stage 2, batch 1: eval results (2026-09-26, Haiku for Phase A, mean of 3 runs)
+
+8 cases per trade, including one job each pack doesn't cover. The range across runs is in brackets.
+
+| Trade | Without pack | With pack, first round | With pack, after review |
+|---|---|---|---|
+| Bathroom fitter | 108/117 (107–109) | 114.7/117 (114–115) | 115.3/117 (115–116) |
+| Electrician | 106/114 (104–108) | 113/114 (111–114) | 111/114 (109–112) |
+| Carpenter | 107.7/110 (107–108) | 108.3/110 (108–109) | 108.7/110 (108–109) |
+| Roofer | 113.7/116 (113–114) | 114/116 (2 runs) | 113.7/116 (113–114) |
+
+The review changed only the `reviewed` flags, not pack content, so the two with-pack rounds measure the same packs; the difference between them is run-to-run noise.
+
+- **Bathroom fitter and electrician clearly improve.** The ranges don't overlap. The gains are in job-specific questions (bathroom 2.7/7 → 7/7) and materials (bathroom 12.3 → 14/14), and for the electrician in exclusions, assumptions and forbidden wording (69 → 71.7/72).
+- **Carpenter and roofer barely move, because their baselines were already near the top** (98% each). These checks can't show a gain there. The packs still add the diagnostic questions and pitfalls, but proving they help needs harder cases, e.g. non-standard doors, trussed roofs, or matching discontinued tiles.
+- **Roofer shows no gain on these checks.** Its first round ran out of API credit on the last case; the full re-run after review matched the baseline exactly (113.7/116). Harder roofer cases are needed before the pack's value can be measured.
+- **Remaining failures are Phase A and Phase B faults, not pack faults:**
+  - With the roofer pack, Phase A asked "What do the gutters need?" when the description already said "needs clearing". This is the known "re-asks the description" fault.
+  - Phase B sometimes writes "non-compliant" or "certification" into exclusions ("wiring found to be non-compliant"). It happens with and without a pack, and mostly for electrical work. It breaks the never-do rules, so it's worth its own fix: a code-level check on drafted sections, like the Phase A ones. (One flagged hit, "an approved voltage tester", is harmless; the check is deliberately broad.)
+
+## Stage 2, batch 1: review checklist
+
+All 28 entries were reviewed and set to `reviewed: true` on 2026-09-26. These were the points checked:
+
+**Bathroom fitter** (`lib/trade-knowledge/bathroom-fitter.js`)
+- **full-refit:** Is a steel bath the right default over acrylic? Are backer board and tile adhesive the right minimum for tiled walls?
+- **replace-bath:** Is it right to always assume the edge row of tiles breaks when the bath comes out?
+- **walk-in-shower:** Is a tanking kit needed for every tiled shower, or only for wet rooms?
+- **replace-shower-tray:** Is stone resin the right default tray?
+- **replace-basin:** Is a 600mm vanity unit a sensible default width?
+- **replace-toilet:** Are "Concealed cistern" and "Back to wall furniture unit" the right product names for a back-to-wall toilet?
+- **reseal:** Is "Bath leg support kit" a real product traders buy for a bath that moves?
+
+**Electrician** (`lib/trade-knowledge/electrician.js`)
+- **replace-consumer-unit:** Should RCBO boards be the default over dual RCD boards? Is 16mm the right main earth size to assume?
+- **replace-accessories:** Is a 35mm metal back box the right default for flat plates?
+- **add-sockets:** Should adding sockets default to extending an existing circuit, rather than a new one?
+- **light-fittings:** Is the fire-rated downlight pitfall worded the way an electrician would put it?
+- **electrical-fault:** The first variant has no materials, so the quote covers finding the fault only. Is that how you'd quote it?
+- **electric-shower:** Is 10mm cable with a 45A RCBO right for a 9.5kW shower on a typical run?
+- **outside-power:** Should an outside socket on the house wall be a spur off an inside circuit by default?
+
+**Carpenter** (`lib/trade-knowledge/carpenter.js`)
+- **banisters:** Are 41mm spindles and a 90mm newel the usual pine sizes?
+- **hang-door:** Is 762mm x 1981mm the right default door size?
+- **door-lock:** Is a 5 lever mortice deadlock the right default for a timber external door? The insurance pitfall avoids naming a standard on purpose.
+- **skirting-architrave:** Is a 144mm torus MDF skirting a sensible default?
+- **shelving:** Are the batten and fixing sizes right for heavy alcove shelves?
+- **loft-hatch:** Is 562mm x 726mm the usual insulated hatch size?
+- **stair-repair:** Should creaking stairs default to glue blocks and screws from underneath?
+
+**Roofer** (`lib/trade-knowledge/roofer.js`)
+- **slipped-tiles:** Are the fixings right: tile clips for concrete, aluminium nails for clay, hooks or copper rivets for slate?
+- **flat-roof:** Is EPDM the right default covering, and should insulation be assumed?
+- **gutters:** Clearing only has no materials. Is 112mm half round the right default profile?
+- **ridge:** Should mortar-bedded ridges default to rebedding, or converting to dry ridge?
+- **chimney-flashing:** Is Code 4 lead the right default?
+- **fascias-soffits:** Is the asbestos pitfall's "houses built before 2000" the right cut-off?
+- **roof-window:** Is 780mm x 980mm the most common size?
