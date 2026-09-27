@@ -1,13 +1,44 @@
-import { getTraderProfile } from '../../../lib/db.js';
+import { getGeneratedQuoteById, getTraderProfile, listRecentQuotes } from '../../../lib/db.js';
 import { VALID_TRADES } from '../../../lib/constants.js';
+import { quoteTitle } from '../../../lib/new-quote.js';
+import { SAMPLE_QUOTE_KEYS, sampleQuoteFor } from '../../../lib/sample-quotes.js';
 import NewQuoteFlow from './new-quote-flow.js';
 
-// Read live: the trade default comes from the profile, which can change at any time.
+// Read live: the trade default and recent quotes come from the database and change at any time.
 export const dynamic = 'force-dynamic';
 
-export default async function NewQuotePage() {
-  const profile = await getTraderProfile();
-  const trade = VALID_TRADES.includes(profile?.trade) ? profile.trade : null;
+const validTrade = (trade) => (VALID_TRADES.includes(trade) ? trade : null);
 
-  return <NewQuoteFlow initialTrade={trade} />;
+function formatDate(iso) {
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/London' });
+}
+
+// ?from=<quote id> (a "Start from a recent quote" card) pre-fills that quote's description and trade.
+export default async function NewQuotePage({ searchParams }) {
+  const { from } = await searchParams;
+  const fromId = /^\d+$/.test(from ?? '') ? Number(from) : null;
+  const [profile, recent, fromQuote] = await Promise.all([
+    getTraderProfile(),
+    listRecentQuotes(3),
+    fromId ? getGeneratedQuoteById(fromId) : null,
+  ]);
+
+  const recentQuotes = recent.map((q) => ({
+    id: q.id,
+    title: quoteTitle(q.job_description),
+    date: formatDate(q.generated_at),
+  }));
+  // Titles only: the samples' full text stays out of the client bundle.
+  const sampleTitles = Object.fromEntries(SAMPLE_QUOTE_KEYS.map((key) => [key, sampleQuoteFor(key).title]));
+
+  return (
+    <NewQuoteFlow
+      // A new key remounts the flow, so following a card (or back to a blank quote) resets its state.
+      key={fromQuote ? `from-${fromQuote.id}` : 'new'}
+      initialTrade={validTrade(fromQuote?.trade) ?? validTrade(profile?.trade)}
+      initialDescription={fromQuote?.job_description ?? ''}
+      recentQuotes={recentQuotes}
+      sampleTitles={sampleTitles}
+    />
+  );
 }

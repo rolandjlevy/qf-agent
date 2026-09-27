@@ -12,13 +12,13 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 
-// `isActive` decides which link gets aria-current; /quote/[id] belongs under Quotes.
+// `isActive` decides which link gets aria-current; /quote/[id] belongs under Quotes, /quote/example under New quote.
 const NAV_LINKS = [
-  { href: '/quote/new', label: 'New quote', isActive: (p) => p.startsWith('/quote/new') },
+  { href: '/quote/new', label: 'New quote', isActive: (p) => /^\/quote\/(new|example)\b/.test(p) },
   {
     href: '/quotes',
     label: 'Quotes',
-    isActive: (p) => p.startsWith('/quotes') || (p.startsWith('/quote/') && !p.startsWith('/quote/new')),
+    isActive: (p) => p.startsWith('/quotes') || /^\/quote\/(?!new\b|example\b)/.test(p),
   },
   { href: '/profile', label: 'Profile', isActive: (p) => p.startsWith('/profile') },
 ];

@@ -46,6 +46,8 @@ CREATE TABLE IF NOT EXISTS generated_quotes (
   generated_at TEXT NOT NULL,
   tool_call_log TEXT
 );
+-- The trade a quote was drafted for, which /quote/new's recent-quote cards restart with. NULL on older rows.
+ALTER TABLE generated_quotes ADD COLUMN IF NOT EXISTS trade TEXT;
 
 -- Bridges an in-flight ask_user wait (in one Vercel Lambda instance) to the
 -- /api/quote/[runId]/answer POST that resolves it (routinely a *different*
