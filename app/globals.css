@@ -100,25 +100,58 @@
   }
 }
 
-/* Shared skeleton-loading pulse (MaterialsSkeleton) — CSS-only since React
-   inline style objects can't declare @keyframes. */
-@keyframes skeleton-pulse {
-  0%,
-  100% {
-    opacity: 1;
+/* Loading placeholders (components/ui/skeleton.jsx): a muted block with a soft highlight
+   sweeping across, paused between sweeps. `--i` staggers rows into a wave. */
+@layer components {
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--muted);
   }
-  50% {
-    opacity: 0.4;
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.65), transparent);
+    animation: skeleton-shimmer 1.8s ease-in-out infinite;
+    animation-delay: calc(var(--i, 0) * 90ms);
+  }
+  /* A brand-blue scan line passing over a photo while it's being analysed. */
+  .photo-scan::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 30%;
+    background-image: linear-gradient(to bottom, transparent, rgb(36 70 216 / 0.3));
+    border-bottom: 2px solid var(--brand);
+    animation: photo-scan 2.4s ease-in-out infinite alternate;
+    animation-delay: calc(var(--i, 0) * 200ms);
   }
 }
 
-.skeleton-bar {
-  animation: skeleton-pulse 1.5s ease-in-out infinite;
+@keyframes skeleton-shimmer {
+  60%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes photo-scan {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(333%);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skeleton-bar {
+  .skeleton::after,
+  .photo-scan::after {
     animation: none;
+    display: none;
   }
 }
 

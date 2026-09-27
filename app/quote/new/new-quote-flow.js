@@ -4,16 +4,11 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { MAX_JOB_PHOTOS } from '../../../lib/constants.js';
 import { compressImages } from '../../../lib/compress-image.js';
-import MaterialsRefinement, {
-  MaterialsSkeleton,
-} from '../../materials-refinement.js';
+import MaterialsRefinement from '../../materials-refinement.js';
 import { recordRefinementEvents } from '../../../lib/actions/log-refinement.js';
 import AskQuestionForm from '../../ask-question-form.js';
 import { buttonStyle } from '../../button-style.js';
-import {
-  PhotoAnalysisSkeleton,
-  PhotoFindingsReview,
-} from '../../job-photos.js';
+import { PhotoFindingsReview } from '../../job-photos.js';
 import { KeyQuestions, keyQuestionAnswer } from '../../key-questions-form.js';
 import { keyQuestionsFor } from '../../../lib/key-questions.js';
 import StepIndicator, { stepForPhase } from '@/components/quote/step-indicator';
@@ -22,6 +17,11 @@ import JobComposer from '@/components/quote/job-composer';
 import ExampleChips from '@/components/quote/example-chips';
 import RecentQuotes from '@/components/quote/recent-quotes';
 import SampleQuote from '@/components/quote/sample-quote';
+import {
+  MaterialsLoading,
+  PhotoAnalysisLoading,
+  QuoteDraftingProgress,
+} from '@/components/quote/loading-states';
 import PrimaryAction from '@/components/quote/primary-action';
 import { continueState } from '@/lib/new-quote';
 import {
@@ -921,9 +921,7 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', re
 
 
       {phase === 'analysingPhotos' && (
-        <PhotoAnalysisSkeleton
-          count={photos.filter((p) => p.status === 'ready').length}
-        />
+        <PhotoAnalysisLoading photos={photos.filter((p) => p.status === 'ready')} />
       )}
 
       {phase === 'reviewingPhotos' && photoAnalysis && (
@@ -953,7 +951,7 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', re
         />
       )}
 
-      {phase === 'proposing' && <MaterialsSkeleton />}
+      {phase === 'proposing' && <MaterialsLoading />}
 
       {phase === 'clarifying' && clarifyingQuestion && (
         <div>
@@ -991,10 +989,7 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', re
       )}
 
       {(phase === 'generating' || phase === 'running') && (
-        <p style={{ color: '#666' }}>
-          Generating quote using {checkedMaterialsCount} material
-          {checkedMaterialsCount === 1 ? '' : 's'}…
-        </p>
+        <QuoteDraftingProgress steps={steps} materialsCount={checkedMaterialsCount} />
       )}
 
       {error && <p style={{ color: 'crimson' }}>{error}</p>}
@@ -1046,8 +1041,12 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', re
         )}
       </dialog>
 
+      {/* The raw agent log, kept for troubleshooting; QuoteDraftingProgress is the trader's view. */}
       {turnLog.length > 0 && (
-        <div style={{ marginTop: '1.5rem', color: '#444' }}>
+        <details style={{ marginTop: '1.5rem', color: '#444' }}>
+          <summary className="min-h-11 cursor-pointer py-2 text-sm text-muted-foreground">
+            Show technical log
+          </summary>
           {turnLog.map((t, ti) => {
             const childLines = t.children.map(describeStep).filter(Boolean);
             if (t.turn === null && childLines.length === 0) return null;
@@ -1068,7 +1067,7 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', re
               </div>
             );
           })}
-        </div>
+        </details>
       )}
       </div>
     </div>

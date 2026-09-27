@@ -153,3 +153,47 @@ test('viewport allows zoom', async ({ page }) => {
   const content = await page.locator('meta[name=viewport]').getAttribute('content');
   expect(content).not.toMatch(/maximum-scale|user-scalable\s*=\s*no/);
 });
+
+// Loading states: the server is mocked, so these pause on each wait without calling the model.
+const hold = () => new Promise(() => {});
+
+async function toMaterialsStep(page) {
+  await chooseTrade(page, 'Plumber');
+  await textarea(page).fill('Replace a dripping kitchen tap');
+  await primary(page).click();
+  await page.getByRole('button', { name: /Continue/ }).last().click();
+}
+
+test('materials loading state is announced and accessible', async ({ page }) => {
+  await page.route('**/api/quote/propose-materials', hold);
+  await toMaterialsStep(page);
+  await expect(page.getByRole('status')).toContainText("Working out what's needed");
+  await expect(page.locator('section[aria-busy="true"]')).toBeVisible();
+  // Placeholders are hidden from assistive tech; the status text carries the meaning.
+  await expect(page.locator('[data-slot=skeleton]').first()).toHaveAttribute('aria-hidden', 'true');
+  const results = await new AxeBuilder({ page }).exclude('nextjs-portal').analyze();
+  expect(results.violations).toEqual([]);
+});
+
+test('drafting shows real section progress', async ({ page }) => {
+  const call = (section) => ({ type: 'tool_call', tool: 'draft_section', input: { section } });
+  const done = (section) => ({ type: 'tool_result', tool: 'draft_section', result: { section } });
+  await page.route('**/api/quote/propose-materials', (route) =>
+    route.fulfill({ json: { jobType: null, materials: [{ label: 'Mixer tap' }] } }),
+  );
+  await page.route('**/api/quote', (route) =>
+    route.request().method() === 'POST' ? route.fulfill({ json: { runId: 'e2e-run' } }) : route.continue(),
+  );
+  await page.route('**/api/quote/e2e-run/status', (route) =>
+    route.fulfill({ json: { status: 'running', steps: [call('introduction'), done('introduction'), call('materials'), done('materials'), call('scope')] } }),
+  );
+  await toMaterialsStep(page);
+  await page.getByRole('button', { name: /Continue to quote/ }).click();
+
+  await expect(page.getByRole('heading', { name: 'Drafting your quote' })).toBeVisible();
+  await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '25');
+  await expect(page.getByText('2 of 7 sections drafted.')).toBeVisible();
+  await expect(page.getByRole('listitem').filter({ hasText: 'Scope of work' })).toContainText('drafting');
+  const results = await new AxeBuilder({ page }).exclude('nextjs-portal').analyze();
+  expect(results.violations).toEqual([]);
+});
