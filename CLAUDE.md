@@ -128,7 +128,7 @@ Every page shares `components/app-header.jsx` (rendered by `app/layout.js`): nav
 Pages:
 
 - `/profile` — trader identity form
-- `/quote/new` — job description form; polls for live progress. Redesign in progress (`components/quote/`); it sets `data-page-shell` on its root so the layout's legacy `<main>` padding doesn't apply
+- `/quote/new` — job description form; polls for live progress. Redesign in progress (`components/quote/`); it sets `data-page-shell` on its root so the layout's legacy `<main>` padding doesn't apply. Step 1's `JobComposer` holds the description and photos in one card: an auto-growing textarea, thumbnails, and a bottom bar (Camera + Photos on mobile, Add photos + drag-and-drop on desktop). `acceptPhotoFiles` (`lib/new-quote.js`) refuses files past `MAX_JOB_PHOTOS` with an inline message; the compress-and-upload path in `new-quote-flow.js` is unchanged. `AskCustomerLink` is built but hidden until `NEXT_PUBLIC_ASK_CUSTOMER_LINK=true` (its customer-facing page doesn't exist yet)
 - `/quote/[id]` — view a saved quote, including the per-material "Find prices" UI (see "Pricing" above)
 - `/quotes` — list of past quotes
 
