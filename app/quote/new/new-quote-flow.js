@@ -9,152 +9,23 @@ import MaterialsRefinement, {
 } from '../../materials-refinement.js';
 import { recordRefinementEvents } from '../../../lib/actions/log-refinement.js';
 import AskQuestionForm from '../../ask-question-form.js';
-import { buttonStyle, closeButtonStyle } from '../../button-style.js';
+import { buttonStyle } from '../../button-style.js';
 import {
   PhotoAnalysisSkeleton,
   PhotoFindingsReview,
 } from '../../job-photos.js';
 import { KeyQuestions, keyQuestionAnswer } from '../../key-questions-form.js';
 import { keyQuestionsFor } from '../../../lib/key-questions.js';
-import { ExamplePicker, ExamplePhoto } from '../../example-picker.js';
 import StepIndicator, { stepForPhase } from '@/components/quote/step-indicator';
 import TradeChip from '@/components/quote/trade-chip';
 import JobComposer from '@/components/quote/job-composer';
+import ExampleChips from '@/components/quote/example-chips';
 import PrimaryAction from '@/components/quote/primary-action';
 import { continueState } from '@/lib/new-quote';
 import {
   examplePhoto,
   unsplashPhotoFileUrl,
 } from '../../../lib/example-photos.js';
-
-// Quick-start examples for the job description form. Each pairs a realistic job
-// description with its trade, so picking one fills in both fields (the trader can
-// still edit either afterwards). One example per trade, ordered roughly by how
-// often each trade quotes. bricklayer, fencer and tree-surgeon rely on the
-// trade-list update adding them to VALID_TRADES.
-// Each example's photo comes from lib/example-photos.js, keyed by its trade.
-const EXAMPLE_JOBS = [
-  {
-    label: 'Dripping kitchen tap',
-    trade: 'plumber',
-    jobDescription:
-      "Kitchen mixer tap dripping from the spout and won't turn off fully. Customer would rather repair it than replace it.",
-  },
-  {
-    label: 'Old fuse box needs replacing',
-    trade: 'electrician',
-    jobDescription:
-      'Old fuse box with rewireable fuses in the under-stairs cupboard of a three-bed semi. Replace with a modern consumer unit with RCD protection, about 8 circuits.',
-  },
-  {
-    label: 'TV needs mounting',
-    trade: 'handyman',
-    jobDescription:
-      'Mount a 55-inch TV on the living room wall with a tilting bracket and hide the cables. Customer has already bought the bracket.',
-  },
-  {
-    label: 'Two bedrooms need decorating',
-    trade: 'decorator',
-    jobDescription:
-      'Repaint walls, ceilings and woodwork in two double bedrooms. A few cracks to fill, and colours are similar to what is there now.',
-  },
-  {
-    label: 'Internal doors need replacing',
-    trade: 'carpenter',
-    jobDescription:
-      'Replace 5 internal doors with white primed shaker doors in a 1990s house, reusing the existing frames. New hinges and handles on each.',
-  },
-  {
-    label: 'Cracked ceiling needs skimming',
-    trade: 'plasterer',
-    jobDescription:
-      'Living room ceiling about 4m x 4m with several long cracks. Board over where needed and skim, ready to paint. Room will be cleared.',
-  },
-  {
-    label: 'Slipped roof tiles',
-    trade: 'roofer',
-    jobDescription:
-      'Several slipped and broken concrete tiles on the back slope of a two-storey house, causing a small leak into a bedroom ceiling.',
-  },
-  {
-    label: 'Full bathroom refit',
-    trade: 'bathroom-fitter',
-    jobDescription:
-      'Strip out a dated bathroom, about 2.5m x 2m, and fit a new bath with a shower over, close coupled toilet and vanity basin. Same layout.',
-  },
-  {
-    label: 'New kitchen fitting',
-    trade: 'kitchen-fitter',
-    jobDescription:
-      'Remove the old kitchen and fit a new one supplied by the customer: 10 units, laminate worktops, sink and built-in oven and hob. Same layout.',
-  },
-  {
-    label: 'Bathroom walls need retiling',
-    trade: 'tiler',
-    jobDescription:
-      'Remove old tiles and retile the bathroom walls around the bath and shower area with large porcelain tiles.',
-  },
-  {
-    label: 'Laminate floor in the lounge',
-    trade: 'flooring-fitter',
-    jobDescription:
-      'Lift the old carpet and fit laminate flooring with underlay in a living room, finished with new beading.',
-  },
-  {
-    label: 'Old boiler swap to a combi',
-    trade: 'gas-engineer',
-    jobDescription:
-      'Replace a 20-year-old regular boiler and hot water cylinder with a combi boiler in a three-bed semi, and remove the tanks from the loft.',
-  },
-  {
-    label: 'Misted double glazing',
-    trade: 'glazier',
-    jobDescription:
-      'Three double-glazed units have misted between the panes in white uPVC frames. Replace the sealed units only, frames are fine.',
-  },
-  {
-    label: 'New patio',
-    trade: 'gardener-landscaper',
-    jobDescription:
-      'Lay an Indian sandstone patio at the back of the house, replacing part of the lawn. Customer wants a slight fall away from the house.',
-  },
-  {
-    label: 'Storm-damaged fence',
-    trade: 'fencer',
-    jobDescription:
-      'Replace 8 storm-damaged fence panels along the back garden boundary with new panels on concrete posts and gravel boards.',
-  },
-  {
-    label: 'Overgrown tree needs cutting back',
-    trade: 'tree-surgeon',
-    jobDescription:
-      "Crown reduction on a large sycamore in the back garden that overhangs the neighbour's garden and blocks light.",
-  },
-  {
-    label: 'Garden wall needs rebuilding',
-    trade: 'bricklayer',
-    jobDescription:
-      'Front garden wall is leaning and cracked. Take it down and rebuild in matching brick with a coping on top.',
-  },
-  {
-    label: 'Knock through kitchen and dining room',
-    trade: 'builder',
-    jobDescription:
-      'Remove the wall between the kitchen and dining room in a 1930s semi to make one open-plan room. The wall is likely load-bearing and will need a steel beam.',
-  },
-  {
-    label: 'New block paved driveway',
-    trade: 'driveway-specialist',
-    jobDescription:
-      'Break out an old cracked concrete driveway at the front of a semi-detached house and replace it with block paving.',
-  },
-  {
-    label: 'Extension foundations',
-    trade: 'groundworker',
-    jobDescription:
-      'Dig and pour strip foundations for a single-storey rear extension about 4m x 3m. Access is down the side of the house.',
-  },
-];
 
 const POLL_INTERVAL_MS = 2000;
 // Slack above the server's 300s maxDuration budget — a purely client-side
@@ -243,11 +114,6 @@ export default function NewQuoteFlow({ initialTrade }) {
   const [jobDescription, setJobDescription] = useState('');
   // True while step 1's submit is waiting on the server, before the phase moves on.
   const [submitting, setSubmitting] = useState(false);
-  // Index into EXAMPLE_JOBS of whichever example is currently loaded into
-  // the form below, '' when none is (including after a manual edit — this
-  // only tracks the dropdown's own selection, not whether trade/jobDescription
-  // still match it, so editing either afterwards doesn't fight the trader.
-  const [exampleChoice, setExampleChoice] = useState('');
   // 'keyQuestions' (lib/key-questions.js, plus any gaps the photos found) always comes first.
   // With photos, 'form' -> 'analysingPhotos' -> 'reviewingPhotos' (trader confirms what the
   // photos show) comes before it and can skip questions the photos answer.
@@ -309,7 +175,7 @@ export default function NewQuoteFlow({ initialTrade }) {
   const pollTimerRef = useRef(null);
   const pollStartRef = useRef(null);
   const dialogRef = useRef(null);
-  const examplesDialogRef = useRef(null);
+  const textareaRef = useRef(null);
   // steps.length snapshot taken when waitingForNext turns true — pollStatus
   // only inspects steps written after this point to decide whether the next
   // turn needs another answer.
@@ -447,7 +313,6 @@ export default function NewQuoteFlow({ initialTrade }) {
     runIdRef.current = null;
     setTrade(initialTrade);
     setJobDescription('');
-    setExampleChoice('');
     setPhase('form');
     setRefinementMaterials([]);
     setClarifyingQuestion(null);
@@ -736,27 +601,19 @@ export default function NewQuoteFlow({ initialTrade }) {
     applyProposeMaterialsResult(data, drafts);
   }
 
-  function handleOpenExamples() {
-    examplesDialogRef.current?.showModal();
-  }
-
-  // Populates trade + jobDescription from the chosen example on submit —
-  // the trader can still edit either field afterwards.
-  function handleExamplesSubmit(e) {
-    e.preventDefault();
-    const example = EXAMPLE_JOBS[Number(exampleChoice)];
-    if (example) {
-      setTrade(example.trade);
-      setJobDescription(example.jobDescription);
-      attachExamplePhoto(example.trade);
-      // Unsplash requires a download report when a photo is used; failure is ignored.
-      fetch('/api/examples/unsplash-download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trade: example.trade }),
-      }).catch(() => {});
-    }
-    examplesDialogRef.current?.close();
+  // An example chip fills the description; only the example its trade's Unsplash photo was
+  // chosen for also attaches that photo (lib/example-jobs.js).
+  function handlePickExample(example) {
+    setJobDescription(example.jobDescription);
+    textareaRef.current?.focus();
+    if (!example.withPhoto) return;
+    attachExamplePhoto(example.trade);
+    // Unsplash requires a download report when a photo is used; failure is ignored.
+    fetch('/api/examples/unsplash-download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trade: example.trade }),
+    }).catch(() => {});
   }
 
   // Adds the example's photo as a job photo, through the same compress-and-upload path as
@@ -782,16 +639,6 @@ export default function NewQuoteFlow({ initialTrade }) {
     } catch (err) {
       console.warn('Could not attach the example photo:', err.message);
     }
-  }
-
-  function handleExamplesCancel() {
-    examplesDialogRef.current?.close();
-  }
-
-  // Resets the picker to unselected whenever the modal closes (submit,
-  // cancel, or Esc).
-  function handleExamplesClose() {
-    setExampleChoice('');
   }
 
   function resetClarifyingState() {
@@ -1046,18 +893,10 @@ export default function NewQuoteFlow({ initialTrade }) {
             photos={photos}
             onAddPhotos={handleAddPhotos}
             onRemovePhoto={handleRemovePhoto}
+            textareaRef={textareaRef}
           />
 
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              handleOpenExamples();
-            }}
-            style={{ alignSelf: 'flex-start', fontSize: '0.85rem' }}
-          >
-            Try some examples
-          </a>
+          {!jobDescription.trim() && <ExampleChips trade={trade} onPick={handlePickExample} />}
 
           <PrimaryAction
             enabled={canContinue.enabled}
@@ -1067,90 +906,6 @@ export default function NewQuoteFlow({ initialTrade }) {
         </form>
       )}
 
-      <dialog
-        ref={examplesDialogRef}
-        onClose={handleExamplesClose}
-        style={{
-          maxWidth: 480,
-          width: '90%',
-          // Anchored near the top, not centred: it grows downwards only, so the header and
-          // close button never move under the pointer when the content changes height.
-          marginTop: '8vh',
-          marginBottom: 'auto',
-          border: '1px solid #ddd',
-          borderRadius: 8,
-          padding: 0,
-          overflow: 'hidden',
-        }}
-      >
-        {/* Same layout as the Find prices modal: sized to its content up to 85vh, with a
-            fixed header and a body that scrolls, so it grows as the list opens or a photo shows. */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            minHeight: '300px',
-            maxHeight: '85vh',
-          }}
-        >
-          <div
-            style={{
-              position: 'relative',
-              flexShrink: 0,
-              padding: '1.25rem 3.5rem 0.75rem 1.25rem',
-              borderBottom: '1px solid #eee',
-            }}
-          >
-            <h2 style={{ margin: 0 }}>Try some common examples</h2>
-            <button
-              type="button"
-              style={closeButtonStyle}
-              onClick={handleExamplesCancel}
-              aria-label="Close"
-            >
-              ✕
-            </button>
-          </div>
-          <form
-            onSubmit={handleExamplesSubmit}
-            style={{
-              flex: 1,
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1rem',
-              padding: '0.75rem 1.25rem 1.25rem',
-            }}
-          >
-            <ExamplePicker
-              examples={EXAMPLE_JOBS}
-              value={exampleChoice}
-              onChange={setExampleChoice}
-            />
-
-            {exampleChoice !== '' && (
-              <ExamplePhoto trade={EXAMPLE_JOBS[Number(exampleChoice)].trade} />
-            )}
-
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto' }}>
-              <button
-                type="button"
-                style={buttonStyle}
-                onClick={handleExamplesCancel}
-              >
-                ❌ Cancel
-              </button>
-              <button
-                type="submit"
-                style={buttonStyle}
-                disabled={exampleChoice === ''}
-              >
-                ✅ Submit
-              </button>
-            </div>
-          </form>
-        </div>
-      </dialog>
 
       {phase === 'analysingPhotos' && (
         <PhotoAnalysisSkeleton
