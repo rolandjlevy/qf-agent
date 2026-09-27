@@ -7,6 +7,7 @@ import { acceptPhotoFiles } from '@/lib/new-quote';
 import PhotoPicker from './photo-picker';
 import PhotoThumbnails from './photo-thumbnails';
 import AskCustomerLink from './ask-customer-link';
+import PhotoPrompt from './photo-prompt';
 
 const MAX_TEXTAREA_PX = 480;
 const PLACEHOLDER =
@@ -27,7 +28,7 @@ function useIsDesktop() {
   return isDesktop;
 }
 
-export default function JobComposer({ value, onChange, photos, onAddPhotos, onRemovePhoto, textareaRef }) {
+export default function JobComposer({ value, onChange, trade, photos, onAddPhotos, onRemovePhoto, textareaRef }) {
   const ownRef = useRef(null);
   const ref = textareaRef ?? ownRef;
   const isDesktop = useIsDesktop();
@@ -101,10 +102,7 @@ export default function JobComposer({ value, onChange, photos, onAddPhotos, onRe
 
       <div id="job-description-help" className="flex flex-col gap-1 text-sm text-muted-foreground">
         <p className="m-0">Include sizes, what&apos;s there now and what the customer wants.</p>
-        <p className="m-0">
-          <span className="font-semibold text-foreground">Useful photos:</span> the area you&apos;ll be working on,
-          plus any labels or model plates.
-        </p>
+        <PhotoPrompt trade={trade} />
       </div>
 
       {photos.length === 0 && <AskCustomerLink href="#" />}
