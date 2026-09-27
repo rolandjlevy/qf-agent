@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS trader_profile (
 ALTER TABLE trader_profile ADD COLUMN IF NOT EXISTS vat_registered BOOLEAN DEFAULT false;
 ALTER TABLE trader_profile ADD COLUMN IF NOT EXISTS certifications TEXT;
 ALTER TABLE trader_profile ADD COLUMN IF NOT EXISTS service_area TEXT;
+-- The trade /quote/new defaults to, and the tone every quote is drafted in.
+ALTER TABLE trader_profile ADD COLUMN IF NOT EXISTS trade TEXT;
+ALTER TABLE trader_profile ADD COLUMN IF NOT EXISTS default_tone TEXT DEFAULT 'friendly';
 
 CREATE TABLE IF NOT EXISTS trader_prices (
   id SERIAL PRIMARY KEY,

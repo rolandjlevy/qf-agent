@@ -57,6 +57,10 @@
 /* Preflight strips browser defaults that the inline-styled pages still rely on.
    Plain element selectors beat preflight's; utilities still win (later layer). */
 @layer base {
+  /* shadcn's default: a bare `border` class uses the border token, not currentColor. */
+  *, ::before, ::after {
+    border-color: var(--border);
+  }
   h1, h2, h3, h4, h5, h6 {
     font-size: revert;
     font-weight: revert;

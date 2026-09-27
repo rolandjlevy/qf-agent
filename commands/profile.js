@@ -48,7 +48,8 @@ export async function runProfileCommand() {
     },
   ])
 
-  const profile = await upsertTraderProfile(answers)
+  // Upsert writes every column, so keep the fields this command doesn't ask about.
+  const profile = await upsertTraderProfile({ ...existing, ...answers })
 
   console.log()
   console.log(chalk.green('Profile saved.'))

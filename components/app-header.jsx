@@ -31,17 +31,17 @@ export default function AppHeader() {
 
   return (
     <header className="h-14 border-b border-border bg-card md:h-[72px]">
-      <div className="flex h-full items-center gap-8 px-5 md:px-8">
+      <div className="flex h-full items-center gap-10 px-5 md:px-12">
         <Link
           href="/quote/new"
-          className="flex items-center gap-2 text-[17px] font-semibold text-foreground no-underline"
+          className="flex items-center gap-2.5 text-lg font-bold text-foreground no-underline md:text-xl"
         >
           <FileText className="size-5" aria-hidden="true" />
           QuoteFetch
         </Link>
 
         <nav aria-label="Main" className="hidden h-full md:block">
-          <ul className="m-0 flex h-full list-none gap-6 p-0">
+          <ul className="m-0 flex h-full list-none gap-1 p-0">
             {NAV_LINKS.map((link) => {
               const active = link.isActive(pathname);
               return (
@@ -50,7 +50,7 @@ export default function AppHeader() {
                     href={link.href}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'flex h-full items-center border-b-[3px] pt-[3px] text-[15px] no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                      'flex h-full items-center border-b-[3px] px-4 pt-[3px] text-[15px] no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
                       active
                         ? 'border-foreground font-semibold text-foreground'
                         : 'border-transparent font-medium text-muted-foreground hover:text-foreground',
@@ -67,7 +67,7 @@ export default function AppHeader() {
         <Link
           href="/profile"
           aria-label="Account"
-          className={cn(iconButton, 'ml-auto hidden border border-input md:inline-flex')}
+          className={cn(iconButton, 'ml-auto hidden border border-border bg-accent md:inline-flex')}
         >
           <User className="size-5" aria-hidden="true" />
         </Link>
