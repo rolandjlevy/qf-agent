@@ -16,29 +16,6 @@ const KIND_NOTES = {
   irrelevant: "Doesn't seem to show this job, so it wasn't used",
 };
 
-export function PhotoAnalysisSkeleton({ count }) {
-  return (
-    <div>
-      <h2>Looking at your photos</h2>
-      <p style={{ color: '#666' }}>
-        Checking {count} photo{count === 1 ? '' : 's'} for details that affect the quote. This usually takes 10–30
-        seconds…
-      </p>
-      <ul style={{ listStyle: 'none', padding: 0 }}>
-        {Array.from({ length: 4 }).map((_, i) => (
-          // eslint-disable-next-line react/no-array-index-key
-          <li key={i} style={{ marginBottom: '0.5rem' }}>
-            <div
-              className="skeleton-bar"
-              style={{ height: '1rem', background: '#eee', borderRadius: 4, width: `${60 + ((i * 13) % 30)}%` }}
-            />
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 // The trader confirms each observation before any of it reaches Phase A or Phase B:
 // a misread label should never end up in a quote unchecked.
 export function PhotoFindingsReview({ photos, analysis, jobSummary, questionCount, onToggle, onBack, onContinue }) {

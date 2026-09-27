@@ -12,7 +12,7 @@ export default function RecentQuotes({ quotes }) {
           <li key={q.id}>
             <Link
               href={`/quote/new?from=${q.id}`}
-              className="flex h-full flex-col gap-1 rounded-xl border border-border bg-card p-4 text-foreground no-underline hover:border-input focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="flex h-full flex-col gap-1 rounded-xl border border-border bg-card p-4 text-foreground no-underline hover:border-brand hover:bg-brand-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               <span className="text-[15px] leading-snug font-semibold">{q.title}</span>
               <span className="text-[13px] text-muted-foreground">{q.date}</span>

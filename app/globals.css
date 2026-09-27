@@ -21,10 +21,14 @@
   --destructive: #B42318;
   --border: #D9D6CE;
   --input: #C9C6BE;
-  --ring: #1C1C1A;
+  --ring: #2446D8;
   --radius: 0.75rem;
-  /* Brand blue, the logo's bottom slab (docs/brand/README.md). Not shadcn's `accent`, which is the hover fill. */
+  /* The logo's slab blues (docs/brand/README.md); `brand` is the accent. Not shadcn's `accent`, the hover fill. */
   --brand: #2446D8;
+  --brand-mid: #4A69EC;
+  --brand-light: #6F8DFF;
+  /* A pale wash of brand blue for hover and drop-target backgrounds. */
+  --brand-tint: #EEF1FD;
 }
 
 @theme inline {
@@ -47,6 +51,9 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-brand: var(--brand);
+  --color-brand-mid: var(--brand-mid);
+  --color-brand-light: var(--brand-light);
+  --color-brand-tint: var(--brand-tint);
 
   --color-surface-muted: #FAFAF8;
 
@@ -93,25 +100,58 @@
   }
 }
 
-/* Shared skeleton-loading pulse (MaterialsSkeleton) — CSS-only since React
-   inline style objects can't declare @keyframes. */
-@keyframes skeleton-pulse {
-  0%,
-  100% {
-    opacity: 1;
+/* Loading placeholders (components/ui/skeleton.jsx): a muted block with a soft highlight
+   sweeping across, paused between sweeps. `--i` staggers rows into a wave. */
+@layer components {
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--muted);
   }
-  50% {
-    opacity: 0.4;
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.65), transparent);
+    animation: skeleton-shimmer 1.8s ease-in-out infinite;
+    animation-delay: calc(var(--i, 0) * 90ms);
+  }
+  /* A brand-blue scan line passing over a photo while it's being analysed. */
+  .photo-scan::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 30%;
+    background-image: linear-gradient(to bottom, transparent, rgb(36 70 216 / 0.3));
+    border-bottom: 2px solid var(--brand);
+    animation: photo-scan 2.4s ease-in-out infinite alternate;
+    animation-delay: calc(var(--i, 0) * 200ms);
   }
 }
 
-.skeleton-bar {
-  animation: skeleton-pulse 1.5s ease-in-out infinite;
+@keyframes skeleton-shimmer {
+  60%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes photo-scan {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(333%);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skeleton-bar {
+  .skeleton::after,
+  .photo-scan::after {
     animation: none;
+    display: none;
   }
 }
 

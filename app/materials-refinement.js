@@ -3,44 +3,11 @@
 import { useState } from 'react';
 import { buttonStyle } from './button-style.js';
 
-const SKELETON_ROWS = 6;
-
-// Kept as named constants (rather than inline literals in each heading
-// below) so the two stages of this step can't silently drift back into
-// duplicated/inconsistent copy — see CLAUDE.md's Phase 3a addendum.
-const SKELETON_HEADING = "Working out what's needed";
+// The loading state before this step is MaterialsLoading (components/quote/loading-states.jsx).
 const REFINEMENT_HEADING = 'Review before we draft your quote';
 
 const rowStyle = { marginBottom: '0.5rem' };
 const labelRowStyle = { display: 'flex', alignItems: 'flex-start', gap: '0.5rem' };
-
-// Shown while Phase A (POST /api/quote/propose-materials) is in flight — see
-// CLAUDE.md's Phase 3a addendum. Non-streaming (v1), so this skeleton is what
-// covers the perceived wait rather than materials appearing one by one.
-export function MaterialsSkeleton() {
-  return (
-    <div>
-      <h2>{SKELETON_HEADING}</h2>
-      <p style={{ color: '#666' }}>Looking at the job description…</p>
-      <ul style={{ listStyle: 'none', padding: 0 }}>
-        {Array.from({ length: SKELETON_ROWS }).map((_, i) => (
-          // eslint-disable-next-line react/no-array-index-key
-          <li key={i} style={rowStyle}>
-            <div
-              className="skeleton-bar"
-              style={{
-                height: '1rem',
-                background: '#eee',
-                borderRadius: 4,
-                width: `${60 + ((i * 11) % 30)}%`,
-              }}
-            />
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
 
 // The pause point in the agentic flow (CLAUDE.md's Phase 3a addendum): shows
 // Phase A's proposed materials for the trader to check/uncheck and add to,
