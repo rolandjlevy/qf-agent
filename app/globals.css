@@ -4,23 +4,25 @@
 /* Design tokens (docs: new quote page spec). Named to match shadcn/ui's
    variables so its components pick them up with no per-component overrides. */
 :root {
-  --background: #F4F3EF;
-  --foreground: #1C1C1A;
+  /* Warm paper neutrals (hue ~45°) built around the #F2F1ED background. The strong colours are fixed:
+     brand ink for text and buttons, the brand blues, and the error red. */
+  --background: #F2F1ED;
+  --foreground: #16181D;
   --card: #FFFFFF;
-  --card-foreground: #1C1C1A;
+  --card-foreground: #16181D;
   --popover: #FFFFFF;
-  --popover-foreground: #1C1C1A;
-  --primary: #1C1C1A;
+  --popover-foreground: #16181D;
+  --primary: #16181D;
   --primary-foreground: #FFFFFF;
   --secondary: #FFFFFF;
-  --secondary-foreground: #1C1C1A;
-  --muted: #E4E2DC;
-  --muted-foreground: #5E5B55;
-  --accent: #F4F3EF;
-  --accent-foreground: #1C1C1A;
+  --secondary-foreground: #16181D;
+  --muted: #E5E3DD;
+  --muted-foreground: #5C5851;
+  --accent: #EBE9E4;
+  --accent-foreground: #16181D;
   --destructive: #B42318;
-  --border: #D9D6CE;
-  --input: #C9C6BE;
+  --border: #DAD7D0;
+  --input: #C7C3BA;
   --ring: #2446D8;
   --radius: 0.75rem;
   /* The logo's slab blues (docs/brand/README.md); `brand` is the accent. Not shadcn's `accent`, the hover fill. */
@@ -55,7 +57,7 @@
   --color-brand-light: var(--brand-light);
   --color-brand-tint: var(--brand-tint);
 
-  --color-surface-muted: #FAFAF8;
+  --color-surface-muted: #F9F8F6;
 
   --radius-control: 10px;
   --radius-button: 12px;
@@ -70,6 +72,15 @@
   /* shadcn's default: a bare `border` class uses the border token, not currentColor. */
   *, ::before, ::after {
     border-color: var(--border);
+  }
+  /* The header is sticky, so anything scrolled into view (focus, #anchors) stops below it. */
+  html {
+    scroll-padding-top: calc(56px + 16px);
+  }
+  @media (min-width: 768px) {
+    html {
+      scroll-padding-top: calc(72px + 16px);
+    }
   }
   h1, h2, h3, h4, h5, h6 {
     font-size: revert;

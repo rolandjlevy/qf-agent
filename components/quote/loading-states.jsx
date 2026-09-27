@@ -56,7 +56,9 @@ export function PhotoAnalysisLoading({ photos }) {
               <img src={photo.previewUrl} alt={`Photo ${i + 1}`} className="size-full object-cover" />
             </div>
             <div className="flex flex-1 flex-col gap-2 pt-1">
+              {/* Three lines, which together fill the height of the 72px thumbnail beside them. */}
               <Skeleton index={i} className="h-4" style={{ width: LABEL_WIDTHS[i] }} />
+              <Skeleton index={i} className="h-4" style={{ width: LABEL_WIDTHS[i + 2] }} />
               <Skeleton index={i} className="h-4" style={{ width: CAPTION_WIDTHS[i + 1] }} />
             </div>
           </li>

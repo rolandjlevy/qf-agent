@@ -31,7 +31,8 @@ export default function AppHeader() {
   const pathname = usePathname() ?? '';
 
   return (
-    <header className="h-14 border-b border-border bg-card md:h-[72px]">
+    // Sticky, not fixed: it stays in the page flow (no spacer). z-40 keeps popovers and the menu (z-50) above it.
+    <header className="sticky top-0 z-40 h-14 border-b border-border bg-card/95 backdrop-blur-md md:h-[72px]">
       <div className="flex h-full items-center gap-10 px-5 md:px-12">
         <Link
           href="/quote/new"
