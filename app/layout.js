@@ -17,6 +17,8 @@ export const metadata = {
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
+  // Android Chrome shrinks the page for the keyboard, keeping fixed bottom bars above it.
+  interactiveWidget: 'resizes-content',
 };
 
 export default function RootLayout({ children }) {

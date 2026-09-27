@@ -20,6 +20,8 @@ import { ExamplePicker, ExamplePhoto } from '../../example-picker.js';
 import StepIndicator, { stepForPhase } from '@/components/quote/step-indicator';
 import TradeChip from '@/components/quote/trade-chip';
 import JobComposer from '@/components/quote/job-composer';
+import PrimaryAction from '@/components/quote/primary-action';
+import { continueState } from '@/lib/new-quote';
 import {
   examplePhoto,
   unsplashPhotoFileUrl,
@@ -239,6 +241,8 @@ export default function NewQuoteFlow({ initialTrade, initialTone }) {
   const [trade, setTrade] = useState(initialTrade);
   const [tone, setTone] = useState(initialTone);
   const [jobDescription, setJobDescription] = useState('');
+  // True while step 1's submit is waiting on the server, before the phase moves on.
+  const [submitting, setSubmitting] = useState(false);
   // Index into EXAMPLE_JOBS of whichever example is currently loaded into
   // the form below, '' when none is (including after a manual edit — this
   // only tracks the dropdown's own selection, not whether trade/jobDescription
@@ -285,6 +289,10 @@ export default function NewQuoteFlow({ initialTrade, initialTone }) {
   const [photoAnalysis, setPhotoAnalysis] = useState(null);
   // Which trade/description/photos photoAnalysis was run for, so Back-then-Continue reuses it.
   const photoAnalysisKeyRef = useRef(null);
+  // What Phase A, Phase B and analytics get: the typed description, or for a photos-only job,
+  // the summary photo analysis wrote. The routes after photo analysis all require one.
+  const effectiveDescription = jobDescription.trim() || photoAnalysis?.jobSummary || '';
+  const canContinue = continueState({ description: jobDescription, photos, trade });
   // `{ [topic]: { choice, otherText } }` for keyQuestionsToAsk() — see app/key-questions-form.js.
   const [keyAnswers, setKeyAnswers] = useState({});
   // Without photos: the key questions for this description, minus any its matched pack job skips.
@@ -605,8 +613,11 @@ export default function NewQuoteFlow({ initialTrade, initialTone }) {
     }
     if (!response.ok) {
       const errorBody = await response.json().catch(() => null);
+      // 422: photos only, and the job couldn't be worked out from them; the message says what to do.
       setError(
-        `Couldn't analyse the photos (${errorBody?.error || `request failed, ${response.status}`}). Try again, or remove the photos to continue without them.`,
+        response.status === 422 && errorBody?.error
+          ? errorBody.error
+          : `Couldn't analyse the photos (${errorBody?.error || `request failed, ${response.status}`}). Try again, or remove the photos to continue without them.`,
       );
       setPhase('form');
       return;
@@ -702,7 +713,7 @@ export default function NewQuoteFlow({ initialTrade, initialTone }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           trade,
-          jobDescription,
+          jobDescription: effectiveDescription,
           priorQuestions: priorQs,
           keyAnswers: keyPairs,
           photoFindings,
@@ -795,17 +806,23 @@ export default function NewQuoteFlow({ initialTrade, initialTone }) {
 
   async function handleProposeMaterials(e) {
     e.preventDefault();
+    if (!canContinue.enabled || submitting) return;
     resetClarifyingState();
-    const readyPhotos = photos.filter((p) => p.status === 'ready');
-    if (readyPhotos.length) {
-      await analysePhotos(readyPhotos);
-      return;
+    setSubmitting(true);
+    try {
+      const readyPhotos = photos.filter((p) => p.status === 'ready');
+      if (readyPhotos.length) {
+        await analysePhotos(readyPhotos);
+        return;
+      }
+      setPhotoAnalysis(null);
+      photoAnalysisKeyRef.current = null;
+      setJobKeyQuestions(await fetchJobKeyQuestions());
+      // Every trade has key questions, and no pack job skips all of them, so this never skips Phase A.
+      setPhase('keyQuestions');
+    } finally {
+      setSubmitting(false);
     }
-    setPhotoAnalysis(null);
-    photoAnalysisKeyRef.current = null;
-    setJobKeyQuestions(await fetchJobKeyQuestions());
-    // Every trade has key questions, and no pack job skips all of them, so this never skips Phase A.
-    setPhase('keyQuestions');
   }
 
   // Falls back to the full trade list (null) if the request fails, which is the old behaviour.
@@ -926,7 +943,7 @@ export default function NewQuoteFlow({ initialTrade, initialTone }) {
         body: JSON.stringify({
           trade,
           tone,
-          jobDescription,
+          jobDescription: effectiveDescription,
           materials: materialsPayload,
           followUpAnswers: [
             ...keyQuestionPairs(),
@@ -977,7 +994,7 @@ export default function NewQuoteFlow({ initialTrade, initialTone }) {
     ];
     // .catch() guards the RPC itself (e.g. a stale action id after a dev
     // hot reload) — the try/catch inside only covers its own DB write.
-    recordRefinementEvents(sessionId, jobDescription, events).catch(() => {});
+    recordRefinementEvents(sessionId, effectiveDescription, events).catch(() => {});
   }
 
   async function handleAnswerSubmit(answer) {
@@ -998,9 +1015,6 @@ export default function NewQuoteFlow({ initialTrade, initialTone }) {
   }
 
   const turnLog = groupStepsByTurn(steps);
-  const photosBusy = photos.some(
-    (p) => p.status === 'compressing' || p.status === 'uploading',
-  );
   const checkedMaterialsCount = refinementMaterials.filter(
     (m) => m.checked,
   ).length;
@@ -1026,7 +1040,8 @@ export default function NewQuoteFlow({ initialTrade, initialTone }) {
       <div>
 
       {phase === 'form' && (
-        <form onSubmit={handleProposeMaterials} className="flex flex-col gap-5 md:gap-7">
+        // Mobile bottom padding keeps the last content clear of PrimaryAction's fixed bar.
+        <form onSubmit={handleProposeMaterials} className="flex flex-col gap-5 pb-36 md:gap-7 md:pb-0">
           <JobComposer
             value={jobDescription}
             onChange={setJobDescription}
@@ -1063,17 +1078,11 @@ export default function NewQuoteFlow({ initialTrade, initialTone }) {
             </label>
           </section>
 
-          <button
-            type="submit"
-            style={{
-              ...buttonStyle,
-              width: 'fit-content',
-              padding: '0.5rem 1rem',
-            }}
-            disabled={!trade || !jobDescription.trim() || photosBusy}
-          >
-            {photosBusy ? '⏳ Uploading photos…' : '➡️ Continue'}
-          </button>
+          <PrimaryAction
+            enabled={canContinue.enabled}
+            reason={canContinue.reason}
+            submitting={submitting}
+          />
         </form>
       )}
 
@@ -1172,6 +1181,7 @@ export default function NewQuoteFlow({ initialTrade, initialTone }) {
         <PhotoFindingsReview
           photos={photoAnalysis.sourcePhotos}
           analysis={photoAnalysis}
+          jobSummary={jobDescription.trim() ? null : photoAnalysis.jobSummary}
           questionCount={keyQuestionsToAsk().length}
           onToggle={handleTogglePhotoObservation}
           onBack={() => setPhase('form')}
