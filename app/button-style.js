@@ -14,7 +14,7 @@ export const buttonStyle = {
   boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
 }
 
-// Round × in a modal's top-right corner, shared by the Find prices and examples dialogs.
+// Round × in a modal's top-right corner, used by the Find prices dialog.
 export const closeButtonStyle = {
   position: 'absolute',
   top: '0.75rem',

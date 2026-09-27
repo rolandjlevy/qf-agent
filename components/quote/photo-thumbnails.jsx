@@ -1,4 +1,5 @@
 import { X } from 'lucide-react';
+import { examplePhoto, unsplashCredit } from '@/lib/example-photos';
 
 const STATUS_LABELS = {
   compressing: 'Preparing…',
@@ -14,6 +15,11 @@ export default function PhotoThumbnails({ photos, onRemove }) {
   photos.forEach((p, i) => {
     if (p.status === 'failed') errors.set(p.error, [...(errors.get(p.error) ?? []), i + 1]);
   });
+
+  // An attached example photo keeps the credit Unsplash's guidelines require wherever it's shown.
+  const exampleTrade = photos.find((p) => p.fromExample)?.fromExample;
+  const exampleSource = exampleTrade ? examplePhoto(exampleTrade) : null;
+  const credit = exampleSource ? unsplashCredit(exampleSource) : null;
 
   return (
     <div className="px-4 pb-4 md:px-5">
@@ -47,6 +53,18 @@ export default function PhotoThumbnails({ photos, onRemove }) {
           </li>
         ))}
       </ul>
+      {credit && (
+        <p className="m-0 mt-2 text-xs text-muted-foreground">
+          Example photo by{' '}
+          <a href={credit.photographerHref} target="_blank" rel="noopener noreferrer" className="text-inherit underline">
+            {credit.photographer}
+          </a>{' '}
+          on{' '}
+          <a href={credit.unsplashHref} target="_blank" rel="noopener noreferrer" className="text-inherit underline">
+            Unsplash
+          </a>
+        </p>
+      )}
       {errors.size > 0 && (
         <ul className="m-0 mt-3 list-none p-0 text-sm text-destructive">
           {[...errors].map(([error, numbers]) => (
