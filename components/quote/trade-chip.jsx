@@ -27,9 +27,9 @@ export default function TradeChip({ value, onChange }) {
           <button
             type="button"
             aria-label={value ? `Change trade, currently ${label}` : 'Choose a trade'}
-            className="inline-flex h-11 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:h-9"
+            className="inline-flex h-11 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
-            {/* The visible pill is 36px; the 44px button around it keeps the tap target on mobile. */}
+            {/* The visible pill is 36px; the 44px button around it keeps the tap target at the minimum. */}
             <span
               className={cn(
                 'inline-flex h-9 items-center gap-1.5 rounded-full border border-input bg-card px-3.5 text-sm font-semibold',

@@ -1,0 +1,4 @@
+/* Applied only while Playwright takes screenshots: the Next.js dev badge moves between runs. */
+nextjs-portal {
+  display: none !important;
+}

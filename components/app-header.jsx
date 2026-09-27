@@ -34,7 +34,7 @@ export default function AppHeader() {
       <div className="flex h-full items-center gap-10 px-5 md:px-12">
         <Link
           href="/quote/new"
-          className="flex items-center gap-2.5 text-lg font-bold text-foreground no-underline md:text-xl"
+          className="flex min-h-11 items-center gap-2.5 text-lg font-bold text-foreground no-underline md:text-xl"
         >
           <FileText className="size-5" aria-hidden="true" />
           QuoteFetch

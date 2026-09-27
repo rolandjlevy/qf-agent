@@ -1,0 +1,155 @@
+import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
+
+// A 1×1 PNG: enough for the picker; uploads are intercepted, so these never leave the browser.
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
+const photo = (n) => ({ name: `photo-${n}.png`, mimeType: 'image/png', buffer: PNG });
+const isMobile = (testInfo) => testInfo.project.name === 'mobile';
+// Baselines assume a database with quotes (the returning-user frame); recent quotes are masked as live data.
+const recentQuotes = (page) => page.locator('#recent-quotes-heading').locator('..');
+const blur = (page) => page.evaluate(() => document.activeElement?.blur());
+
+const chip = (page) => page.getByRole('button', { name: /trade/i });
+const textarea = (page) => page.locator('#job-description');
+const primary = (page) => page.locator('[data-slot=primary-action]');
+
+// The profile may or may not have a trade; pick one so every run starts from the same state.
+async function chooseTrade(page, label) {
+  const search = page.getByPlaceholder('Search trades');
+  // With no profile trade the picker opens by itself once hydrated, so give it a moment first.
+  await search.waitFor({ timeout: 1500 }).catch(() => {});
+  if (!(await search.isVisible())) await chip(page).click();
+  await search.fill(label);
+  // Search is fuzzy, so wait for the exact trade to be the highlighted match, then pick it with Enter
+  // (clicking races the popover's open animation).
+  await expect(page.getByRole('option', { name: label, exact: true })).toHaveAttribute('aria-selected', 'true');
+  await search.press('Enter');
+  await expect(chip(page)).toHaveAccessibleName(`Change trade, currently ${label}`);
+  await expect(page.locator('[data-slot=popover-content]')).toHaveCount(0);
+}
+
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/quote/photos/upload', (route) => route.abort());
+  await page.route('**/api/examples/unsplash-download', (route) => route.fulfill({ status: 200, body: '{}' }));
+  await page.goto('/quote/new');
+  await expect(page.getByRole('heading', { name: "What's the job?" })).toBeVisible();
+});
+
+test('empty state matches the design and has no axe violations', async ({ page }) => {
+  await chooseTrade(page, 'Bathroom fitter');
+  await blur(page);
+  await expect(page).toHaveScreenshot('empty.png', { fullPage: true, mask: [recentQuotes(page)] });
+  const results = await new AxeBuilder({ page }).exclude('nextjs-portal').analyze();
+  expect(results.violations).toEqual([]);
+});
+
+test('filled state matches the design and has no axe violations', async ({ page }) => {
+  await chooseTrade(page, 'Bathroom fitter');
+  await textarea(page).fill(
+    "Hi, could you quote to swap our bath for a walk-in shower? The bathroom's about 2m × 2.5m. We'd like the floor and two walls tiled to half height.",
+  );
+  await page.locator('input[type=file][multiple]').setInputFiles([photo(1), photo(2), photo(3)]);
+  await expect(page.getByRole('button', { name: /^Remove photo/ })).toHaveCount(3);
+  // Uploads are intercepted, so wait for all three to settle as failed before comparing.
+  await expect(page.getByText('Photos 1, 2, 3: Upload failed.')).toBeVisible();
+  await blur(page);
+  // The thumbnails are masked too: they're 1×1 test images scaled up.
+  await expect(page).toHaveScreenshot('filled.png', { fullPage: true, mask: [recentQuotes(page), page.locator('li img')] });
+  const results = await new AxeBuilder({ page }).exclude('nextjs-portal').analyze();
+  expect(results.violations).toEqual([]);
+});
+
+test('primary button needs text or a photo, and a trade', async ({ page }) => {
+  await chooseTrade(page, 'Plumber');
+  await expect(primary(page)).toBeDisabled();
+  await expect(page.getByText('Add a description or photo to continue')).toBeVisible();
+  await textarea(page).fill('Replace a dripping kitchen tap');
+  await expect(primary(page)).toBeEnabled();
+  await expect(page.getByText("You'll check the materials before anything is drafted")).toBeVisible();
+  await textarea(page).fill('   ');
+  await expect(primary(page)).toBeDisabled();
+});
+
+test('primary button stays on screen on mobile', async ({ page }, testInfo) => {
+  test.skip(!isMobile(testInfo), 'mobile only');
+  const box = await primary(page).boundingBox();
+  const viewport = page.viewportSize();
+  expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+  await page.mouse.wheel(0, 2000);
+  expect((await primary(page).boundingBox()).y).toBeCloseTo(box.y, 0);
+});
+
+test('a ninth photo is refused inline', async ({ page }) => {
+  await page.locator('input[type=file][multiple]').setInputFiles(Array.from({ length: 9 }, (_, i) => photo(i + 1)));
+  await expect(page.getByRole('button', { name: /^Remove photo/ })).toHaveCount(8);
+  await expect(page.getByRole('status')).toHaveText("You can add up to 8 photos, so 1 wasn't added.");
+});
+
+test('example chips follow the trade, fill the text and hide', async ({ page }) => {
+  await chooseTrade(page, 'Roofer');
+  const chips = page.locator('[data-slot=example-chip]');
+  await expect(chips).toHaveCount(3);
+  await chips.nth(1).click();
+  await expect(textarea(page)).toBeFocused();
+  await expect(textarea(page)).not.toHaveValue('');
+  await expect(chips).toHaveCount(0);
+  await textarea(page).fill('');
+  await expect(chips).toHaveCount(3);
+});
+
+test('photo hint follows the trade', async ({ page }, testInfo) => {
+  await chooseTrade(page, 'Electrician');
+  const hint = page.locator('#job-description-help');
+  await expect(hint).toContainText(isMobile(testInfo) ? 'Useful photos: the fuse box' : 'Useful photos for electrical work:');
+});
+
+test('every control is keyboard reachable with a visible focus ring', async ({ page }, testInfo) => {
+  await chooseTrade(page, 'Plumber');
+  await textarea(page).fill('Fix a leak');
+  const want = [
+    /trade/i,
+    'job-description',
+    isMobile(testInfo) ? 'Camera' : 'Add photos',
+    'Get materials list',
+  ];
+  const seen = [];
+  for (let i = 0; i < 25 && seen.length < want.length; i++) {
+    await page.keyboard.press('Tab');
+    const info = await page.evaluate(() => {
+      const el = document.activeElement;
+      const style = getComputedStyle(el);
+      return {
+        id: el.id,
+        label: el === document.body ? '' : (el.getAttribute('aria-label') ?? el.textContent.trim()),
+        ring: style.outlineStyle !== 'none' || style.boxShadow !== 'none' || getComputedStyle(el.closest('[class*=focus-within]') ?? el).boxShadow !== 'none',
+      };
+    });
+    const match = want[seen.length];
+    const hit = match instanceof RegExp ? match.test(info.label) : info.id === match || info.label.startsWith(match);
+    if (hit) {
+      expect(info.ring, `${info.label || info.id} has a visible focus ring`).toBe(true);
+      seen.push(info.label || info.id);
+    }
+  }
+  expect(seen).toHaveLength(want.length);
+});
+
+test('touch targets are at least 44px', async ({ page }) => {
+  await chooseTrade(page, 'Plumber');
+  const small = await page.evaluate(() =>
+    [...document.querySelectorAll('main button, main a, header button, header a')]
+      .filter((el) => el.offsetParent && el.dataset.slot !== 'photo-remove')
+      .map((el) => ({ el, r: el.getBoundingClientRect() }))
+      .filter(({ r }) => r.height < 44)
+      .map(({ el, r }) => `${el.getAttribute('aria-label') || el.textContent.trim().slice(0, 40)} (${Math.round(r.height)}px)`),
+  );
+  expect(small).toEqual([]);
+});
+
+test('viewport allows zoom', async ({ page }) => {
+  const content = await page.locator('meta[name=viewport]').getAttribute('content');
+  expect(content).not.toMatch(/maximum-scale|user-scalable\s*=\s*no/);
+});

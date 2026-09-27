@@ -11,3 +11,5 @@ data/uploads/
 .env*
 docs/test-photos/
 evals/results/
+test-results/
+playwright-report/
