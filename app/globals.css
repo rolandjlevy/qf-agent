@@ -1,3 +1,91 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Design tokens (docs: new quote page spec). Named to match shadcn/ui's
+   variables so its components pick them up with no per-component overrides. */
+:root {
+  --background: #F4F3EF;
+  --foreground: #1C1C1A;
+  --card: #FFFFFF;
+  --card-foreground: #1C1C1A;
+  --popover: #FFFFFF;
+  --popover-foreground: #1C1C1A;
+  --primary: #1C1C1A;
+  --primary-foreground: #FFFFFF;
+  --secondary: #FFFFFF;
+  --secondary-foreground: #1C1C1A;
+  --muted: #E4E2DC;
+  --muted-foreground: #5E5B55;
+  --accent: #F4F3EF;
+  --accent-foreground: #1C1C1A;
+  --destructive: #B42318;
+  --border: #D9D6CE;
+  --input: #C9C6BE;
+  --ring: #1C1C1A;
+  --radius: 0.75rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-surface-muted: #FAFAF8;
+
+  --radius-control: 10px;
+  --radius-button: 12px;
+  --radius-card: 16px;
+
+  --font-sans: var(--font-plex), system-ui, sans-serif;
+}
+
+/* Preflight strips browser defaults that the inline-styled pages still rely on.
+   Plain element selectors beat preflight's; utilities still win (later layer). */
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    font-size: revert;
+    font-weight: revert;
+    margin: revert;
+  }
+  p, ul, ol, dl, pre, blockquote, figure {
+    margin: revert;
+  }
+  ul, ol {
+    list-style: revert;
+    padding: revert;
+  }
+  a {
+    color: revert;
+    text-decoration: revert;
+  }
+  /* shadcn components carry data-slot and style themselves, so they're left alone. */
+  :where(input:not([type='checkbox'], [type='radio'], [type='file']), textarea, select):not([data-slot]) {
+    border: 1px solid #767676;
+    padding: revert;
+    background-color: #fff;
+  }
+  button:not([data-slot]) {
+    border: revert;
+    padding: revert;
+    background-color: revert;
+  }
+}
+
 /* Shared skeleton-loading pulse (MaterialsSkeleton) — CSS-only since React
    inline style objects can't declare @keyframes. */
 @keyframes skeleton-pulse {
@@ -30,7 +118,7 @@
 /* Baseline hover for every other button app-wide, plus the View link
    (app/quote-actions.js) which is an <a> styled to look like a button —
    .btn-link scopes this to that one link, not the app's real text links. */
-button:not(:disabled):not(.select-button):hover,
+button:not(:disabled):not(.select-button):not([data-slot]):hover,
 a.btn-link:hover {
   filter: brightness(0.94);
 }
@@ -85,7 +173,7 @@ button:not(:disabled) {
    "✓ Selected" button is deliberately disabled but NOT dimmed — it's a
    confirmed state, not an unavailable one; savingButtonStyle's own inline
    opacity covers the one .select-button case that should dim). */
-button:disabled:not(.select-button) {
+button:disabled:not(.select-button):not([data-slot]) {
   opacity: 0.6;
   cursor: not-allowed;
 }

@@ -119,6 +119,8 @@ Without these, trade-specific quality rests on the model's general knowledge: Ph
 
 Next.js 15 (App Router), reusing `agent.js` and `tools/index.js` directly. `/quotes`, `/quote/[id]`, and `/profile` read `lib/db.js` directly from a Server Component or Server Action — deliberately **no** separate JSON API for these (an earlier version of this had one; it was dropped as an unused, redundant layer once the direct-read pages existed). `/quote/new` + `app/api/quote/route.js` is the one place a real HTTP layer is unavoidable.
 
+**Styling** is moving from inline styles to Tailwind CSS v4 + shadcn/ui (JS, `components.json` with `tsx: false`; components in `components/ui/`, `cn` in `lib/utils.js`, `@/` alias via `jsconfig.json`), page by page, starting with `/quote/new`. Design tokens (colours, radii, IBM Plex Sans as `--font-sans`) live at the top of `app/globals.css`, named to match shadcn's variables. Pages not yet migrated still use inline styles, so a small `@layer base` block there restores the browser defaults Tailwind's preflight strips (heading sizes, list bullets, link colour, form-control borders). Anything carrying shadcn's `data-slot` attribute is excluded from it, and from the legacy global button hover/disabled rules.
+
 Pages:
 
 - `/profile` — trader identity form
