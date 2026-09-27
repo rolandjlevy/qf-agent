@@ -26,7 +26,7 @@ export default function StepIndicator({ current }) {
         </div>
         <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full rounded-full bg-foreground"
+            className="h-full rounded-full bg-brand"
             style={{ width: `${(current / STEPS.length) * 100}%` }}
           />
         </div>
@@ -48,7 +48,7 @@ export default function StepIndicator({ current }) {
                 className={cn(
                   'flex size-[26px] items-center justify-center rounded-full text-[13px] font-semibold',
                   isCurrent
-                    ? 'bg-foreground text-primary-foreground'
+                    ? 'bg-brand text-primary-foreground'
                     : 'border border-muted-foreground text-muted-foreground',
                 )}
                 aria-hidden="true"

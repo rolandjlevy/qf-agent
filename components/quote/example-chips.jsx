@@ -21,7 +21,7 @@ export default function ExampleChips({ trade, onPick }) {
               type="button"
               data-slot="example-chip"
               onClick={() => onPick(example)}
-              className="inline-flex h-11 items-center rounded-full border border-input bg-card px-4 text-sm whitespace-nowrap text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="inline-flex h-11 items-center rounded-full border border-input bg-card px-4 text-sm whitespace-nowrap text-foreground hover:border-brand hover:bg-brand-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               {example.label}
             </button>

@@ -21,10 +21,14 @@
   --destructive: #B42318;
   --border: #D9D6CE;
   --input: #C9C6BE;
-  --ring: #1C1C1A;
+  --ring: #2446D8;
   --radius: 0.75rem;
-  /* Brand blue, the logo's bottom slab (docs/brand/README.md). Not shadcn's `accent`, which is the hover fill. */
+  /* The logo's slab blues (docs/brand/README.md); `brand` is the accent. Not shadcn's `accent`, the hover fill. */
   --brand: #2446D8;
+  --brand-mid: #4A69EC;
+  --brand-light: #6F8DFF;
+  /* A pale wash of brand blue for hover and drop-target backgrounds. */
+  --brand-tint: #EEF1FD;
 }
 
 @theme inline {
@@ -47,6 +51,9 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-brand: var(--brand);
+  --color-brand-mid: var(--brand-mid);
+  --color-brand-light: var(--brand-light);
+  --color-brand-tint: var(--brand-tint);
 
   --color-surface-muted: #FAFAF8;
 

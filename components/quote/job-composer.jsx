@@ -71,8 +71,8 @@ export default function JobComposer({ value, onChange, trade, photos, onAddPhoto
       <div
         {...getRootProps({
           className: cn(
-            'overflow-hidden rounded-card border-[1.5px] border-foreground bg-card focus-within:shadow-[0_0_0_3px_rgb(28_28_26/0.15)]',
-            isDragActive && 'outline-2 outline-offset-4 outline-ring outline-dashed',
+            'overflow-hidden rounded-card border-[1.5px] border-foreground bg-card focus-within:shadow-[0_0_0_3px_rgb(36_70_216/0.18)]',
+            isDragActive && 'bg-brand-tint outline-2 outline-offset-4 outline-brand outline-dashed',
           ),
         })}
       >

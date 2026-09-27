@@ -53,7 +53,7 @@ export default function AppHeader() {
                     className={cn(
                       'flex h-full items-center border-b-[3px] px-4 pt-[3px] text-[15px] no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
                       active
-                        ? 'border-foreground font-semibold text-foreground'
+                        ? 'border-brand font-semibold text-foreground'
                         : 'border-transparent font-medium text-muted-foreground hover:text-foreground',
                     )}
                   >
@@ -104,7 +104,7 @@ export default function AppHeader() {
                           className={cn(
                             'flex min-h-11 items-center border-l-[3px] pl-3 text-base no-underline',
                             active
-                              ? 'border-foreground font-semibold text-foreground'
+                              ? 'border-brand font-semibold text-foreground'
                               : 'border-transparent font-medium text-muted-foreground',
                           )}
                         >

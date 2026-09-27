@@ -27,12 +27,12 @@ export default function TradeChip({ value, onChange }) {
           <button
             type="button"
             aria-label={value ? `Change trade, currently ${label}` : 'Choose a trade'}
-            className="inline-flex h-11 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="group inline-flex h-11 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             {/* The visible pill is 36px; the 44px button around it keeps the tap target at the minimum. */}
             <span
               className={cn(
-                'inline-flex h-9 items-center gap-1.5 rounded-full border border-input bg-card px-3.5 text-sm font-semibold',
+                'inline-flex h-9 items-center gap-1.5 rounded-full border border-input bg-card px-3.5 text-sm font-semibold group-hover:border-brand',
                 !value && 'text-muted-foreground',
               )}
             >
@@ -58,7 +58,7 @@ export default function TradeChip({ value, onChange }) {
                 >
                   {tradeLabel(slug)}
                   <Check
-                    className={cn('ml-auto size-4', slug === value ? 'opacity-100' : 'opacity-0')}
+                    className={cn('ml-auto size-4 text-brand', slug === value ? 'opacity-100' : 'opacity-0')}
                     aria-hidden="true"
                   />
                 </CommandItem>
