@@ -197,3 +197,11 @@ test('drafting shows real section progress', async ({ page }) => {
   const results = await new AxeBuilder({ page }).exclude('nextjs-portal').analyze();
   expect(results.violations).toEqual([]);
 });
+
+test('header stays in view while scrolling', async ({ page }) => {
+  await chooseTrade(page, 'Plumber');
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  expect((await page.locator('header').boundingBox()).y).toBe(0);
+  await expect(page.getByRole('link', { name: 'QuoteFetch' })).toBeInViewport();
+});

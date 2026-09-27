@@ -5,8 +5,9 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: 'e2e',
   fullyParallel: true,
-  // The dev server compiles on demand; more workers mostly just queue behind it.
-  workers: 2,
+  // One worker: the dev server compiles on demand anyway, and two test browsers next to a running
+  // dev server ran this devcontainer out of memory ("Target crashed").
+  workers: 1,
   reporter: [['list']],
   use: { baseURL: 'http://localhost:3000' },
   expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.01, stylePath: './e2e/screenshot.css' } },
