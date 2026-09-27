@@ -8,9 +8,17 @@ const plex = IBM_Plex_Sans({
   variable: '--font-plex',
 });
 
+// Absolute URLs for the share image need a base: the production domain on Vercel, localhost otherwise.
+const siteUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  : 'http://localhost:3000';
+
+// Tab icons, the home-screen icon and the manifest come from app/ by file name (see docs/brand/README.md).
 export const metadata = {
+  metadataBase: new URL(siteUrl),
   title: 'QuoteFetch',
   description: 'Agentic UK trade quote generator',
+  openGraph: { title: 'QuoteFetch', images: ['/og-image.png'] },
 };
 
 // No maximum-scale or user-scalable: traders must be able to pinch-zoom.

@@ -23,6 +23,8 @@
   --input: #C9C6BE;
   --ring: #1C1C1A;
   --radius: 0.75rem;
+  /* Brand blue, the logo's bottom slab (docs/brand/README.md). Not shadcn's `accent`, which is the hover fill. */
+  --brand: #2446D8;
 }
 
 @theme inline {
@@ -44,6 +46,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-brand: var(--brand);
 
   --color-surface-muted: #FAFAF8;
 

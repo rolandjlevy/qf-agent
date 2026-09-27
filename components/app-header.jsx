@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FileText, Menu, User, X } from 'lucide-react';
+import { Menu, User, X } from 'lucide-react';
+import Logo from '@/components/logo';
 import { cn } from '@/lib/utils';
 import {
   Sheet,
@@ -34,10 +35,10 @@ export default function AppHeader() {
       <div className="flex h-full items-center gap-10 px-5 md:px-12">
         <Link
           href="/quote/new"
-          className="flex min-h-11 items-center gap-2.5 text-lg font-bold text-foreground no-underline md:text-xl"
+          className="flex min-h-11 shrink-0 items-center no-underline"
         >
-          <FileText className="size-5" aria-hidden="true" />
-          QuoteFetch
+          {/* The logo's own aria-label ("QuoteFetch") names the link. */}
+          <Logo className="h-7 w-auto md:h-8" />
         </Link>
 
         <nav aria-label="Main" className="hidden h-full md:block">
