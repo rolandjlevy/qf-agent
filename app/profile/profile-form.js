@@ -3,7 +3,7 @@
 import { useActionState } from 'react'
 import { saveProfile } from '../../lib/actions/profile.js'
 import { buttonStyle } from '../button-style.js'
-import { TRADES_BY_LABEL, VALID_TONES, tradeLabel } from '../../lib/constants.js'
+import { TRADES_BY_LABEL, VALID_TONES, toneOrDefault, tradeLabel } from '../../lib/constants.js'
 
 const fieldStyle = { display: 'flex', flexDirection: 'column', gap: '0.25rem' }
 const inputStyle = { padding: '0.4rem 0.5rem', font: 'inherit' }
@@ -76,7 +76,7 @@ export default function ProfileForm({ profile }) {
 
         <label style={fieldStyle}>
           Tone for your quotes
-          <select style={inputStyle} name="default_tone" defaultValue={profile?.default_tone || 'friendly'}>
+          <select style={inputStyle} name="default_tone" defaultValue={toneOrDefault(profile?.default_tone)}>
             {VALID_TONES.map((t) => (
               <option key={t} value={t}>
                 {t[0].toUpperCase() + t.slice(1)}

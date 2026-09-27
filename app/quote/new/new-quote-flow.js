@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { VALID_TONES, MAX_JOB_PHOTOS } from '../../../lib/constants.js';
+import { MAX_JOB_PHOTOS } from '../../../lib/constants.js';
 import { compressImages } from '../../../lib/compress-image.js';
 import MaterialsRefinement, {
   MaterialsSkeleton,
@@ -235,11 +235,11 @@ function groupStepsByTurn(steps) {
   return turns;
 }
 
-// initialTrade/initialTone come from the trader profile; trade is null when the profile has none.
-export default function NewQuoteFlow({ initialTrade, initialTone }) {
+// initialTrade comes from the trader profile, null when it has none. Tone isn't chosen here:
+// the quote route uses the profile's tone.
+export default function NewQuoteFlow({ initialTrade }) {
   const router = useRouter();
   const [trade, setTrade] = useState(initialTrade);
-  const [tone, setTone] = useState(initialTone);
   const [jobDescription, setJobDescription] = useState('');
   // True while step 1's submit is waiting on the server, before the phase moves on.
   const [submitting, setSubmitting] = useState(false);
@@ -446,7 +446,6 @@ export default function NewQuoteFlow({ initialTrade, initialTone }) {
     stopPolling();
     runIdRef.current = null;
     setTrade(initialTrade);
-    setTone(initialTone);
     setJobDescription('');
     setExampleChoice('');
     setPhase('form');
@@ -942,7 +941,6 @@ export default function NewQuoteFlow({ initialTrade, initialTone }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           trade,
-          tone,
           jobDescription: effectiveDescription,
           materials: materialsPayload,
           followUpAnswers: [
@@ -1060,23 +1058,6 @@ export default function NewQuoteFlow({ initialTrade, initialTone }) {
           >
             Try some examples
           </a>
-
-          <section style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <label>
-              Tone
-              <select
-                style={{ marginLeft: '0.5rem', padding: '0.25rem' }}
-                value={tone}
-                onChange={(e) => setTone(e.target.value)}
-              >
-                {VALID_TONES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </section>
 
           <PrimaryAction
             enabled={canContinue.enabled}

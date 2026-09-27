@@ -16,7 +16,7 @@ import {
   getQuoteRunWatchdogInfo,
 } from '../../../lib/db.js'
 import { formatTraderContext } from '../../../lib/trader-context.js'
-import { VALID_TRADES, VALID_TONES } from '../../../lib/constants.js'
+import { VALID_TRADES, toneOrDefault } from '../../../lib/constants.js'
 import { waitForAnswer } from '../../../lib/quote-runs.js'
 import { summarizeFollowUpAnswers } from '../../../lib/summarize-follow-up-answers.js'
 import { sanitizePhotoFindings } from '../../../lib/photo-findings.js'
@@ -99,7 +99,6 @@ function sanitizeFollowUpAnswers(followUpAnswers) {
 export async function POST(request) {
   const body = await request.json().catch(() => null)
   const trade = body?.trade
-  const tone = body?.tone
   const jobDescription = typeof body?.jobDescription === 'string' ? body.jobDescription.trim() : ''
   const materials = validateMaterials(body?.materials)
   const followUpAnswers = sanitizeFollowUpAnswers(body?.followUpAnswers)
@@ -110,9 +109,6 @@ export async function POST(request) {
   if (!VALID_TRADES.includes(trade)) {
     return Response.json({ error: `trade must be one of: ${VALID_TRADES.join(', ')}` }, { status: 400 })
   }
-  if (!VALID_TONES.includes(tone)) {
-    return Response.json({ error: `tone must be one of: ${VALID_TONES.join(', ')}` }, { status: 400 })
-  }
   if (!jobDescription) {
     return Response.json({ error: 'jobDescription is required' }, { status: 400 })
   }
@@ -122,6 +118,10 @@ export async function POST(request) {
       { status: 400 },
     )
   }
+
+  // Tone comes from the profile, not the request: it's a standing preference set on /profile.
+  const traderProfile = await getTraderProfile()
+  const tone = toneOrDefault(traderProfile?.default_tone)
 
   const runId = randomUUID()
   // Computed here, at invocation start, not inside after() — after()'s
@@ -214,13 +214,7 @@ export async function POST(request) {
     }
 
     try {
-      // Run concurrently — neither depends on the other, and the
-      // summarization call is itself an LLM round-trip worth overlapping
-      // with the trader-profile fetch rather than paying for both in series.
-      const [traderProfile, followUpAnswerBullets] = await Promise.all([
-        getTraderProfile(),
-        summarizeFollowUpAnswers(followUpAnswers, { signal: abortController.signal }),
-      ])
+      const followUpAnswerBullets = await summarizeFollowUpAnswers(followUpAnswers, { signal: abortController.signal })
       const traderContext = formatTraderContext(traderProfile)
       const phaseBPrompt = buildPhaseBSystemPrompt()
       const systemPrompt = traderContext ? `${phaseBPrompt}\n\n${traderContext}` : phaseBPrompt
