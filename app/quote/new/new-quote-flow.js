@@ -11,7 +11,6 @@ import { recordRefinementEvents } from '../../../lib/actions/log-refinement.js';
 import AskQuestionForm from '../../ask-question-form.js';
 import { buttonStyle, closeButtonStyle } from '../../button-style.js';
 import {
-  PhotoPicker,
   PhotoAnalysisSkeleton,
   PhotoFindingsReview,
 } from '../../job-photos.js';
@@ -20,6 +19,7 @@ import { keyQuestionsFor } from '../../../lib/key-questions.js';
 import { ExamplePicker, ExamplePhoto } from '../../example-picker.js';
 import StepIndicator, { stepForPhase } from '@/components/quote/step-indicator';
 import TradeChip from '@/components/quote/trade-chip';
+import JobComposer from '@/components/quote/job-composer';
 import {
   examplePhoto,
   unsplashPhotoFileUrl,
@@ -279,7 +279,7 @@ export default function NewQuoteFlow({ initialTrade, initialTone }) {
   // auth/user concept (the app is single-tenant, see CLAUDE.md's Phase 4
   // roadmap note).
   const [sessionId, setSessionId] = useState(null);
-  // `{ id, previewUrl, status, pathname?, error? }[]` — see app/job-photos.js's PhotoPicker.
+  // `{ id, previewUrl, status, pathname?, error? }[]` — see components/quote/photo-thumbnails.jsx.
   const [photos, setPhotos] = useState([]);
   // analyse-photos response, with an id + checked flag per observation and the photos it covered.
   const [photoAnalysis, setPhotoAnalysis] = useState(null);
@@ -493,7 +493,7 @@ export default function NewQuoteFlow({ initialTrade, initialTone }) {
         if (r.error) {
           updatePhoto(id, {
             status: 'failed',
-            error: "This photo couldn't be read. Try a JPEG or PNG.",
+            error: "Couldn't be read. Try a JPEG or PNG.",
           });
           return;
         }
@@ -508,7 +508,7 @@ export default function NewQuoteFlow({ initialTrade, initialTone }) {
         } catch {
           updatePhoto(id, {
             status: 'failed',
-            error: 'Upload failed. Remove it and try again.',
+            error: 'Upload failed. Remove and try again.',
           });
         }
       }),
@@ -1023,13 +1023,29 @@ export default function NewQuoteFlow({ initialTrade, initialTone }) {
         <h1 className="sr-only">New quote</h1>
       )}
 
-      <div style={{ maxWidth: 640 }}>
+      <div>
 
       {phase === 'form' && (
-        <form
-          onSubmit={handleProposeMaterials}
-          style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
-        >
+        <form onSubmit={handleProposeMaterials} className="flex flex-col gap-5 md:gap-7">
+          <JobComposer
+            value={jobDescription}
+            onChange={setJobDescription}
+            photos={photos}
+            onAddPhotos={handleAddPhotos}
+            onRemovePhoto={handleRemovePhoto}
+          />
+
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              handleOpenExamples();
+            }}
+            style={{ alignSelf: 'flex-start', fontSize: '0.85rem' }}
+          >
+            Try some examples
+          </a>
+
           <section style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
             <label>
               Tone
@@ -1046,39 +1062,6 @@ export default function NewQuoteFlow({ initialTrade, initialTone }) {
               </select>
             </label>
           </section>
-
-          <label
-            style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}
-          >
-            Job description
-            <textarea
-              rows={2}
-              value={jobDescription}
-              onChange={(e) => setJobDescription(e.target.value)}
-              style={{
-                fontFamily: 'inherit',
-                fontSize: 'inherit',
-                padding: '0.5rem',
-              }}
-              required
-            />
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                handleOpenExamples();
-              }}
-              style={{ alignSelf: 'flex-end', fontSize: '0.85rem' }}
-            >
-              Try some examples
-            </a>
-          </label>
-
-          <PhotoPicker
-            photos={photos}
-            onAdd={handleAddPhotos}
-            onRemove={handleRemovePhoto}
-          />
 
           <button
             type="submit"

@@ -1,8 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
 import { buttonStyle } from './button-style.js';
-import { MAX_JOB_PHOTOS } from '../lib/constants.js';
 
 const thumbStyle = {
   width: 96,
@@ -13,110 +11,10 @@ const thumbStyle = {
   display: 'block',
 };
 
-const STATUS_LABELS = {
-  compressing: 'Preparing…',
-  uploading: 'Uploading…',
-  failed: 'Failed',
-};
-
 const KIND_NOTES = {
   reference: 'Looks like a product, inspiration or in-progress photo, not this property as it is now',
   irrelevant: "Doesn't seem to show this job, so it wasn't used",
 };
-
-// `photos` is `{ id, previewUrl, status: 'compressing'|'uploading'|'ready'|'failed', error? }[]`,
-// owned by app/quote/new/page.js, which does the compress-and-upload work.
-export function PhotoPicker({ photos, onAdd, onRemove }) {
-  const inputRef = useRef(null);
-  const remaining = MAX_JOB_PHOTOS - photos.length;
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-      <span>
-        Photos <small style={{ color: '#666' }}>(optional, up to {MAX_JOB_PHOTOS})</small>
-      </span>
-      <small style={{ color: '#666' }}>
-        Add photos of what you'll be working on, plus any labels or model plates. The more we can see, the
-        fewer questions we'll ask and the more accurate your quote will be.
-      </small>
-
-      {photos.length > 0 && (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-          {photos.map((p) => (
-            <li key={p.id} style={{ position: 'relative' }}>
-              <img
-                src={p.previewUrl}
-                alt=""
-                style={{ ...thumbStyle, opacity: p.status === 'ready' ? 1 : 0.5 }}
-              />
-              {p.status !== 'ready' && (
-                <small
-                  title={p.error || undefined}
-                  style={{
-                    position: 'absolute',
-                    left: 4,
-                    bottom: 4,
-                    background: p.status === 'failed' ? 'crimson' : 'rgba(0,0,0,0.6)',
-                    color: '#fff',
-                    borderRadius: 4,
-                    padding: '0 4px',
-                  }}
-                >
-                  {STATUS_LABELS[p.status]}
-                </small>
-              )}
-              <button
-                type="button"
-                aria-label="Remove photo"
-                onClick={() => onRemove(p.id)}
-                style={{
-                  position: 'absolute',
-                  top: 2,
-                  right: 2,
-                  width: 22,
-                  height: 22,
-                  borderRadius: '50%',
-                  border: 'none',
-                  background: 'rgba(0,0,0,0.6)',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  lineHeight: '22px',
-                  padding: 0,
-                }}
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {remaining > 0 && (
-        <>
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            hidden
-            onChange={(e) => {
-              onAdd(Array.from(e.target.files ?? []).slice(0, remaining));
-              // Reset so choosing the same file again (e.g. after removing it) still fires onChange.
-              e.target.value = '';
-            }}
-          />
-          <button
-            type="button"
-            style={{ ...buttonStyle, width: 'fit-content' }}
-            onClick={() => inputRef.current?.click()}
-          >
-            📷 Add photos
-          </button>
-        </>
-      )}
-    </div>
-  );
-}
 
 export function PhotoAnalysisSkeleton({ count }) {
   return (
