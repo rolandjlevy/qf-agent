@@ -232,6 +232,7 @@ async function runQuoteCommand(argv) {
     if (toolContext.savedQuote) {
       await insertGeneratedQuote({
         job_description: jobDescription,
+        trade,
         output_path: toolContext.savedQuote.file_path ?? '',
         content: toolContext.savedQuote.content,
         tool_call_log: toolCallLog,

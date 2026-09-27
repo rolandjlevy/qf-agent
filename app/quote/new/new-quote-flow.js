@@ -20,6 +20,8 @@ import StepIndicator, { stepForPhase } from '@/components/quote/step-indicator';
 import TradeChip from '@/components/quote/trade-chip';
 import JobComposer from '@/components/quote/job-composer';
 import ExampleChips from '@/components/quote/example-chips';
+import RecentQuotes from '@/components/quote/recent-quotes';
+import SampleQuote from '@/components/quote/sample-quote';
 import PrimaryAction from '@/components/quote/primary-action';
 import { continueState } from '@/lib/new-quote';
 import {
@@ -106,12 +108,12 @@ function groupStepsByTurn(steps) {
   return turns;
 }
 
-// initialTrade comes from the trader profile, null when it has none. Tone isn't chosen here:
-// the quote route uses the profile's tone.
-export default function NewQuoteFlow({ initialTrade }) {
+// initialTrade/initialDescription come from the profile, or a recent quote (page.js); trade may be null.
+// Tone isn't chosen here: the quote route uses the profile's. sampleTitles maps sample key to title.
+export default function NewQuoteFlow({ initialTrade, initialDescription = '', recentQuotes = [], sampleTitles = {} }) {
   const router = useRouter();
   const [trade, setTrade] = useState(initialTrade);
-  const [jobDescription, setJobDescription] = useState('');
+  const [jobDescription, setJobDescription] = useState(initialDescription);
   // True while step 1's submit is waiting on the server, before the phase moves on.
   const [submitting, setSubmitting] = useState(false);
   // 'keyQuestions' (lib/key-questions.js, plus any gaps the photos found) always comes first.
@@ -159,6 +161,7 @@ export default function NewQuoteFlow({ initialTrade }) {
   // the summary photo analysis wrote. The routes after photo analysis all require one.
   const effectiveDescription = jobDescription.trim() || photoAnalysis?.jobSummary || '';
   const canContinue = continueState({ description: jobDescription, photos, trade });
+  const sampleKey = trade && Object.hasOwn(sampleTitles, trade) ? trade : 'general';
   // `{ [topic]: { choice, otherText } }` for keyQuestionsToAsk() — see app/key-questions-form.js.
   const [keyAnswers, setKeyAnswers] = useState({});
   // Without photos: the key questions for this description, minus any its matched pack job skips.
@@ -312,7 +315,7 @@ export default function NewQuoteFlow({ initialTrade }) {
     stopPolling();
     runIdRef.current = null;
     setTrade(initialTrade);
-    setJobDescription('');
+    setJobDescription(initialDescription);
     setPhase('form');
     setRefinementMaterials([]);
     setClarifyingQuestion(null);
@@ -904,6 +907,15 @@ export default function NewQuoteFlow({ initialTrade }) {
             reason={canContinue.reason}
             submitting={submitting}
           />
+
+          {/* Desktop only for now. New traders see a sample quote until they have quotes of their own. */}
+          <div className="hidden border-t border-border pt-7 md:block">
+            {recentQuotes.length > 0 ? (
+              <RecentQuotes quotes={recentQuotes} />
+            ) : (
+              <SampleQuote sample={{ key: sampleKey, title: sampleTitles[sampleKey] }} />
+            )}
+          </div>
         </form>
       )}
 
