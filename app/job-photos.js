@@ -41,7 +41,7 @@ export function PhotoAnalysisSkeleton({ count }) {
 
 // The trader confirms each observation before any of it reaches Phase A or Phase B:
 // a misread label should never end up in a quote unchecked.
-export function PhotoFindingsReview({ photos, analysis, questionCount, onToggle, onBack, onContinue }) {
+export function PhotoFindingsReview({ photos, analysis, jobSummary, questionCount, onToggle, onBack, onContinue }) {
   const byPhoto = analysis.photos.map((p) => ({
     ...p,
     preview: photos[p.imageIndex - 1]?.previewUrl,
@@ -51,6 +51,13 @@ export function PhotoFindingsReview({ photos, analysis, questionCount, onToggle,
   return (
     <div>
       <h2>What we spotted in your photos</h2>
+      {/* Photos-only job: show what we took the job to be, since it becomes the job description. */}
+      {jobSummary && (
+        <p>
+          <strong>From your photos:</strong> {jobSummary}{' '}
+          <small style={{ color: '#666' }}>(go back to add a description if this isn&apos;t right)</small>
+        </p>
+      )}
       <p style={{ color: '#666' }}>
         Untick anything that's wrong. Only ticked items are used for your questions and quote.
       </p>
