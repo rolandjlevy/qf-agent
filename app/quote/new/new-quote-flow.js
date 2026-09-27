@@ -890,6 +890,7 @@ export default function NewQuoteFlow({ initialTrade }) {
           <JobComposer
             value={jobDescription}
             onChange={setJobDescription}
+            trade={trade}
             photos={photos}
             onAddPhotos={handleAddPhotos}
             onRemovePhoto={handleRemovePhoto}
