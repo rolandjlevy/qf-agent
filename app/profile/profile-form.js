@@ -3,6 +3,7 @@
 import { useActionState } from 'react'
 import { saveProfile } from '../../lib/actions/profile.js'
 import { buttonStyle } from '../button-style.js'
+import { TRADES_BY_LABEL, VALID_TONES, tradeLabel } from '../../lib/constants.js'
 
 const fieldStyle = { display: 'flex', flexDirection: 'column', gap: '0.25rem' }
 const inputStyle = { padding: '0.4rem 0.5rem', font: 'inherit' }
@@ -59,6 +60,29 @@ export default function ProfileForm({ profile }) {
         <label style={fieldStyle}>
           Service area (e.g. "North London and surrounding areas")
           <input style={inputStyle} type="text" name="service_area" defaultValue={profile?.service_area || ''} />
+        </label>
+
+        <label style={fieldStyle}>
+          Your trade (new quotes start with this; you can change it per quote)
+          <select style={inputStyle} name="trade" defaultValue={profile?.trade || ''}>
+            <option value="">Not set</option>
+            {TRADES_BY_LABEL.map((t) => (
+              <option key={t} value={t}>
+                {tradeLabel(t)}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label style={fieldStyle}>
+          Tone for your quotes
+          <select style={inputStyle} name="default_tone" defaultValue={profile?.default_tone || 'friendly'}>
+            {VALID_TONES.map((t) => (
+              <option key={t} value={t}>
+                {t[0].toUpperCase() + t.slice(1)}
+              </option>
+            ))}
+          </select>
         </label>
 
         <button type="submit" style={{ ...buttonStyle, width: 'fit-content' }} disabled={savePending}>

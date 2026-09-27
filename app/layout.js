@@ -25,7 +25,8 @@ export default function RootLayout({ children }) {
     <html lang="en" className={plex.variable} suppressHydrationWarning>
       <body className="m-0 bg-background font-sans text-foreground" suppressHydrationWarning>
         <AppHeader />
-        <main style={{ padding: '1rem 1.5rem' }}>{children}</main>
+        {/* Legacy pages rely on this padding; redesigned pages mark themselves data-page-shell and set their own. */}
+        <main className="px-6 py-4 has-[>[data-page-shell]]:p-0">{children}</main>
       </body>
     </html>
   );

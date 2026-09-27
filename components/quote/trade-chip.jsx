@@ -1,0 +1,72 @@
+'use client';
+
+import { useState } from 'react';
+import { Check, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { TRADES_BY_LABEL, tradeLabel } from '@/lib/constants';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+
+// Picks the trade for this quote only; the profile's trade is just the starting value.
+// With no trade yet (`value` null) the picker opens straight away.
+export default function TradeChip({ value, onChange }) {
+  const [open, setOpen] = useState(!value);
+  const label = value ? tradeLabel(value) : 'Choose a trade';
+
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="text-sm text-muted-foreground">Quoting as</span>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label={value ? `Change trade, currently ${label}` : 'Choose a trade'}
+            className="inline-flex h-11 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:h-9"
+          >
+            {/* The visible pill is 36px; the 44px button around it keeps the tap target on mobile. */}
+            <span
+              className={cn(
+                'inline-flex h-9 items-center gap-1.5 rounded-full border border-input bg-card px-3.5 text-sm font-semibold',
+                !value && 'text-muted-foreground',
+              )}
+            >
+              {label}
+              <ChevronDown className="size-4" aria-hidden="true" />
+            </span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-64 p-0">
+          <Command>
+            <CommandInput placeholder="Search trades" />
+            <CommandList>
+              <CommandEmpty>No trade found.</CommandEmpty>
+              {TRADES_BY_LABEL.map((slug) => (
+                <CommandItem
+                  key={slug}
+                  value={tradeLabel(slug)}
+                  onSelect={() => {
+                    onChange(slug);
+                    setOpen(false);
+                  }}
+                  className="min-h-11"
+                >
+                  {tradeLabel(slug)}
+                  <Check
+                    className={cn('ml-auto size-4', slug === value ? 'opacity-100' : 'opacity-0')}
+                    aria-hidden="true"
+                  />
+                </CommandItem>
+              ))}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
