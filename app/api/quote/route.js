@@ -275,6 +275,14 @@ export async function POST(request) {
         model: getPhaseBModel(),
       })
 
+      // The watchdog only checks every 15s, so a cancel can land after its last look (or while
+      // the final turn was already in flight): check once more and never save a cancelled run's quote.
+      const latest = await getQuoteRunWatchdogInfo(runId).catch(() => null)
+      if (abortController.signal.aborted || latest?.status === 'aborted') {
+        finished = true
+        return
+      }
+
       let quoteId = null
       if (toolContext.savedQuote) {
         quoteId = await insertGeneratedQuote({
