@@ -1,5 +1,6 @@
 import { IBM_Plex_Sans } from 'next/font/google';
 import './globals.css';
+import AppHeader from '@/components/app-header';
 
 const plex = IBM_Plex_Sans({
   subsets: ['latin'],
@@ -23,19 +24,7 @@ export default function RootLayout({ children }) {
     // Browser extensions (e.g. Grammarly) add attributes to html/body before React hydrates.
     <html lang="en" className={plex.variable} suppressHydrationWarning>
       <body className="m-0 bg-background font-sans text-foreground" suppressHydrationWarning>
-        <nav
-          style={{
-            display: 'flex',
-            gap: '1.5rem',
-            padding: '1rem 1.5rem',
-            borderBottom: '1px solid #ddd',
-          }}
-        >
-          <h3 style={{ margin: 0 }}>📝 QuoteFetch</h3>
-          <a href="/quote/new">New quote</a>
-          <a href="/quotes">Quotes</a>
-          <a href="/profile">Profile</a>
-        </nav>
+        <AppHeader />
         <main style={{ padding: '1rem 1.5rem' }}>{children}</main>
       </body>
     </html>

@@ -121,6 +121,8 @@ Next.js 15 (App Router), reusing `agent.js` and `tools/index.js` directly. `/quo
 
 **Styling** is moving from inline styles to Tailwind CSS v4 + shadcn/ui (JS, `components.json` with `tsx: false`; components in `components/ui/`, `cn` in `lib/utils.js`, `@/` alias via `jsconfig.json`), page by page, starting with `/quote/new`. Design tokens (colours, radii, IBM Plex Sans as `--font-sans`) live at the top of `app/globals.css`, named to match shadcn's variables. Pages not yet migrated still use inline styles, so a small `@layer base` block there restores the browser defaults Tailwind's preflight strips (heading sizes, list bullets, link colour, form-control borders). Anything carrying shadcn's `data-slot` attribute is excluded from it, and from the legacy global button hover/disabled rules.
 
+Every page shares `components/app-header.jsx` (rendered by `app/layout.js`): nav links with `aria-current="page"` on the active one (`/quote/[id]` counts as Quotes), collapsing into a shadcn `Sheet` menu below 768px.
+
 Pages:
 
 - `/profile` — trader identity form

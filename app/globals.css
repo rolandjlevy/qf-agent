@@ -73,13 +73,13 @@
     color: revert;
     text-decoration: revert;
   }
-  /* shadcn components carry data-slot and style themselves, so they're left alone. */
-  :where(input:not([type='checkbox'], [type='radio'], [type='file']), textarea, select):not([data-slot]) {
+  /* shadcn components carry data-slot and style themselves (and their children), so they're left alone. */
+  :where(input:not([type='checkbox'], [type='radio'], [type='file']), textarea, select):not([data-slot], [data-slot] *) {
     border: 1px solid #767676;
     padding: revert;
     background-color: #fff;
   }
-  button:not([data-slot]) {
+  button:not([data-slot], [data-slot] *) {
     border: revert;
     padding: revert;
     background-color: revert;
@@ -118,7 +118,7 @@
 /* Baseline hover for every other button app-wide, plus the View link
    (app/quote-actions.js) which is an <a> styled to look like a button —
    .btn-link scopes this to that one link, not the app's real text links. */
-button:not(:disabled):not(.select-button):not([data-slot]):hover,
+button:not(:disabled):not(.select-button):not([data-slot], [data-slot] *):hover,
 a.btn-link:hover {
   filter: brightness(0.94);
 }
@@ -173,7 +173,7 @@ button:not(:disabled) {
    "✓ Selected" button is deliberately disabled but NOT dimmed — it's a
    confirmed state, not an unavailable one; savingButtonStyle's own inline
    opacity covers the one .select-button case that should dim). */
-button:disabled:not(.select-button):not([data-slot]) {
+button:disabled:not(.select-button):not([data-slot], [data-slot] *) {
   opacity: 0.6;
   cursor: not-allowed;
 }
