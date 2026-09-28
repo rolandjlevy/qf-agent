@@ -66,14 +66,16 @@ export default function JobComposer({ value, onChange, trade, photos, onAddPhoto
   return (
     <>
       <div className="flex flex-col gap-2">
-        <label htmlFor="job-description" className="text-[15px] font-semibold">
-          Paste the customer&apos;s message, or describe the job
+        <label htmlFor="job-description" className="text-[15px] font-bold md:font-semibold">
+          <span className="md:hidden">Paste customer&apos;s message, or describe job</span>
+          <span className="hidden md:inline">Paste the customer&apos;s message, or describe the job</span>
         </label>
 
         <div
           {...getRootProps({
             className: cn(
-              'overflow-hidden rounded-card border border-input bg-card shadow-card transition-all focus-within:border-brand focus-within:ring-2 focus-within:ring-brand-subtle-border',
+              // Mobile: a heavier 2px dark edge so the box stands out on a small screen.
+              'overflow-hidden rounded-card border-2 border-foreground bg-card shadow-card transition-all focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/15 md:border md:border-input md:focus-within:ring-2 md:focus-within:ring-brand-subtle-border',
               isDragActive && 'bg-brand-tint outline-2 outline-offset-4 outline-brand outline-dashed',
             ),
           })}
@@ -88,9 +90,9 @@ export default function JobComposer({ value, onChange, trade, photos, onAddPhoto
             aria-describedby="job-description-help"
             data-slot="composer-textarea"
             className={cn(
-              'block w-full resize-none border-0 bg-transparent p-5 pb-3 text-base leading-[1.6] text-foreground outline-none placeholder:text-foreground-subtle',
+              'block w-full resize-none border-0 bg-transparent p-4 text-base leading-[1.55] text-foreground outline-none placeholder:text-muted-foreground md:p-5 md:pb-3 md:leading-[1.6] md:placeholder:text-foreground-subtle',
               // Once photos are in, the text box hugs its content so the thumbnails sit right under it.
-              photos.length === 0 && 'min-h-[140px] md:min-h-[185px]',
+              photos.length === 0 && 'min-h-[148px] md:min-h-[185px]',
             )}
           />
           {photos.length > 0 && (

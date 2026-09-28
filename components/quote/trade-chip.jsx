@@ -21,7 +21,7 @@ export default function TradeChip({ value, onChange }) {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[13px] font-medium text-muted-foreground">Quoting as</span>
+      <span className="text-sm text-muted-foreground md:text-[13px] md:leading-normal md:font-medium">Quoting as</span>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
@@ -32,7 +32,7 @@ export default function TradeChip({ value, onChange }) {
             {/* The visible pill is 36px; the 44px button around it keeps the tap target at the minimum. */}
             <span
               className={cn(
-                'inline-flex h-9 items-center gap-2 rounded-full border bg-card px-3.5 text-sm font-semibold shadow-xs transition-all group-hover:border-brand group-hover:bg-brand-tint',
+                'inline-flex h-9 items-center gap-2 rounded-full border bg-card px-3.5 text-sm font-semibold shadow-sm transition-all active:scale-95 md:shadow-xs md:active:scale-100 group-hover:border-brand group-hover:bg-brand-tint',
                 value ? 'border-input' : 'border-dashed border-brand text-brand',
               )}
             >

@@ -24,33 +24,33 @@ export default function PhotoThumbnails({ photos, onRemove, onAdd }) {
   const credit = exampleSource ? unsplashCredit(exampleSource) : null;
 
   return (
-    <div className="px-5 pb-5">
+    <div className="px-4 pb-3 md:px-5 md:pb-5">
       <ul className="m-0 flex list-none flex-wrap items-center gap-3 p-0">
         {photos.map((p, i) => (
-          <li key={p.id} className="relative size-[76px] overflow-hidden rounded-[10px] border border-border bg-surface-muted shadow-xs">
+          <li key={p.id} className="relative size-[76px] overflow-hidden rounded-xl border border-border bg-surface-muted shadow-sm md:rounded-[10px] md:shadow-xs">
             <img
               src={p.previewUrl}
               alt={`Photo ${i + 1}`}
               className={`size-full object-cover ${p.status === 'ready' ? '' : 'opacity-50'}`}
             />
-            {/* The photo's number once it's in; while it's on its way, its upload status. */}
+            {/* While a photo is on its way, its upload status; once it's in, its number (desktop only). */}
             <span
               className={`absolute bottom-1 left-1 rounded px-1.5 py-0.5 text-[10px] leading-tight font-medium text-white ${
                 p.status === 'failed' ? 'bg-destructive' : 'bg-black/60'
-              }`}
+              } ${p.status === 'ready' ? 'hidden md:inline' : ''}`}
             >
               {p.status === 'ready' ? `#${i + 1}` : STATUS_LABELS[p.status]}
             </span>
-            {/* A 28px hit area around the 20px circle. */}
+            {/* Mobile: a 32px circle for thumbs. Desktop: a 20px circle in a 28px hit area. */}
             <button
               type="button"
               data-slot="photo-remove"
               aria-label={`Remove photo ${i + 1}`}
               onClick={() => onRemove(p.id)}
-              className="group absolute top-0 right-0 flex size-7 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+              className="group absolute top-1 right-1 flex size-8 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring md:top-0 md:right-0 md:size-7"
             >
-              <span className="flex size-5 items-center justify-center rounded-full bg-black/80 text-white transition-colors group-hover:bg-black">
-                <X className="size-3" strokeWidth={2} aria-hidden="true" />
+              <span className="flex size-8 items-center justify-center rounded-full bg-foreground/90 text-white transition-all group-hover:bg-black group-active:scale-95 md:size-5 md:bg-black/80">
+                <X className="size-[18px] md:size-3" strokeWidth={2} aria-hidden="true" />
               </span>
             </button>
           </li>

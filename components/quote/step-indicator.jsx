@@ -16,18 +16,19 @@ export default function StepIndicator({ current }) {
 
   return (
     <>
-      {/* Mobile: one text row and a progress bar. Hidden from screen readers, which get the list. */}
-      <div className="md:hidden" aria-hidden="true">
+      {/* Mobile: a full-width band (negative margins undo the page padding and most of the gap below) with a text row and a
+          progress bar. Hidden from screen readers, which get the list. */}
+      <div className="-mx-5 -mt-4 -mb-4 border-b border-border bg-surface-muted/70 px-5 pt-3.5 pb-3 md:hidden" aria-hidden="true">
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-brand px-2 py-0.5 text-[11px] font-bold tracking-wider text-white uppercase">
+          <span className="rounded-full bg-brand px-2.5 py-0.5 text-[11px] font-bold tracking-wider text-white uppercase shadow-sm shadow-brand/20">
             Step {current}
           </span>
           <span className="text-sm font-semibold text-foreground">{STEPS[current - 1]}</span>
-          {next && <span className="ml-auto text-xs text-muted-foreground">Next: {next}</span>}
+          {next && <span className="ml-auto text-xs font-medium text-muted-foreground">Next: {next}</span>}
         </div>
         <div className="mt-2 h-1 overflow-hidden rounded-full bg-border">
           <div
-            className="h-full rounded-full bg-brand"
+            className="h-full rounded-full bg-linear-to-r from-brand to-brand-hover"
             style={{ width: `${(current / STEPS.length) * 100}%` }}
           />
         </div>

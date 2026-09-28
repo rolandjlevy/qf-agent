@@ -5,11 +5,12 @@ import { Camera, Image as ImageIcon } from 'lucide-react';
 import { MAX_JOB_PHOTOS } from '@/lib/constants';
 
 const pickerButton =
-  'h-11 items-center gap-2 rounded-lg border border-input bg-card px-3.5 text-sm font-medium text-foreground shadow-xs transition-all hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:text-muted-foreground disabled:hover:border-input focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
-const pickerIcon = 'size-[18px] text-brand';
+  'h-[46px] items-center gap-2 rounded-xl border border-input bg-card px-4 text-sm font-semibold text-foreground shadow-sm transition-all active:scale-95 md:h-11 md:rounded-lg md:px-3.5 md:font-medium md:shadow-xs md:active:scale-100 hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:text-muted-foreground disabled:hover:border-input focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
+const pickerIcon = 'size-5 text-brand md:size-[18px]';
 
 const countBadge =
   'items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 text-[13px] font-medium text-muted-foreground tabular-nums';
+const countPillMobile = 'rounded-full bg-muted px-3 py-1 text-xs font-bold tracking-wider text-foreground/80 tabular-nums';
 const countDot = <span className="size-1.5 rounded-full bg-success ring-2 ring-success/15" aria-hidden="true" />;
 
 // The composer's bottom bar; camera, gallery and JobComposer's drop all end at `onFiles`.
@@ -26,7 +27,7 @@ export default function PhotoPicker({ count, onFiles, galleryRef }) {
   }
 
   return (
-    <div className="flex items-center gap-2 border-t border-border bg-surface-muted px-4 py-3 md:gap-3 md:px-5">
+    <div className="flex items-center gap-2 border-t border-border bg-surface-muted px-3.5 py-2.5 md:gap-3 md:px-5 md:py-3">
       <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={handleChange} />
       <input ref={galleryRef} type="file" accept="image/*" multiple hidden onChange={handleChange} />
 
@@ -51,8 +52,7 @@ export default function PhotoPicker({ count, onFiles, galleryRef }) {
         <ImageIcon className={pickerIcon} strokeWidth={1.75} aria-hidden="true" />
         Photos
       </button>
-      <span className={`${countBadge} ml-auto inline-flex md:hidden`}>
-        {count > 0 && countDot}
+      <span className={`${countPillMobile} ml-auto md:hidden`}>
         {count} / {MAX_JOB_PHOTOS}
       </span>
 

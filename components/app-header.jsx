@@ -33,13 +33,13 @@ export default function AppHeader() {
   return (
     // Sticky, not fixed: it stays in the page flow (no spacer). z-40 keeps popovers and the menu (z-50) above it.
     <header className="sticky top-0 z-40 h-14 border-b border-border bg-card/95 backdrop-blur-md md:h-[72px]">
-      <div className="mx-auto flex h-full max-w-[1280px] items-center gap-10 px-5 md:px-6">
+      <div className="mx-auto flex h-full max-w-[1280px] items-center gap-10 px-4 md:px-6">
         <Link
           href="/quote/new"
           className="flex min-h-11 shrink-0 items-center no-underline"
         >
           {/* The logo's own aria-label ("QuoteFetch") names the link. */}
-          <Logo className="h-7 w-auto md:h-8" />
+          <Logo className="h-6 w-auto md:h-8" />
         </Link>
 
         <nav aria-label="Main" className="hidden h-full md:block">

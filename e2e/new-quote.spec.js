@@ -10,7 +10,14 @@ const photo = (n) => ({ name: `photo-${n}.png`, mimeType: 'image/png', buffer: P
 const isMobile = (testInfo) => testInfo.project.name === 'mobile';
 // Baselines assume a database with quotes (the returning-user frame); recent quotes are masked as live data.
 const recentQuotes = (page) => page.locator('section[aria-labelledby=recent-quotes-heading]');
-const blur = (page) => page.evaluate(() => document.activeElement?.blur());
+// Before a screenshot: drop focus and undo the mobile focus scroll, so the sticky header is at the top.
+const blur = (page) =>
+  page.evaluate(async () => {
+    document.activeElement?.blur();
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    // Let the scroll paint before the screenshot starts.
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  });
 
 const chip = (page) => page.getByRole('button', { name: /trade/i });
 const textarea = (page) => page.locator('#job-description');
@@ -47,6 +54,9 @@ test('empty state matches the design and has no axe violations', async ({ page }
 });
 
 test('filled state matches the design and has no axe violations', async ({ page }) => {
+  // Filling focuses the text box, which scrolls on mobile; reduced motion makes that scroll instant,
+  // so blur() can undo it without racing a smooth scroll still in flight.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await chooseTrade(page, 'Bathroom fitter');
   await textarea(page).fill(
     "Hi, could you quote to swap our bath for a walk-in shower? The bathroom's about 2m × 2.5m. We'd like the floor and two walls tiled to half height.",
@@ -103,7 +113,9 @@ test('example chips follow the trade, fill the text and hide', async ({ page }) 
 test('photo hint follows the trade', async ({ page }, testInfo) => {
   await chooseTrade(page, 'Electrician');
   const hint = page.locator('#job-description-help');
-  await expect(hint).toContainText('Key details for electrical work');
+  // The trade heading is desktop only; mobile keeps the card short.
+  const heading = hint.getByText('Key details for electrical work');
+  await (isMobile(testInfo) ? expect(heading).toBeHidden() : expect(heading).toBeVisible());
   // Both photo lists are in the DOM; check the one for this width is the one showing.
   await expect(hint.getByText(isMobile(testInfo) ? 'the fuse box and its label' : 'the fuse box or consumer unit')).toBeVisible();
 });
@@ -206,4 +218,21 @@ test('header stays in view while scrolling', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
   expect((await page.locator('header').boundingBox()).y).toBe(0);
   await expect(page.getByRole('link', { name: 'QuoteFetch' })).toBeInViewport();
+});
+
+test('on mobile, a focused field scrolls up under the header', async ({ page }, testInfo) => {
+  await chooseTrade(page, 'Plumber');
+  // A short viewport stands in for the on-screen keyboard, which leaves the page room to scroll.
+  await page.setViewportSize({ width: testInfo.project.use.viewport.width, height: 500 });
+  const label = page.locator('label[for=job-description]');
+  const labelTop = async () => (await label.boundingBox()).y;
+  const before = await labelTop();
+  await textarea(page).focus();
+  if (isMobile(testInfo)) {
+    // Header is 56px; the label lands 12px below it.
+    await expect.poll(async () => Math.abs((await labelTop()) - 68)).toBeLessThanOrEqual(1);
+  } else {
+    await page.waitForTimeout(500);
+    expect(await labelTop()).toBe(before);
+  }
 });
