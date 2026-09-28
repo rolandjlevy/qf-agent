@@ -4,9 +4,7 @@
 /* Design tokens (docs: new quote page spec). Named to match shadcn/ui's
    variables so its components pick them up with no per-component overrides. */
 :root {
-  /* Warm paper neutrals (hue ~45°) built around the #F2F1ED background. The strong colours are fixed:
-     brand ink for text and buttons, the brand blues, and the error red. */
-  --background: #F2F1ED;
+  --background: #F4F3EF;
   --foreground: #16181D;
   --card: #FFFFFF;
   --card-foreground: #16181D;
@@ -31,6 +29,12 @@
   --brand-light: #6F8DFF;
   /* A pale wash of brand blue for hover and drop-target backgrounds. */
   --brand-tint: #EEF1FD;
+  --brand-hover: #1B37B5;
+  --brand-subtle-border: #BFDBFE;
+  /* Placeholders and decoration only: 3.5:1 on white, too faint for body text. */
+  --foreground-subtle: #8A8780;
+  --border-subtle: #E4E2DC;
+  --success: #15803D;
 }
 
 @theme inline {
@@ -56,6 +60,14 @@
   --color-brand-mid: var(--brand-mid);
   --color-brand-light: var(--brand-light);
   --color-brand-tint: var(--brand-tint);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-subtle-border: var(--brand-subtle-border);
+  --color-foreground-subtle: var(--foreground-subtle);
+  --color-border-subtle: var(--border-subtle);
+  --color-success: var(--success);
+
+  --shadow-card: 0 4px 16px -2px rgb(0 0 0 / 0.05), 0 2px 6px -1px rgb(0 0 0 / 0.03);
+  --shadow-cta: 0 4px 14px -1px rgb(36 70 216 / 0.35), 0 2px 4px -1px rgb(0 0 0 / 0.06);
 
   --color-surface-muted: #F9F8F6;
 
@@ -158,11 +170,22 @@
   }
 }
 
+/* Reduced motion: no sweep or scan line, but skeletons fade in place so the page still looks busy. */
 @media (prefers-reduced-motion: reduce) {
   .skeleton::after,
   .photo-scan::after {
     animation: none;
     display: none;
+  }
+  .skeleton {
+    animation: skeleton-pulse 2s ease-in-out infinite;
+    animation-delay: calc(var(--i, 0) * 90ms);
+  }
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.5;
   }
 }
 

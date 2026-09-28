@@ -33,17 +33,17 @@ export default function AppHeader() {
   return (
     // Sticky, not fixed: it stays in the page flow (no spacer). z-40 keeps popovers and the menu (z-50) above it.
     <header className="sticky top-0 z-40 h-14 border-b border-border bg-card/95 backdrop-blur-md md:h-[72px]">
-      <div className="flex h-full items-center gap-10 px-5 md:px-12">
+      <div className="mx-auto flex h-full max-w-[1280px] items-center gap-10 px-4 md:px-6">
         <Link
           href="/quote/new"
           className="flex min-h-11 shrink-0 items-center no-underline"
         >
           {/* The logo's own aria-label ("QuoteFetch") names the link. */}
-          <Logo className="h-7 w-auto md:h-8" />
+          <Logo className="h-6 w-auto md:h-8" />
         </Link>
 
         <nav aria-label="Main" className="hidden h-full md:block">
-          <ul className="m-0 flex h-full list-none gap-1 p-0">
+          <ul className="m-0 flex h-full list-none gap-7 p-0">
             {NAV_LINKS.map((link) => {
               const active = link.isActive(pathname);
               return (
@@ -52,9 +52,9 @@ export default function AppHeader() {
                     href={link.href}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'flex h-full items-center border-b-[3px] px-4 pt-[3px] text-[15px] no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                      'flex h-full items-center border-b-[3px] px-1 pt-[3px] text-[15px] no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
                       active
-                        ? 'border-brand font-semibold text-foreground'
+                        ? 'border-brand font-semibold text-brand'
                         : 'border-transparent font-medium text-muted-foreground hover:text-foreground',
                     )}
                   >
@@ -69,7 +69,7 @@ export default function AppHeader() {
         <Link
           href="/profile"
           aria-label="Account"
-          className={cn(iconButton, 'ml-auto hidden border border-border bg-accent md:inline-flex')}
+          className={cn(iconButton, 'ml-auto hidden border border-border bg-card hover:border-brand hover:bg-brand-tint hover:text-brand md:inline-flex')}
         >
           <User className="size-5" aria-hidden="true" />
         </Link>

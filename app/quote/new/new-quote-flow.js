@@ -23,6 +23,7 @@ import {
   QuoteDraftingProgress,
 } from '@/components/quote/loading-states';
 import PrimaryAction from '@/components/quote/primary-action';
+import { useMobileFocusScroll } from '@/components/quote/use-mobile-focus-scroll';
 import { continueState } from '@/lib/new-quote';
 import {
   examplePhoto,
@@ -110,7 +111,7 @@ function groupStepsByTurn(steps) {
 
 // initialTrade/initialDescription come from the profile, or a recent quote (page.js); trade may be null.
 // Tone isn't chosen here: the quote route uses the profile's. sampleTitles maps sample key to title.
-export default function NewQuoteFlow({ initialTrade, initialDescription = '', recentQuotes = [], sampleTitles = {} }) {
+export default function NewQuoteFlow({ initialTrade, initialDescription = '', recentQuotes = [], quoteCount = 0, sampleTitles = {} }) {
   const router = useRouter();
   const [trade, setTrade] = useState(initialTrade);
   const [jobDescription, setJobDescription] = useState(initialDescription);
@@ -175,6 +176,8 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', re
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
   const [error, setError] = useState(null);
   const runIdRef = useRef(null);
+  const shellRef = useRef(null);
+  useMobileFocusScroll(shellRef);
   const pollTimerRef = useRef(null);
   const pollStartRef = useRef(null);
   const dialogRef = useRef(null);
@@ -870,13 +873,14 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', re
   return (
     // data-page-shell opts this page out of the layout's legacy <main> padding.
     <div
+      ref={shellRef}
       data-page-shell
       className="mx-auto flex w-full max-w-[720px] flex-col gap-5 px-5 pt-4 pb-12 md:gap-7 md:px-0 md:py-12"
     >
       <StepIndicator current={stepForPhase(phase)} />
       {phase === 'form' ? (
-        <div className="flex flex-col gap-2 md:gap-3">
-          <h1 className="m-0 text-[32px] leading-tight font-bold tracking-tight md:text-[44px]">
+        <div className="flex flex-col gap-2.5 pt-1 md:flex-row md:items-baseline md:justify-between md:gap-4">
+          <h1 className="m-0 text-[32px] leading-tight font-bold tracking-[-0.02em] md:text-[44px] md:leading-[1.15] md:tracking-[-0.025em]">
             What&apos;s the job?
           </h1>
           <TradeChip value={trade} onChange={setTrade} />
@@ -911,7 +915,7 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', re
           {/* Desktop only for now. New traders see a sample quote until they have quotes of their own. */}
           <div className="hidden border-t border-border pt-7 md:block">
             {recentQuotes.length > 0 ? (
-              <RecentQuotes quotes={recentQuotes} />
+              <RecentQuotes quotes={recentQuotes} total={quoteCount} />
             ) : (
               <SampleQuote sample={{ key: sampleKey, title: sampleTitles[sampleKey] }} />
             )}

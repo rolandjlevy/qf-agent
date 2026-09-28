@@ -14,14 +14,14 @@ import {
 } from '@/components/ui/command';
 
 // Picks the trade for this quote only; the profile's trade is just the starting value.
-// With no trade yet (`value` null) the picker opens straight away.
+// With no trade yet (`value` null) the chip is outlined in blue; the picker never opens by itself.
 export default function TradeChip({ value, onChange }) {
-  const [open, setOpen] = useState(!value);
+  const [open, setOpen] = useState(false);
   const label = value ? tradeLabel(value) : 'Choose a trade';
 
   return (
-    <div className="flex items-center gap-2.5">
-      <span className="text-sm text-muted-foreground">Quoting as</span>
+    <div className="flex items-center gap-2">
+      <span className="text-sm text-muted-foreground md:text-[13px] md:leading-normal md:font-medium">Quoting as</span>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
@@ -32,12 +32,13 @@ export default function TradeChip({ value, onChange }) {
             {/* The visible pill is 36px; the 44px button around it keeps the tap target at the minimum. */}
             <span
               className={cn(
-                'inline-flex h-9 items-center gap-1.5 rounded-full border border-input bg-card px-3.5 text-sm font-semibold group-hover:border-brand',
-                !value && 'text-muted-foreground',
+                'inline-flex h-9 items-center gap-2 rounded-full border bg-card px-3.5 text-sm font-semibold shadow-sm transition-all active:scale-95 md:shadow-xs md:active:scale-100 group-hover:border-brand group-hover:bg-brand-tint',
+                value ? 'border-input' : 'border-dashed border-brand text-brand',
               )}
             >
+              {value && <span className="size-2 rounded-full bg-brand ring-2 ring-brand-subtle-border" aria-hidden="true" />}
               {label}
-              <ChevronDown className="size-4" aria-hidden="true" />
+              <ChevronDown className="size-[18px] text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
             </span>
           </button>
         </PopoverTrigger>
