@@ -54,7 +54,7 @@ export default function AppHeader() {
                     className={cn(
                       'flex h-full items-center border-b-[3px] px-4 pt-[3px] text-[15px] no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
                       active
-                        ? 'border-brand font-semibold text-foreground'
+                        ? 'border-brand font-semibold text-brand'
                         : 'border-transparent font-medium text-muted-foreground hover:text-foreground',
                     )}
                   >

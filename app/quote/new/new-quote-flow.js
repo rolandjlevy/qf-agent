@@ -110,7 +110,7 @@ function groupStepsByTurn(steps) {
 
 // initialTrade/initialDescription come from the profile, or a recent quote (page.js); trade may be null.
 // Tone isn't chosen here: the quote route uses the profile's. sampleTitles maps sample key to title.
-export default function NewQuoteFlow({ initialTrade, initialDescription = '', recentQuotes = [], sampleTitles = {} }) {
+export default function NewQuoteFlow({ initialTrade, initialDescription = '', recentQuotes = [], quoteCount = 0, sampleTitles = {} }) {
   const router = useRouter();
   const [trade, setTrade] = useState(initialTrade);
   const [jobDescription, setJobDescription] = useState(initialDescription);
@@ -911,7 +911,7 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', re
           {/* Desktop only for now. New traders see a sample quote until they have quotes of their own. */}
           <div className="hidden border-t border-border pt-7 md:block">
             {recentQuotes.length > 0 ? (
-              <RecentQuotes quotes={recentQuotes} />
+              <RecentQuotes quotes={recentQuotes} total={quoteCount} />
             ) : (
               <SampleQuote sample={{ key: sampleKey, title: sampleTitles[sampleKey] }} />
             )}

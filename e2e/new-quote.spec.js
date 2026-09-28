@@ -9,7 +9,7 @@ const PNG = Buffer.from(
 const photo = (n) => ({ name: `photo-${n}.png`, mimeType: 'image/png', buffer: PNG });
 const isMobile = (testInfo) => testInfo.project.name === 'mobile';
 // Baselines assume a database with quotes (the returning-user frame); recent quotes are masked as live data.
-const recentQuotes = (page) => page.locator('#recent-quotes-heading').locator('..');
+const recentQuotes = (page) => page.locator('section[aria-labelledby=recent-quotes-heading]');
 const blur = (page) => page.evaluate(() => document.activeElement?.blur());
 
 const chip = (page) => page.getByRole('button', { name: /trade/i });
@@ -19,9 +19,7 @@ const primary = (page) => page.locator('[data-slot=primary-action]');
 // The profile may or may not have a trade; pick one so every run starts from the same state.
 async function chooseTrade(page, label) {
   const search = page.getByPlaceholder('Search trades');
-  // With no profile trade the picker opens by itself once hydrated, so give it a moment first.
-  await search.waitFor({ timeout: 1500 }).catch(() => {});
-  if (!(await search.isVisible())) await chip(page).click();
+  await chip(page).click();
   await search.fill(label);
   // Search is fuzzy, so wait for the exact trade to be the highlighted match, then pick it with Enter
   // (clicking races the popover's open animation).
@@ -103,7 +101,9 @@ test('example chips follow the trade, fill the text and hide', async ({ page }) 
 test('photo hint follows the trade', async ({ page }, testInfo) => {
   await chooseTrade(page, 'Electrician');
   const hint = page.locator('#job-description-help');
-  await expect(hint).toContainText(isMobile(testInfo) ? 'Useful photos: the fuse box' : 'Useful photos for electrical work:');
+  await expect(hint).toContainText('Key details for electrical work');
+  // Both photo lists are in the DOM; check the one for this width is the one showing.
+  await expect(hint.getByText(isMobile(testInfo) ? 'the fuse box and its label' : 'the fuse box or consumer unit')).toBeVisible();
 });
 
 test('every control is keyboard reachable with a visible focus ring', async ({ page }, testInfo) => {
@@ -112,7 +112,7 @@ test('every control is keyboard reachable with a visible focus ring', async ({ p
   const want = [
     /trade/i,
     'job-description',
-    isMobile(testInfo) ? 'Camera' : 'Add photos',
+    isMobile(testInfo) ? 'Camera' : 'Upload photos',
     'Get materials list',
   ];
   const seen = [];
