@@ -8,10 +8,10 @@ export default function AskCustomerLink({ href }) {
   return (
     <a
       href={href}
-      className="inline-flex min-h-11 items-center gap-1.5 self-start text-[13px] font-medium text-brand no-underline hover:underline"
+      className="inline-flex min-h-11 items-center gap-1.5 self-start text-[13px] font-semibold text-brand no-underline hover:text-brand-hover hover:underline"
     >
-      <Send className="size-3.5" strokeWidth={1.75} aria-hidden="true" />
-      No photos yet? Ask the customer for them
+      <Send className="size-4" strokeWidth={1.75} aria-hidden="true" />
+      Send customer photo request link
     </a>
   );
 }

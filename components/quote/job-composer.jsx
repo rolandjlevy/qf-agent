@@ -62,47 +62,50 @@ export default function JobComposer({ value, onChange, trade, photos, onAddPhoto
     accept: { 'image/*': [] },
   });
 
+  // A fragment: the tip card sits in the form's own column, spaced like the other sections.
   return (
-    <div className="flex flex-col gap-2">
-      <label htmlFor="job-description" className="text-sm font-semibold md:text-[15px]">
-        Paste the customer&apos;s message, or describe the job
-      </label>
+    <>
+      <div className="flex flex-col gap-2">
+        <label htmlFor="job-description" className="text-[15px] font-semibold">
+          Paste the customer&apos;s message, or describe the job
+        </label>
 
-      <div
-        {...getRootProps({
-          className: cn(
-            'overflow-hidden rounded-card border border-border bg-card shadow-card focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20',
-            isDragActive && 'bg-brand-tint outline-2 outline-offset-4 outline-brand outline-dashed',
-          ),
-        })}
-      >
-        <textarea
-          ref={ref}
-          id="job-description"
-          name="jobDescription"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={isDesktop ? PLACEHOLDER : PLACEHOLDER_SHORT}
-          aria-describedby="job-description-help"
-          data-slot="composer-textarea"
-          className={cn(
-            'block w-full resize-none border-0 bg-transparent px-5 py-4 text-base leading-[1.55] text-foreground outline-none placeholder:text-foreground-subtle md:text-[15px]',
-            // Once photos are in, the text box hugs its content so the thumbnails sit right under it.
-            photos.length === 0 && 'min-h-[140px] md:min-h-[180px]',
+        <div
+          {...getRootProps({
+            className: cn(
+              'overflow-hidden rounded-card border border-input bg-card shadow-card transition-all focus-within:border-brand focus-within:ring-2 focus-within:ring-brand-subtle-border',
+              isDragActive && 'bg-brand-tint outline-2 outline-offset-4 outline-brand outline-dashed',
+            ),
+          })}
+        >
+          <textarea
+            ref={ref}
+            id="job-description"
+            name="jobDescription"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={isDesktop ? PLACEHOLDER : PLACEHOLDER_SHORT}
+            aria-describedby="job-description-help"
+            data-slot="composer-textarea"
+            className={cn(
+              'block w-full resize-none border-0 bg-transparent p-5 pb-3 text-base leading-[1.6] text-foreground outline-none placeholder:text-foreground-subtle',
+              // Once photos are in, the text box hugs its content so the thumbnails sit right under it.
+              photos.length === 0 && 'min-h-[140px] md:min-h-[185px]',
+            )}
+          />
+          {photos.length > 0 && (
+            <PhotoThumbnails photos={photos} onRemove={removePhoto} onAdd={() => galleryRef.current?.click()} />
           )}
-        />
-        {photos.length > 0 && (
-          <PhotoThumbnails photos={photos} onRemove={removePhoto} onAdd={() => galleryRef.current?.click()} />
-        )}
-        <PhotoPicker count={photos.length} onFiles={addFiles} galleryRef={galleryRef} />
+          <PhotoPicker count={photos.length} onFiles={addFiles} galleryRef={galleryRef} />
+        </div>
+
+        {/* Always in the accessibility tree (sr-only while empty) so the message is announced. */}
+        <p role="status" className={cn('m-0 text-sm text-destructive', !photoMessage && 'sr-only')}>
+          {photoMessage}
+        </p>
       </div>
 
-      {/* Always in the accessibility tree (sr-only while empty) so the message is announced. */}
-      <p role="status" className={cn('m-0 text-sm text-destructive', !photoMessage && 'sr-only')}>
-        {photoMessage}
-      </p>
-
       <PhotoGuidanceCard trade={trade} showAskCustomer={photos.length === 0} />
-    </div>
+    </>
   );
 }

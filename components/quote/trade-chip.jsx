@@ -20,8 +20,8 @@ export default function TradeChip({ value, onChange }) {
   const label = value ? tradeLabel(value) : 'Choose a trade';
 
   return (
-    <div className="flex items-center gap-2.5">
-      <span className="text-sm text-muted-foreground">Quoting as</span>
+    <div className="flex items-center gap-2">
+      <span className="text-[13px] font-medium text-muted-foreground">Quoting as</span>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
@@ -32,13 +32,13 @@ export default function TradeChip({ value, onChange }) {
             {/* The visible pill is 36px; the 44px button around it keeps the tap target at the minimum. */}
             <span
               className={cn(
-                'inline-flex h-9 items-center gap-1.5 rounded-full border bg-card px-3.5 text-sm font-semibold group-hover:border-brand',
-                value ? 'border-input' : 'border-dashed border-brand text-brand group-hover:bg-brand-tint',
+                'inline-flex h-9 items-center gap-2 rounded-full border bg-card px-3.5 text-sm font-semibold shadow-xs transition-all group-hover:border-brand group-hover:bg-brand-tint',
+                value ? 'border-input' : 'border-dashed border-brand text-brand',
               )}
             >
-              {value && <span className="size-2 rounded-full bg-success" aria-hidden="true" />}
+              {value && <span className="size-2 rounded-full bg-brand ring-2 ring-brand-subtle-border" aria-hidden="true" />}
               {label}
-              <ChevronDown className="size-4" aria-hidden="true" />
+              <ChevronDown className="size-[18px] text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
             </span>
           </button>
         </PopoverTrigger>

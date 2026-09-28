@@ -5,9 +5,12 @@ import { Camera, Image as ImageIcon } from 'lucide-react';
 import { MAX_JOB_PHOTOS } from '@/lib/constants';
 
 const pickerButton =
-  'h-11 items-center gap-2 rounded-control border border-border bg-card px-4 text-[15px] font-semibold text-foreground hover:bg-accent disabled:cursor-not-allowed disabled:text-muted-foreground disabled:hover:bg-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
+  'h-11 items-center gap-2 rounded-lg border border-input bg-card px-3.5 text-sm font-medium text-foreground shadow-xs transition-all hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:text-muted-foreground disabled:hover:border-input focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
+const pickerIcon = 'size-[18px] text-brand';
 
-const countPill = 'rounded-full bg-card px-2.5 py-0.5 text-xs font-medium text-muted-foreground ring-1 ring-border';
+const countBadge =
+  'items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 text-[13px] font-medium text-muted-foreground tabular-nums';
+const countDot = <span className="size-1.5 rounded-full bg-success ring-2 ring-success/15" aria-hidden="true" />;
 
 // The composer's bottom bar; camera, gallery and JobComposer's drop all end at `onFiles`.
 // `galleryRef` is the parent's, so the thumbnails' "Add photo" tile can open the same picker.
@@ -23,7 +26,7 @@ export default function PhotoPicker({ count, onFiles, galleryRef }) {
   }
 
   return (
-    <div className="flex items-center gap-2 border-t border-border-subtle bg-surface-muted px-4 py-2.5 md:gap-3">
+    <div className="flex items-center gap-2 border-t border-border bg-surface-muted px-4 py-3 md:gap-3 md:px-5">
       <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={handleChange} />
       <input ref={galleryRef} type="file" accept="image/*" multiple hidden onChange={handleChange} />
 
@@ -35,7 +38,7 @@ export default function PhotoPicker({ count, onFiles, galleryRef }) {
         disabled={full}
         onClick={() => cameraRef.current?.click()}
       >
-        <Camera className="size-[18px]" strokeWidth={1.75} aria-hidden="true" />
+        <Camera className={pickerIcon} strokeWidth={1.75} aria-hidden="true" />
         Camera
       </button>
       <button
@@ -45,10 +48,11 @@ export default function PhotoPicker({ count, onFiles, galleryRef }) {
         disabled={full}
         onClick={() => galleryRef.current?.click()}
       >
-        <ImageIcon className="size-[18px]" strokeWidth={1.75} aria-hidden="true" />
+        <ImageIcon className={pickerIcon} strokeWidth={1.75} aria-hidden="true" />
         Photos
       </button>
-      <span className={`${countPill} ml-auto md:hidden`}>
+      <span className={`${countBadge} ml-auto inline-flex md:hidden`}>
+        {count > 0 && countDot}
         {count} / {MAX_JOB_PHOTOS}
       </span>
 
@@ -60,14 +64,15 @@ export default function PhotoPicker({ count, onFiles, galleryRef }) {
         disabled={full}
         onClick={() => galleryRef.current?.click()}
       >
-        <Camera className="size-[18px]" strokeWidth={1.75} aria-hidden="true" />
+        <Camera className={pickerIcon} strokeWidth={1.75} aria-hidden="true" />
         Upload photos
       </button>
       <span className="hidden text-[13px] text-muted-foreground md:inline">
         or drop images here · up to {MAX_JOB_PHOTOS} photos
       </span>
       {count > 0 && (
-        <span className={`${countPill} ml-auto hidden md:inline`}>
+        <span className={`${countBadge} ml-auto hidden md:inline-flex`}>
+          {countDot}
           {count} / {MAX_JOB_PHOTOS} attached
         </span>
       )}

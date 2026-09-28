@@ -27,6 +27,8 @@ async function chooseTrade(page, label) {
   await search.press('Enter');
   await expect(chip(page)).toHaveAccessibleName(`Change trade, currently ${label}`);
   await expect(page.locator('[data-slot=popover-content]')).toHaveCount(0);
+  // Move off the chip so screenshots don't catch its hover state.
+  await page.mouse.move(0, 0);
 }
 
 test.beforeEach(async ({ page }) => {

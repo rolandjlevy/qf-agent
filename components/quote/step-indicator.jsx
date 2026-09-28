@@ -42,15 +42,15 @@ export default function StepIndicator({ current }) {
             <li
               key={label}
               aria-current={isCurrent ? 'step' : undefined}
-              className={cn('flex items-center', i > 0 && 'flex-1')}
+              className="flex items-center"
             >
-              {i > 0 && <span className="mx-3 h-px flex-1 bg-border" aria-hidden="true" />}
+              {i > 0 && <span className="mx-4 h-[2px] w-14 bg-border" aria-hidden="true" />}
               <span
                 className={cn(
-                  'flex size-6 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold',
+                  'flex size-6 shrink-0 items-center justify-center rounded-full text-xs',
                   isCurrent
-                    ? 'bg-brand text-primary-foreground'
-                    : 'border border-border bg-card text-muted-foreground',
+                    ? 'bg-brand font-semibold text-primary-foreground ring-2 ring-brand/20 ring-offset-2 ring-offset-background'
+                    : 'border border-input bg-card font-medium text-muted-foreground',
                 )}
                 aria-hidden="true"
               >
@@ -58,8 +58,8 @@ export default function StepIndicator({ current }) {
               </span>
               <span
                 className={cn(
-                  'ml-2 text-sm whitespace-nowrap',
-                  isCurrent ? 'font-semibold text-foreground' : 'text-muted-foreground',
+                  'ml-2.5 text-sm whitespace-nowrap',
+                  isCurrent ? 'font-semibold text-brand' : 'font-medium text-muted-foreground',
                 )}
               >
                 {label}

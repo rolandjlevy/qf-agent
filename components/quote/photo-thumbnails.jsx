@@ -1,4 +1,4 @@
-import { ImagePlus, X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { MAX_JOB_PHOTOS } from '@/lib/constants';
 import { examplePhoto, unsplashCredit } from '@/lib/example-photos';
 
@@ -24,35 +24,33 @@ export default function PhotoThumbnails({ photos, onRemove, onAdd }) {
   const credit = exampleSource ? unsplashCredit(exampleSource) : null;
 
   return (
-    <div className="px-4 pb-4 md:px-5">
-      {/* pt-3/pr-3 leave room for the remove buttons, which sit half outside each tile. */}
-      <ul className="m-0 flex list-none flex-wrap gap-3 p-0 pt-3 pr-3">
+    <div className="px-5 pb-5">
+      <ul className="m-0 flex list-none flex-wrap items-center gap-3 p-0">
         {photos.map((p, i) => (
-          <li key={p.id} className="relative size-[72px]">
+          <li key={p.id} className="relative size-[76px] overflow-hidden rounded-[10px] border border-border bg-surface-muted shadow-xs">
             <img
               src={p.previewUrl}
               alt={`Photo ${i + 1}`}
-              className={`size-full rounded-lg object-cover ${p.status === 'ready' ? '' : 'opacity-50'}`}
+              className={`size-full object-cover ${p.status === 'ready' ? '' : 'opacity-50'}`}
             />
-            {p.status !== 'ready' && (
-              <span
-                className={`absolute bottom-1 left-1 rounded px-1 text-[11px] font-medium text-white ${
-                  p.status === 'failed' ? 'bg-destructive' : 'bg-foreground/70'
-                }`}
-              >
-                {STATUS_LABELS[p.status]}
-              </span>
-            )}
-            {/* A 32px hit area around the 24px circle. */}
+            {/* The photo's number once it's in; while it's on its way, its upload status. */}
+            <span
+              className={`absolute bottom-1 left-1 rounded px-1.5 py-0.5 text-[10px] leading-tight font-medium text-white ${
+                p.status === 'failed' ? 'bg-destructive' : 'bg-black/60'
+              }`}
+            >
+              {p.status === 'ready' ? `#${i + 1}` : STATUS_LABELS[p.status]}
+            </span>
+            {/* A 28px hit area around the 20px circle. */}
             <button
               type="button"
               data-slot="photo-remove"
               aria-label={`Remove photo ${i + 1}`}
               onClick={() => onRemove(p.id)}
-              className="group absolute -top-3 -right-3 flex size-8 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring"
+              className="group absolute top-0 right-0 flex size-7 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
             >
-              <span className="flex size-6 items-center justify-center rounded-full bg-black/75 text-white group-hover:bg-black">
-                <X className="size-3.5" strokeWidth={2} aria-hidden="true" />
+              <span className="flex size-5 items-center justify-center rounded-full bg-black/80 text-white transition-colors group-hover:bg-black">
+                <X className="size-3" strokeWidth={2} aria-hidden="true" />
               </span>
             </button>
           </li>
@@ -64,9 +62,10 @@ export default function PhotoThumbnails({ photos, onRemove, onAdd }) {
               data-slot="photo-add"
               aria-label="Add another photo"
               onClick={onAdd}
-              className="flex size-[72px] items-center justify-center rounded-lg border-2 border-dashed border-border bg-transparent text-muted-foreground hover:border-brand hover:bg-brand-tint hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="flex size-[76px] flex-col items-center justify-center gap-1 rounded-[10px] border border-dashed border-input bg-surface-muted text-muted-foreground transition-all hover:border-brand hover:bg-brand-tint hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
-              <ImagePlus className="size-5" strokeWidth={1.75} aria-hidden="true" />
+              <Plus className="size-5" strokeWidth={1.75} aria-hidden="true" />
+              <span className="text-[10px] font-medium" aria-hidden="true">Add photo</span>
             </button>
           </li>
         )}

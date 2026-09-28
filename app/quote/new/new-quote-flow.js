@@ -875,8 +875,8 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', re
     >
       <StepIndicator current={stepForPhase(phase)} />
       {phase === 'form' ? (
-        <div className="flex flex-col gap-2 md:gap-3">
-          <h1 className="m-0 text-[32px] leading-tight font-bold tracking-tight md:text-[44px]">
+        <div className="flex flex-col gap-2 pt-1 md:flex-row md:items-baseline md:justify-between md:gap-4">
+          <h1 className="m-0 text-[40px] leading-[1.15] font-bold tracking-[-0.025em] md:text-[44px]">
             What&apos;s the job?
           </h1>
           <TradeChip value={trade} onChange={setTrade} />
