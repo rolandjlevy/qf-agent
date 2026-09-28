@@ -170,11 +170,22 @@
   }
 }
 
+/* Reduced motion: no sweep or scan line, but skeletons fade in place so the page still looks busy. */
 @media (prefers-reduced-motion: reduce) {
   .skeleton::after,
   .photo-scan::after {
     animation: none;
     display: none;
+  }
+  .skeleton {
+    animation: skeleton-pulse 2s ease-in-out infinite;
+    animation-delay: calc(var(--i, 0) * 90ms);
+  }
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.5;
   }
 }
 
