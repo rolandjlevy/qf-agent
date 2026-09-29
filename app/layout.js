@@ -32,7 +32,8 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     // Browser extensions (e.g. Grammarly) add attributes to html/body before React hydrates.
-    <html lang="en" className={plex.variable} suppressHydrationWarning>
+    // data-scroll-behavior: tells Next to switch off the homepage's smooth scrolling during page changes.
+    <html lang="en" className={plex.variable} data-scroll-behavior="smooth" suppressHydrationWarning>
       <body className="m-0 bg-background font-sans text-foreground" suppressHydrationWarning>
         <AppHeader />
         {/* Legacy pages rely on this padding; redesigned pages mark themselves data-page-shell and set their own. */}
