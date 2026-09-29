@@ -35,7 +35,7 @@ export default function AppHeader() {
     <header className="sticky top-0 z-40 h-14 border-b border-border bg-card/95 backdrop-blur-md md:h-[72px]">
       <div className="mx-auto flex h-full max-w-[1280px] items-center gap-10 px-4 md:px-6">
         <Link
-          href="/quote/new"
+          href="/"
           className="flex min-h-11 shrink-0 items-center no-underline"
         >
           {/* The logo's own aria-label ("QuoteFetch") names the link. */}
