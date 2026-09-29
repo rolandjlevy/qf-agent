@@ -17,7 +17,7 @@ export const metadata = {
 // The marketing homepage: static content only, so it's prerendered. The app itself starts at /quote/new.
 export default function Home() {
   return (
-    <div data-page-shell>
+    <div data-page-shell data-smooth-scroll>
       <HeroSection />
       {/* Alternating white bands separate the sections on the stone background. */}
       <div className="bg-card">

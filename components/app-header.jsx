@@ -1,124 +1,219 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, User, X } from 'lucide-react';
+import { Building2, ChevronRight, CircleHelp, Menu, Plus, User, X } from 'lucide-react';
 import Logo from '@/components/logo';
 import { cn } from '@/lib/utils';
+import { headerContext, isQuotesPath } from '@/lib/header-context';
 import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
-// `isActive` decides which link gets aria-current; /quote/[id] belongs under Quotes, /quote/example under New quote.
-const NAV_LINKS = [
-  { href: '/quote/new', label: 'New quote', isActive: (p) => /^\/quote\/(new|example)\b/.test(p) },
-  {
-    href: '/quotes',
-    label: 'Quotes',
-    isActive: (p) => p.startsWith('/quotes') || /^\/quote\/(?!new\b|example\b)/.test(p),
-  },
-  { href: '/profile', label: 'Profile', isActive: (p) => p.startsWith('/profile') },
+// Homepage sections, not pages of their own.
+const MARKETING_LINKS = [
+  { href: '/#how-it-works', label: 'How it works' },
+  { href: '/#faq', label: 'FAQ' },
+];
+// The account menu. No sign-in yet (Phase 4), so no Billing or Sign out.
+const ACCOUNT_LINKS = [
+  { href: '/profile', label: 'Your business', Icon: Building2 },
+  { href: '/#faq', label: 'Help and FAQ', Icon: CircleHelp },
 ];
 
-const iconButton =
-  'inline-flex size-11 items-center justify-center rounded-full text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
+const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
+const iconButton = cn(
+  'inline-flex size-11 items-center justify-center rounded-full text-foreground hover:bg-accent',
+  focusRing,
+);
+const blueButton = cn(
+  'inline-flex h-11 items-center justify-center gap-1.5 rounded-button bg-brand px-4 text-sm font-semibold whitespace-nowrap text-white no-underline transition-colors hover:bg-brand-hover',
+  focusRing,
+);
 
+// Desktop nav link: `active` gets the brand underline and aria-current.
+function NavLink({ href, active, children }) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'flex h-full items-center border-b-[3px] px-1 pt-[3px] text-[15px] no-underline',
+        focusRing,
+        active
+          ? 'border-brand font-semibold text-brand'
+          : 'border-transparent font-medium text-muted-foreground hover:text-foreground',
+      )}
+    >
+      {children}
+    </Link>
+  );
+}
+
+// Mobile menu row: 48px tall, with a chevron.
+function MenuRow({ href, active, onClick, children }) {
+  return (
+    <li className="border-b border-border-subtle last:border-b-0">
+      <SheetClose asChild>
+        <Link
+          href={href}
+          onClick={onClick}
+          aria-current={active ? 'page' : undefined}
+          className={cn(
+            'flex min-h-12 items-center justify-between gap-3 px-1 text-[15px] no-underline',
+            focusRing,
+            active ? 'font-semibold text-brand' : 'font-medium text-foreground',
+          )}
+        >
+          {children}
+          <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
+        </Link>
+      </SheetClose>
+    </li>
+  );
+}
+
+// One header for every page, chosen by route (lib/header-context.js): the homepage gets its section links and
+// "Start a quote"; app pages get Quotes, "+ New quote" and the account menu; /quote/new drops "+ New quote".
 export default function AppHeader() {
   const pathname = usePathname() ?? '';
+  const [menuOpen, setMenuOpen] = useState(false);
+  const context = headerContext(pathname);
+  const marketing = context === 'marketing';
+  const onQuotes = isQuotesPath(pathname);
+  const onProfile = pathname.startsWith('/profile');
+
+  // On the homepage, a section link in the menu scrolls once the menu has closed: the sheet's
+  // scroll lock would otherwise restore the old position and undo the jump.
+  function scrollAfterClose(e, href) {
+    if (pathname !== '/' || !href.startsWith('/#')) return;
+    e.preventDefault();
+    setMenuOpen(false);
+    setTimeout(() => {
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      document.getElementById(href.slice(2))?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth' });
+      window.history.replaceState(null, '', href);
+    }, 350);
+  }
+
+  const mobileRows = marketing
+    ? [...MARKETING_LINKS, { href: '/quotes', label: 'Your quotes' }]
+    : [{ href: '/quotes', label: 'Quotes', active: onQuotes }, ...ACCOUNT_LINKS.map((l) => ({ ...l, active: l.href === '/profile' && onProfile }))];
 
   return (
     // Sticky, not fixed: it stays in the page flow (no spacer). z-40 keeps popovers and the menu (z-50) above it.
     <header className="sticky top-0 z-40 h-14 border-b border-border bg-card/95 backdrop-blur-md md:h-[72px]">
       <div className="mx-auto flex h-full max-w-[1280px] items-center gap-10 px-4 md:px-6">
-        <Link
-          href="/"
-          className="flex min-h-11 shrink-0 items-center no-underline"
-        >
+        <Link href="/" className="flex min-h-11 shrink-0 items-center no-underline">
           {/* The logo's own aria-label ("QuoteFetch") names the link. */}
           <Logo className="h-6 w-auto md:h-8" />
         </Link>
 
         <nav aria-label="Main" className="hidden h-full md:block">
           <ul className="m-0 flex h-full list-none gap-7 p-0">
-            {NAV_LINKS.map((link) => {
-              const active = link.isActive(pathname);
-              return (
+            {marketing ? (
+              MARKETING_LINKS.map((link) => (
                 <li key={link.href} className="h-full">
-                  <Link
-                    href={link.href}
-                    aria-current={active ? 'page' : undefined}
-                    className={cn(
-                      'flex h-full items-center border-b-[3px] px-1 pt-[3px] text-[15px] no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                      active
-                        ? 'border-brand font-semibold text-brand'
-                        : 'border-transparent font-medium text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    {link.label}
-                  </Link>
+                  <NavLink href={link.href}>{link.label}</NavLink>
                 </li>
-              );
-            })}
+              ))
+            ) : (
+              <li className="h-full">
+                <NavLink href="/quotes" active={onQuotes}>
+                  Quotes
+                </NavLink>
+              </li>
+            )}
           </ul>
         </nav>
 
-        <Link
-          href="/profile"
-          aria-label="Account"
-          className={cn(iconButton, 'ml-auto hidden border border-border bg-card hover:border-brand hover:bg-brand-tint hover:text-brand md:inline-flex')}
-        >
-          <User className="size-5" aria-hidden="true" />
-        </Link>
+        <div className="ml-auto flex items-center gap-2 md:gap-3">
+          {marketing ? (
+            <>
+              <Link
+                href="/quotes"
+                className={cn(
+                  'hidden min-h-11 items-center px-2 text-[15px] font-medium text-foreground no-underline hover:text-brand md:inline-flex',
+                  focusRing,
+                )}
+              >
+                Your quotes
+              </Link>
+              <Link href="/quote/new" className={blueButton}>
+                Start a quote
+              </Link>
+            </>
+          ) : (
+            context === 'app' && (
+              <Link href="/quote/new" className={blueButton}>
+                <Plus className="size-4" strokeWidth={2.5} aria-hidden="true" />
+                <span className="md:hidden">New</span>
+                <span className="hidden md:inline">New quote</span>
+              </Link>
+            )
+          )}
 
-        <Sheet>
-          <SheetTrigger asChild>
-            <button
-              type="button"
-              aria-label="Menu"
-              className={cn(iconButton, 'ml-auto md:hidden')}
-            >
-              <Menu className="size-6" aria-hidden="true" />
-            </button>
-          </SheetTrigger>
-          {/* Own close button: shadcn's default is a 16px target, under the 44px minimum. */}
-          <SheetContent side="right" showCloseButton={false} className="bg-card px-5 pt-3">
-            <div className="flex items-center justify-between">
-              <SheetTitle className="text-base font-semibold">Menu</SheetTitle>
-              <SheetClose className={iconButton} aria-label="Close menu">
-                <X className="size-5" aria-hidden="true" />
-              </SheetClose>
-            </div>
-            <nav aria-label="Main">
-              <ul className="m-0 flex list-none flex-col p-0">
-                {NAV_LINKS.map((link) => {
-                  const active = link.isActive(pathname);
-                  return (
-                    <li key={link.href}>
-                      <SheetClose asChild>
-                        <Link
-                          href={link.href}
-                          aria-current={active ? 'page' : undefined}
-                          className={cn(
-                            'flex min-h-11 items-center border-l-[3px] pl-3 text-base no-underline',
-                            active
-                              ? 'border-brand font-semibold text-foreground'
-                              : 'border-transparent font-medium text-muted-foreground',
-                          )}
-                        >
-                          {link.label}
-                        </Link>
-                      </SheetClose>
-                    </li>
-                  );
-                })}
-              </ul>
-            </nav>
-          </SheetContent>
-        </Sheet>
+          {!marketing && (
+            // Non-modal: the rest of the page stays readable and scrollable while it is open.
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger
+                aria-label="Account"
+                className={cn(
+                  iconButton,
+                  'hidden border border-border bg-card hover:border-brand hover:bg-brand-tint hover:text-brand data-[state=open]:border-brand data-[state=open]:text-brand md:inline-flex',
+                )}
+              >
+                <User className="size-5" aria-hidden="true" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {ACCOUNT_LINKS.map(({ href, label, Icon }) => (
+                  <DropdownMenuItem key={label} asChild>
+                    <Link href={href}>
+                      <Icon aria-hidden="true" />
+                      {label}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+            <SheetTrigger asChild>
+              <button type="button" aria-label="Menu" className={cn(iconButton, 'md:hidden')}>
+                <Menu className="size-6" aria-hidden="true" />
+              </button>
+            </SheetTrigger>
+            {/* Own close button: shadcn's default is a 16px target, under the 44px minimum. */}
+            <SheetContent side="right" showCloseButton={false} className="bg-card px-5 pt-3">
+              <div className="flex items-center justify-between">
+                <SheetTitle className="text-base font-semibold">Menu</SheetTitle>
+                <SheetClose className={iconButton} aria-label="Close menu">
+                  <X className="size-5" aria-hidden="true" />
+                </SheetClose>
+              </div>
+              <nav aria-label="Main">
+                <ul className="m-0 flex list-none flex-col p-0">
+                  {mobileRows.map((row) => (
+                    <MenuRow
+                      key={row.label}
+                      href={row.href}
+                      active={row.active}
+                      onClick={(e) => scrollAfterClose(e, row.href)}
+                    >
+                      {row.label}
+                    </MenuRow>
+                  ))}
+                </ul>
+              </nav>
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     </header>
   );

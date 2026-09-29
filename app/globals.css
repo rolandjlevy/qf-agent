@@ -97,6 +97,12 @@
       scroll-padding-top: calc(72px + 16px);
     }
   }
+  /* The homepage's section links glide rather than jump. Next turns this off for page changes. */
+  @media (prefers-reduced-motion: no-preference) {
+    html:has([data-smooth-scroll]) {
+      scroll-behavior: smooth;
+    }
+  }
   h1, h2, h3, h4, h5, h6 {
     font-size: revert;
     font-weight: revert;
