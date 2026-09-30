@@ -7,15 +7,15 @@ const EXAMPLE_HEADER = 'Miller Electrical | 07700 900461 | Leicester';
 // How many lines of each section to show; the rest is left for the full example page.
 const SHOW_LINES = { 'MATERIALS & EQUIPMENT': 4, 'SCOPE OF WORK': 4, ASSUMPTIONS: 2, EXCLUSIONS: 2 };
 // Which callout (1-4) marks each part of the document.
-const MARKERS = { header: 1, 'MATERIALS & EQUIPMENT': 2, 'SCOPE OF WORK': 3, EXCLUSIONS: 4 };
+const MARKERS = { header: 1, 'MATERIALS & EQUIPMENT': 2, 'SCOPE OF WORK': 3, ASSUMPTIONS: 4 };
 
 const CALLOUTS = [
-  ['Your business name and contact details', 'Filled in from your profile on every quote.'],
+  ['Your details, on every quote', 'Business name and contact filled in from your profile.'],
   [
     'One specific product per line',
-    'Never a made-up price: look up current prices from Screwfix, Toolstation, B&Q or Amazon and pick the one you want.',
+    'Never a made-up price. Look up current prices from Screwfix, Toolstation, B&Q or Amazon and pick the one you want.',
   ],
-  ['The scope of work in plain English', 'So the customer knows exactly what they are paying for.'],
+  ['Scope in plain English', "So the customer knows exactly what they're paying for."],
   ['Assumptions and exclusions in writing', 'The things that cause arguments on site, agreed before you start.'],
 ];
 
@@ -51,10 +51,10 @@ export default function QuoteDocumentProof() {
   const shown = sections.filter((s) => SHOW_LINES[s.heading]);
 
   return (
-    <section id="quote-proof" aria-labelledby="proof-heading" className="px-4 py-14 md:px-6 md:py-20">
+    <section id="proof" aria-labelledby="proof-heading" className="px-4 py-14 md:px-6 md:py-20">
       <div className="mx-auto flex max-w-[1120px] flex-col gap-10">
         <div className="mx-auto flex max-w-[640px] flex-col items-center gap-3 text-center">
-          <p className="m-0 text-xs font-semibold tracking-[0.08em] text-brand uppercase">Example quote</p>
+          <p className="m-0 text-xs font-semibold tracking-[0.08em] text-brand uppercase">A real example</p>
           <h2 id="proof-heading" className="m-0 text-[28px] leading-tight font-bold tracking-[-0.02em] md:text-[36px]">
             Looks like it came from a firm ten times your size.
           </h2>

@@ -1,6 +1,6 @@
 import { Camera, Check, Copy, MessageSquareText } from 'lucide-react';
 import { MAX_JOB_PHOTOS } from '@/lib/constants';
-import CtaLink, { SectionHeading } from './cta-link';
+import { SectionHeading } from './cta-link';
 
 function StepCard({ number, title, body, children }) {
   return (
@@ -28,7 +28,7 @@ function StepCard({ number, title, body, children }) {
 
 export default function WorkflowSection() {
   return (
-    <section id="how-it-works" aria-labelledby="workflow-heading" className="px-4 py-14 md:px-6 md:py-20">
+    <section id="how" aria-labelledby="workflow-heading" className="px-4 py-14 md:px-6 md:py-20">
       <div className="mx-auto flex max-w-[1120px] flex-col gap-10">
         <SectionHeading
           id="workflow-heading"
@@ -40,7 +40,7 @@ export default function WorkflowSection() {
           <StepCard
             number={1}
             title="Describe the job"
-            body={`Type it or paste the customer's message, and add up to ${MAX_JOB_PHOTOS} photos of the site.`}
+            body={`Type it or paste the customer's message, and add up to ${MAX_JOB_PHOTOS} photos of the site. It reads the photos too, so there's less to explain.`}
           >
             <p className="m-0 flex items-start gap-2 text-foreground">
               <MessageSquareText className="mt-0.5 size-4 shrink-0 text-brand" />
@@ -52,8 +52,8 @@ export default function WorkflowSection() {
           </StepCard>
           <StepCard
             number={2}
-            title="Check the materials"
-            body="Answer a few questions a good tradesperson would ask, then tick, untick or add to the materials list."
+            title="Answer a few quick questions"
+            body="The ones a good tradesperson would ask for that trade, like the age of the install or the access, then tick, untick or add to the materials list."
           >
             <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
               {['Consumer unit 10-way RCBO', 'RCBO 32A Type A', 'Surge protection device'].map((item) => (
@@ -68,8 +68,8 @@ export default function WorkflowSection() {
           </StepCard>
           <StepCard
             number={3}
-            title="Send the quote"
-            body="Get a plain-text quote with scope, assumptions and exclusions. Copy it into an email or message."
+            title="Send a professional quote"
+            body="Get scope, assumptions and exclusions in plain English. Look up real supplier prices, then copy it into an email or WhatsApp."
           >
             <div className="flex items-center justify-between gap-2">
               <span className="font-medium">Consumer unit replacement</span>
@@ -83,9 +83,6 @@ export default function WorkflowSection() {
             </p>
           </StepCard>
         </ol>
-        <div className="flex justify-center">
-          <CtaLink />
-        </div>
       </div>
     </section>
   );

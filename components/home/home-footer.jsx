@@ -1,11 +1,13 @@
 import Link from 'next/link';
 import Logo from '@/components/logo';
 
+// '/#…' rather than '#…' so the links also work from /pricing.
 const LINKS = [
-  ['/quote/new', 'New quote'],
-  ['/quotes', 'Quotes'],
-  ['/profile', 'Profile'],
-  ['/quote/example/electrician', 'Example quote'],
+  ['/#how', 'How it works'],
+  ['/#trust', 'Why trust it'],
+  ['/#proof', 'Example quote'],
+  ['/pricing', 'Pricing'],
+  ['/#faq', 'FAQ'],
 ];
 
 export default function HomeFooter() {
