@@ -15,9 +15,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
-// Homepage sections, not pages of their own.
+// Homepage sections, plus the pricing page.
 const MARKETING_LINKS = [
-  { href: '/#how-it-works', label: 'How it works' },
+  { href: '/#how', label: 'How it works' },
+  { href: '/#trust', label: 'Why trust it' },
+  { href: '/pricing', label: 'Pricing' },
   { href: '/#faq', label: 'FAQ' },
 ];
 // The account menu. No sign-in yet (Phase 4), so no Billing or Sign out.
@@ -43,7 +45,7 @@ function NavLink({ href, active, children }) {
       href={href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex h-full items-center border-b-[3px] px-1 pt-[3px] text-[15px] no-underline',
+        'flex h-full items-center border-b-[3px] px-1 pt-[3px] text-[15px] whitespace-nowrap no-underline',
         focusRing,
         active
           ? 'border-brand font-semibold text-brand'
@@ -102,24 +104,26 @@ export default function AppHeader() {
   }
 
   const mobileRows = marketing
-    ? [...MARKETING_LINKS, { href: '/quotes', label: 'Your quotes' }]
+    ? [...MARKETING_LINKS.map((l) => ({ ...l, active: l.href === pathname })), { href: '/quotes', label: 'Your quotes' }]
     : [{ href: '/quotes', label: 'Quotes', active: onQuotes }, ...ACCOUNT_LINKS.map((l) => ({ ...l, active: l.href === '/profile' && onProfile }))];
 
   return (
     // Sticky, not fixed: it stays in the page flow (no spacer). z-40 keeps popovers and the menu (z-50) above it.
     <header className="sticky top-0 z-40 h-14 border-b border-border bg-card/95 backdrop-blur-md md:h-[72px]">
-      <div className="mx-auto flex h-full max-w-[1280px] items-center gap-10 px-4 md:px-6">
+      <div className="mx-auto flex h-full max-w-[1280px] items-center gap-6 px-4 md:px-6 lg:gap-10">
         <Link href="/" className="flex min-h-11 shrink-0 items-center no-underline">
           {/* The logo's own aria-label ("QuoteFetch") names the link. */}
           <Logo className="h-6 w-auto md:h-8" />
         </Link>
 
         <nav aria-label="Main" className="hidden h-full md:block">
-          <ul className="m-0 flex h-full list-none gap-7 p-0">
+          <ul className="m-0 flex h-full list-none gap-5 p-0 lg:gap-7">
             {marketing ? (
               MARKETING_LINKS.map((link) => (
                 <li key={link.href} className="h-full">
-                  <NavLink href={link.href}>{link.label}</NavLink>
+                  <NavLink href={link.href} active={link.href === pathname}>
+                    {link.label}
+                  </NavLink>
                 </li>
               ))
             ) : (
@@ -138,7 +142,7 @@ export default function AppHeader() {
               <Link
                 href="/quotes"
                 className={cn(
-                  'hidden min-h-11 items-center px-2 text-[15px] font-medium text-foreground no-underline hover:text-brand md:inline-flex',
+                  'hidden min-h-11 items-center px-2 text-[15px] font-medium text-foreground no-underline hover:text-brand lg:inline-flex',
                   focusRing,
                 )}
               >

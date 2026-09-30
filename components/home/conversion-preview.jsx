@@ -1,14 +1,9 @@
-import { ArrowDown, ArrowRight, Check, Copy, ImageIcon, Search } from 'lucide-react';
+import { ArrowDown, Check, Copy, ImageIcon, Search } from 'lucide-react';
 
 // The same consumer unit job as the quote below (lib/sample-quotes.json's electrician sample).
 const CUSTOMER_MESSAGE =
   "Hi, we've still got the old fuse box with the pull-out fuses under the stairs. Could you quote to swap it for a modern one? Three-bed semi, about 8 circuits.";
-const MATERIALS = [
-  'Consumer unit 10-way RCBO',
-  'RCBO 32A Type A × 2',
-  'RCBO 6A Type A × 2',
-  'Surge protection device',
-];
+const MATERIALS = ['Consumer unit 10-way RCBO', 'RCBO 32A Type A × 2', 'Surge protection device'];
 const SECTIONS = ['Scope of work', 'Assumptions', 'Exclusions', 'Next steps'];
 
 // A drawn example of the flow, not a live widget: the buttons in it are decoration.
@@ -16,7 +11,7 @@ export default function ConversionPreview() {
   return (
     <figure
       aria-label="Example: a customer's message turned into a draft quote"
-      className="m-0 mx-auto w-full max-w-[960px] rounded-[20px] border border-border bg-card p-4 shadow-card md:p-6"
+      className="m-0 w-full rounded-[20px] border border-border bg-card p-4 shadow-card md:p-6"
     >
       <div className="mb-4 flex items-center justify-between gap-3">
         <p className="m-0 flex items-center gap-2 text-sm font-semibold">
@@ -28,9 +23,10 @@ export default function ConversionPreview() {
         </span>
       </div>
 
-      <div className="grid items-center gap-3 md:grid-cols-[1fr_auto_1.2fr] md:gap-5">
+      {/* Stacked on every width: the hero gives it one column beside the copy. */}
+      <div className="flex flex-col gap-3">
         {/* The customer's message, as it arrives on the trader's phone. */}
-        <div className="flex flex-col gap-2 self-start rounded-card bg-surface-muted p-4">
+        <div className="flex flex-col gap-2 rounded-card bg-surface-muted p-4">
           <p className="m-0 text-xs text-muted-foreground">
             <span className="font-semibold text-foreground">Sarah</span> · Today 09:14
           </p>
@@ -44,8 +40,7 @@ export default function ConversionPreview() {
 
         <div className="flex justify-center" aria-hidden="true">
           <span className="inline-flex size-9 items-center justify-center rounded-full bg-brand text-white shadow-cta">
-            <ArrowDown className="size-4 md:hidden" />
-            <ArrowRight className="hidden size-4 md:block" />
+            <ArrowDown className="size-4" />
           </span>
         </div>
 

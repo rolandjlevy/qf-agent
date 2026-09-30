@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>QuoteFetch — AI Quoting Software for UK Tradespeople</title>
+<meta name="description" content="Turn a customer's message and a few photos into a professional quote in minutes — materials, scope, assumptions and exclusions. Built for UK sole traders. Never makes up prices." />
+<meta property="og:title" content="QuoteFetch — AI Quoting for UK Tradespeople" />
+<meta property="og:description" content="Reply first, win the job, keep your evening. QuoteFetch drafts clear, professional quotes from a customer's message. Never invents a price." />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    color-scheme: light;
+    --bg:#F4F3EF; --card:#FFFFFF; --surface:#FCF9F5; --surface-dim:#EFEDE7;
+    --fg:#1C1C1A; --muted:#5E5B55; --border:#D9D6CE; --border-strong:#C9C6BE;
+    --primary:#2446D8; --primary-hover:#1B37B0; --primary-fg:#FFFFFF;
+    --accent-subtle:#EEF2FF; --accent-border:#c9d3ff;
+    --slab-light:#6F8DFF; --slab-mid:#4A69EC; --slab-dark:#2446D8;
+    --night:#15161A; --ok:#047857; --ok-bg:#e3f2ea; --amber:#9a6a00; --amber-bg:#f6eddb; --rose:#b23a48; --rose-bg:#f7e7e6;
+    --r-sm:8px; --r:12px; --r-lg:16px; --r-xl:20px;
+    --shadow:0 1px 2px rgba(20,22,26,.05), 0 6px 18px rgba(20,22,26,.06);
+    --shadow-sm:0 1px 2px rgba(20,22,26,.06);
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:inherit}
+  html{scroll-behavior:smooth;scroll-padding-top:80px}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    line-height:1.5;-webkit-font-smoothing:antialiased;letter-spacing:-0.005em}
+  a{color:inherit}
+  img{max-width:100%}
+  svg.i{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+  .eyebrow{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--primary);margin:0}
+  h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.025em;line-height:1.1}
+  h1{font-size:clamp(32px,5.2vw,44px);line-height:1.08;letter-spacing:-.03em}
+  h2{font-size:clamp(26px,3.6vw,32px)}
+  h3{font-size:18px;letter-spacing:-.01em}
+  p{margin:0}
+  .muted{color:var(--muted)}
+
+  /* buttons */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:48px;padding:0 24px;
+    border-radius:var(--r);font-weight:600;font-size:15px;text-decoration:none;border:1px solid transparent;cursor:pointer;transition:.15s}
+  .btn-primary{background:var(--primary);color:var(--primary-fg)}
+  .btn-primary:hover{background:var(--primary-hover)}
+  .btn-ghost{background:var(--card);color:var(--fg);border-color:var(--border-strong)}
+  .btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
+  .btn-sm{height:40px;font-size:14px;padding:0 18px}
+  .btn .i{width:18px;height:18px}
+
+  /* header */
+  header{position:sticky;top:0;z-index:40;background:color-mix(in srgb,white 90%,transparent);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding-top:env(safe-area-inset-top,0px)}
+  .nav{display:flex;align-items:center;gap:28px;height:64px}
+  .logo{display:flex;align-items:center;gap:9px;text-decoration:none;font-weight:700;font-size:18px;color:var(--fg);letter-spacing:-.02em}
+  .nav-links{display:flex;gap:24px;margin-left:6px}
+  .nav-links a{color:var(--muted);text-decoration:none;font-weight:500;font-size:14px}
+  .nav-links a:hover{color:var(--fg)}
+  .nav-cta{margin-left:auto}
+  @media (max-width:820px){.nav-links{display:none}}
+
+  section{padding:64px 0}
+  .band{background:var(--card);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+  .band-surface{background:#f9f9f6;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+
+  .center{max-width:660px;margin:0 auto;text-align:center;display:flex;flex-direction:column;gap:12px;align-items:center}
+  .pill{display:inline-flex;align-items:center;gap:8px;background:var(--accent-subtle);border:1px solid var(--accent-border);
+    color:var(--primary);font-weight:600;font-size:12px;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:6px 14px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--primary)}
+
+  /* HERO */
+  .hero{padding-top:48px;padding-bottom:64px}
+  .hero-grid{display:grid;grid-template-columns:1fr;gap:36px;align-items:center}
+  @media (min-width:960px){.hero-grid{grid-template-columns:1.05fr 1fr;gap:52px}}
+  .hero-copy{display:flex;flex-direction:column;gap:20px;align-items:flex-start;text-align:left}
+  .accent{color:var(--primary)}
+  .hero-sub{font-size:clamp(16px,2vw,18px);max-width:520px}
+  .cta-row{display:flex;gap:12px;flex-wrap:wrap}
+  .reassure{font-size:13px;color:var(--muted)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chips a{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 12px;
+    font-size:13px;font-weight:500;text-decoration:none;color:var(--fg);transition:.15s;box-shadow:var(--shadow-sm)}
+  .chips a:hover{border-color:var(--slab-mid);color:var(--primary)}
+  .chips .lbl{width:100%;font-size:13px;color:var(--muted);margin-bottom:2px;box-shadow:none}
+
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:var(--r-xl);padding:18px;box-shadow:var(--shadow)}
+  .panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .panel-head .l{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px}
+  .tag-ex{background:var(--accent-subtle);color:var(--primary);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:3px 9px}
+  .msg{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:8px}
+  .msg .from{font-size:12px;color:var(--muted)}
+  .msg .from b{color:var(--fg)}
+  .bubble{background:var(--card);border:1px solid var(--border);border-radius:12px;border-top-left-radius:4px;padding:12px;font-size:14px}
+  .chip-photo{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--card);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--muted)}
+  .chip-photo .i{width:14px;height:14px}
+  .flow{display:flex;justify-content:center;margin:10px 0;color:var(--primary)}
+  .flow span{width:32px;height:32px;border-radius:50%;background:var(--accent-subtle);border:1px solid var(--accent-border);display:flex;align-items:center;justify-content:center}
+  .flow .i{width:15px;height:15px}
+  .qcard{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow-sm)}
+  .qc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .qc-head .t{font-weight:600;font-size:15px}
+  .qc-head .s{font-size:12px;color:var(--muted)}
+  .badge-ok{display:inline-flex;align-items:center;gap:5px;background:var(--ok-bg);color:var(--ok);font-size:12px;font-weight:600;border-radius:999px;padding:3px 9px;white-space:nowrap}
+  .badge-ok .i{width:13px;height:13px}
+  .mat-lbl{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+  .mat{list-style:none;margin:0;padding:0}
+  .mat li{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--border);font-size:13px}
+  .mat li:first-child{border-top:none}
+  .find{color:var(--primary);font-weight:500;font-size:12px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+  .find .i{width:13px;height:13px}
+  .qtags{list-style:none;display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0}
+  .qtags li{background:var(--surface);border:1px solid var(--border);color:var(--muted);border-radius:999px;padding:3px 9px;font-size:11px}
+  .fake-btn{height:40px;border-radius:var(--r-sm);background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:13px}
+  .fake-btn .i{width:14px;height:14px}
+
+  /* grids/cards */
+  .grid{display:grid;gap:16px}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  @media (max-width:860px){.g3{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:24px;box-shadow:var(--shadow)}
+  .ic{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+  .ic svg{width:20px;height:20px}
+  .ic.blue{background:var(--accent-subtle);color:var(--primary)}
+  .ic.amber{background:var(--amber-bg);color:var(--amber)}
+  .ic.rose{background:var(--rose-bg);color:var(--rose)}
+  .ic.line{background:var(--accent-subtle);color:var(--primary);border:1px solid var(--accent-border)}
+  .card h3{margin-bottom:6px}
+  .card p{font-size:14px;color:var(--muted)}
+  .num{width:34px;height:34px;border-radius:50%;background:var(--primary);color:#fff;font-weight:600;display:flex;align-items:center;justify-content:center;margin-bottom:14px;font-size:15px}
+
+  /* proof */
+  .proof-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:36px;align-items:start}
+  @media (max-width:900px){.proof-grid{grid-template-columns:1fr;gap:24px}}
+  .quote{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:28px;font-size:14px;box-shadow:var(--shadow)}
+  .quote .biz{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);padding-bottom:14px;font-weight:600}
+  .pin{width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .quote h4{margin:22px 0 8px;font-size:12px;letter-spacing:.04em;font-weight:600;display:flex;justify-content:space-between;align-items:center;color:var(--muted)}
+  .quote ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+  .quote li{line-height:1.5}
+  .tbc{margin-left:6px;background:var(--surface-dim);color:var(--muted);border-radius:5px;padding:1px 6px;font-size:11px;font-weight:500;white-space:nowrap}
+  .annot{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:20px;position:sticky;top:88px}
+  .annot li{display:flex;gap:12px}
+  .annot .pin{margin-top:2px}
+  .annot b{display:block;font-size:14px}
+  .annot p{font-size:13px;color:var(--muted)}
+
+  /* trades */
+  .trades{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;list-style:none;margin:0;padding:0}
+  .trades a{display:inline-flex;height:38px;align-items:center;border:1px solid var(--border);background:var(--card);
+    border-radius:999px;padding:0 15px;font-size:13px;font-weight:500;text-decoration:none;color:var(--fg);transition:.15s;box-shadow:var(--shadow-sm)}
+  .trades a:hover{border-color:var(--primary);color:var(--primary)}
+
+  /* testimonials */
+  .ph-banner{display:flex;justify-content:center;margin-bottom:24px}
+  .note{background:var(--accent-subtle);border:1px dashed var(--accent-border);border-radius:10px;padding:9px 14px;font-size:13px;color:var(--primary);display:inline-flex;gap:8px;align-items:center;text-align:left}
+  .tcard{display:flex;flex-direction:column;gap:14px}
+  .stars{color:#c98a1a;font-size:14px;letter-spacing:2px}
+  .tquote{font-size:14px;line-height:1.55}
+  .tauthor{display:flex;align-items:center;gap:12px;margin-top:auto}
+  .avatar{width:38px;height:38px;border-radius:50%;background:var(--accent-subtle);border:1px solid var(--accent-border);color:var(--primary);font-weight:600;display:flex;align-items:center;justify-content:center;font-size:13px;flex:0 0 auto}
+  .tauthor .n{font-weight:600;font-size:14px;line-height:1.3}
+  .tauthor .r{font-size:12px;color:var(--muted)}
+
+  /* pricing teaser */
+  .price-band{display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center}
+  .price-note{display:inline-flex;align-items:center;gap:8px;background:var(--surface-dim);border:1px dashed var(--border-strong);border-radius:999px;padding:5px 14px;font-size:12px;color:var(--muted);letter-spacing:.03em}
+  .price-note .i{width:14px;height:14px}
+
+  /* faq */
+  .faq{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+  details{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow-sm)}
+  summary{list-style:none;cursor:pointer;padding:16px 20px;font-weight:600;font-size:15px;display:flex;justify-content:space-between;align-items:center;gap:16px}
+  summary::-webkit-details-marker{display:none}
+  summary .chev{transition:.2s;color:var(--muted);flex:0 0 auto;width:18px;height:18px}
+  details[open] summary .chev{transform:rotate(180deg)}
+  details p{padding:0 20px 18px;color:var(--muted);font-size:14px}
+
+  /* closing */
+  .closing{background:var(--night);color:#fff;text-align:center;border:none}
+  .closing h2{color:#fff}
+  .closing p{color:#c9c7c1}
+  .closing .eyebrow{color:var(--slab-light)}
+
+  footer{border-top:1px solid var(--border);background:var(--bg);padding:22px 0}
+  .foot{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
+  .foot nav{display:flex;gap:20px;flex-wrap:wrap}
+  .foot a{color:var(--muted);text-decoration:none;font-size:13px}
+  .foot a:hover{color:var(--fg)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="logo" href="#top" aria-label="QuoteFetch home">
+      <svg width="28" height="24" viewBox="0 0 30 26" aria-hidden="true">
+        <rect x="6" y="1" width="22" height="7" rx="3.5" fill="#6F8DFF"/>
+        <rect x="1" y="10" width="27" height="7" rx="3.5" fill="#4A69EC"/>
+        <rect x="7" y="19" width="21" height="6.5" rx="3.25" fill="#2446D8"/>
+      </svg>
+      QuoteFetch
+    </a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="#how">How it works</a>
+      <a href="#trust">Why trust it</a>
+      <a href="/pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="nav-cta"><a class="btn btn-primary btn-sm" href="#top">Start a quote</a></div>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- HERO (2-column) -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <p class="pill"><span class="dot"></span> AI quoting for UK trades</p>
+        <h1>Reply first. Win the job. <span class="accent">Keep your evening.</span></h1>
+        <p class="hero-sub muted">QuoteFetch turns a customer's message and a couple of photos into a clear, professional quote — materials, scope, assumptions and exclusions — ready to send. Built for UK sole traders.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="#top">Start a quote <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+          <a class="btn btn-ghost" href="#proof">See a real example</a>
+        </div>
+        <p class="reassure">Works on your phone, on site — describe the job, take photos, send the quote before you leave the van.</p>
+        <div class="chips">
+          <span class="lbl">Or try a common job:</span>
+          <a href="#top">Bathroom refit</a>
+          <a href="#top">Boiler swap</a>
+          <a href="#top">Consumer unit</a>
+          <a href="#top">Retile a shower</a>
+        </div>
+      </div>
+
+      <figure class="panel" aria-label="A customer's message turned into a draft quote" style="margin:0">
+        <div class="panel-head">
+          <p class="l"><span class="dot" style="background:var(--ok)"></span> From message to quote</p>
+          <span class="tag-ex">Example</span>
+        </div>
+        <div class="msg">
+          <p class="from"><b>Sarah</b> · Today 09:14</p>
+          <p class="bubble">Hi, we've still got the old fuse box with the pull-out fuses under the stairs. Could you quote to swap it for a modern one? Three-bed semi, about 8 circuits.</p>
+          <span class="chip-photo"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg> 1 photo attached</span>
+        </div>
+        <div class="flow"><span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></span></div>
+        <div class="qcard">
+          <div class="qc-head">
+            <div><p class="t">Consumer unit replacement</p><p class="s">Draft quote · Electrician</p></div>
+            <span class="badge-ok"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> Ready</span>
+          </div>
+          <div>
+            <p class="mat-lbl">Materials</p>
+            <ul class="mat">
+              <li><span>Consumer unit 10-way RCBO</span><span class="find"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg> Find prices</span></li>
+              <li><span>RCBO 32A Type A × 2</span><span class="find"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg> Find prices</span></li>
+              <li><span>Surge protection device</span><span class="find"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg> Find prices</span></li>
+            </ul>
+          </div>
+          <ul class="qtags"><li>Scope of work</li><li>Assumptions</li><li>Exclusions</li><li>Next steps</li></ul>
+          <div class="fake-btn"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg> Copy quote</div>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <!-- PROBLEM -->
+  <section class="band" id="why">
+    <div class="wrap">
+      <div class="center">
+        <p class="eyebrow">The quoting bottleneck</p>
+        <h2>The job often goes to whoever quotes first.</h2>
+        <p class="muted">A clear quote on the customer's phone the same day says you're organised before you've even started.</p>
+      </div>
+      <div class="grid g3" style="margin-top:40px">
+        <div class="card">
+          <div class="ic amber"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+          <h3>Leads go cold</h3>
+          <p>Customers usually ask more than one trade. A quote that turns up next week turns up too late.</p>
+        </div>
+        <div class="card">
+          <div class="ic rose"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg></div>
+          <h3>Evenings disappear</h3>
+          <p>Typing up quotes after a day on the tools eats the time you have left with your family.</p>
+        </div>
+        <div class="card">
+          <div class="ic blue"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 5h8"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/></svg></div>
+          <h3>Things get missed</h3>
+          <p>Leave out an exclusion or an assumption and it comes back as an argument on site.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section id="how">
+    <div class="wrap">
+      <div class="center">
+        <p class="eyebrow">How it works</p>
+        <h2>From message to quote in three steps.</h2>
+        <p class="muted">No spreadsheets, no templates to set up. Straight from your phone or laptop.</p>
+      </div>
+      <div class="grid g3" style="margin-top:40px">
+        <div class="card">
+          <div class="num">1</div>
+          <h3>Describe the job</h3>
+          <p>Type it, paste the customer's message, or say it out loud — and add up to 8 photos of the site. It reads the photos too, so there's less to explain.</p>
+        </div>
+        <div class="card">
+          <div class="num">2</div>
+          <h3>Answer a few quick questions</h3>
+          <p>The ones a good tradesperson would ask for that trade — the age of the install, the access — then tick, untick or add to the materials list.</p>
+        </div>
+        <div class="card">
+          <div class="num">3</div>
+          <h3>Send a professional quote</h3>
+          <p>Get scope, assumptions and exclusions in plain English. Look up real supplier prices, then copy it into an email or WhatsApp.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROOF -->
+  <section class="band-surface" id="proof">
+    <div class="wrap">
+      <div class="center">
+        <p class="eyebrow">A real example</p>
+        <h2>Looks like it came from a firm ten times your size.</h2>
+        <p class="muted">Clear, thorough quotes build trust — and trust wins jobs.</p>
+      </div>
+      <div class="proof-grid" style="margin-top:40px">
+        <article class="quote" aria-label="Example quote: consumer unit replacement">
+          <div class="biz"><span>Miller Electrical &nbsp;|&nbsp; 07700 900461 &nbsp;|&nbsp; Leicester</span><span class="pin">1</span></div>
+          <p style="margin-top:16px">Thanks for getting in touch! Here's our quote for replacing the old rewireable fuse box in the under-stairs cupboard with a modern consumer unit, covering around 8 circuits.</p>
+          <h4>MATERIALS &amp; EQUIPMENT <span class="pin">2</span></h4>
+          <ul>
+            <li>• Consumer unit 10-way RCBO (qty: 1) <span class="tbc">Price TBC</span></li>
+            <li>• RCBO 32A Type A (qty: 2) <span class="tbc">Price TBC</span></li>
+            <li>• RCBO 6A Type A (qty: 2) <span class="tbc">Price TBC</span></li>
+            <li>• Surge protection device (qty: 1) <span class="tbc">Price TBC</span></li>
+          </ul>
+          <h4>SCOPE OF WORK <span class="pin">3</span></h4>
+          <ul>
+            <li>• Remove the existing rewireable fuse box and safely disconnect all circuits</li>
+            <li>• Supply and fit a new 10-way RCBO consumer unit with individual protection on each circuit</li>
+            <li>• Fit a surge protection device within the new consumer unit</li>
+          </ul>
+          <h4>ASSUMPTIONS &amp; EXCLUSIONS <span class="pin">4</span></h4>
+          <ul>
+            <li>• We assume existing circuits test satisfactorily; hidden faults (e.g. borrowed neutrals) would be quoted separately.</li>
+            <li>• Excludes rewiring or extending cable runs if the board position changes.</li>
+          </ul>
+        </article>
+        <ol class="annot">
+          <li><span class="pin">1</span><div><b>Your details, on every quote</b><p>Business name and contact filled in from your profile.</p></div></li>
+          <li><span class="pin">2</span><div><b>One specific product per line</b><p>Never a made-up price — look up current prices from Screwfix, Toolstation, B&amp;Q or Amazon and pick the one you want.</p></div></li>
+          <li><span class="pin">3</span><div><b>Scope in plain English</b><p>So the customer knows exactly what they're paying for.</p></div></li>
+          <li><span class="pin">4</span><div><b>Assumptions &amp; exclusions in writing</b><p>The things that cause arguments on site, agreed before you start.</p></div></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRUST -->
+  <section id="trust">
+    <div class="wrap">
+      <div class="center">
+        <p class="eyebrow">Why trust it</p>
+        <h2>Built to protect your reputation.</h2>
+        <p class="muted">The reason your customers trust your quote is the reason you can trust QuoteFetch: it never pretends to know something it doesn't.</p>
+      </div>
+      <div class="grid g3" style="margin-top:40px">
+        <div class="card">
+          <div class="ic line"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 7c0-5.333-8-5.333-8 0"/><path d="M10 7v14"/><path d="M6 21h12"/><path d="M6 13h10"/></svg></div>
+          <h3>It never invents a price</h3>
+          <p>Every material comes through as "Price TBC". You look up the real price and pick the one you'd actually buy — so every figure is one you chose.</p>
+        </div>
+        <div class="card">
+          <div class="ic line"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></div>
+          <h3>It never fakes a compliance claim</h3>
+          <p>It won't put Part P, Gas Safe or any certification against your name. It states only the certifications you've added yourself, in your words.</p>
+        </div>
+        <div class="card">
+          <div class="ic line"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg></div>
+          <h3>Nothing goes out without you</h3>
+          <p>You choose the materials before a word is written, and the finished quote is plain text you can edit. QuoteFetch drafts; you decide.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS (placeholder) -->
+  <section class="band">
+    <div class="wrap">
+      <div class="ph-banner"><span class="note"><svg class="i" viewBox="0 0 24 24" style="width:15px;height:15px" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> Sample testimonials — placeholder copy. Replace with real customer quotes (and remove this banner) before launch.</span></div>
+      <div class="center">
+        <p class="eyebrow">What tradespeople say</p>
+        <h2>Made to make you look good.</h2>
+        <p class="muted">Quotes from the people who use it, added as your customers share them.</p>
+      </div>
+      <div class="grid g3" style="margin-top:40px">
+        <div class="card tcard">
+          <div class="stars" aria-label="5 out of 5">★★★★★</div>
+          <p class="tquote">"I used to write quotes at 9pm with my tea going cold. Now I do it in the van before I've pulled off the drive. Won two jobs last week just by being first."</p>
+          <div class="tauthor"><span class="avatar">DM</span><div><div class="n">Dave M.</div><div class="r">Electrician · Leicester</div></div></div>
+        </div>
+        <div class="card tcard">
+          <div class="stars" aria-label="5 out of 5">★★★★★</div>
+          <p class="tquote">"The quotes look properly professional now — scope, assumptions, the lot. A customer told me mine was the clearest of the three she got."</p>
+          <div class="tauthor"><span class="avatar">PS</span><div><div class="n">Priya S.</div><div class="r">Bathroom fitter · Reading</div></div></div>
+        </div>
+        <div class="card tcard">
+          <div class="stars" aria-label="5 out of 5">★★★★★</div>
+          <p class="tquote">"Best bit is it doesn't try to be clever with prices. It leaves them for me to fill in from my own supplier, so nothing on the quote is ever wrong."</p>
+          <div class="tauthor"><span class="avatar">TH</span><div><div class="n">Tom H.</div><div class="r">Plumber · Newcastle</div></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRADES -->
+  <section>
+    <div class="wrap">
+      <div class="center">
+        <p class="eyebrow">Made for your trade</p>
+        <h2>Quoting software for 20 UK trades.</h2>
+        <p class="muted">Each trade gets its own questions, so the quote covers what matters for that kind of job.</p>
+      </div>
+      <ul class="trades" style="margin-top:32px">
+        <li><a href="#top">Bathroom fitter</a></li><li><a href="#top">Bricklayer</a></li>
+        <li><a href="#top">Builder</a></li><li><a href="#top">Carpenter / joiner</a></li>
+        <li><a href="#top">Driveway specialist</a></li><li><a href="#top">Electrician</a></li>
+        <li><a href="#top">Fencing contractor</a></li><li><a href="#top">Flooring fitter</a></li>
+        <li><a href="#top">Gardener / landscaper</a></li><li><a href="#top">Groundworker</a></li>
+        <li><a href="#top">Handyman</a></li><li><a href="#top">Heating &amp; gas engineer</a></li>
+        <li><a href="#top">Kitchen fitter</a></li><li><a href="#top">Painter &amp; decorator</a></li>
+        <li><a href="#top">Plasterer</a></li><li><a href="#top">Plumber</a></li>
+        <li><a href="#top">Roofer</a></li><li><a href="#top">Tiler</a></li>
+        <li><a href="#top">Tree surgeon</a></li><li><a href="#top">Windows &amp; doors</a></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- PRICING TEASER -->
+  <section class="band-surface" id="pricing">
+    <div class="wrap">
+      <div class="price-band">
+        <p class="eyebrow">Simple pricing</p>
+        <h2>Pricing that pays for itself in one job.</h2>
+        <p class="muted" style="max-width:520px">Full plan details are on their way. In the meantime, you can start putting quotes together.</p>
+        <span class="price-note"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> Plan details to be confirmed — pricing page coming soon</span>
+        <div class="cta-row" style="justify-content:center">
+          <a class="btn btn-primary" href="/pricing">See pricing <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+          <a class="btn btn-ghost" href="#top">Start a quote</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq">
+    <div class="wrap">
+      <div class="center" style="margin-bottom:36px">
+        <p class="eyebrow">FAQ</p>
+        <h2>Questions tradespeople ask.</h2>
+      </div>
+      <div class="faq">
+        <details open>
+          <summary>Does QuoteFetch make up prices? <svg class="i chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+          <p>No. Every material is left as "Price TBC" until you look it up. From the saved quote you can search current prices from Screwfix, Toolstation, B&amp;Q and Amazon and pick the one you want, so every price is one you chose.</p>
+        </details>
+        <details>
+          <summary>Will it say my work meets regulations? <svg class="i chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+          <p>No. It never writes compliance claims like Part P or Gas Safe on your behalf. If you add your own certifications to your profile, it states those exactly as you wrote them.</p>
+        </details>
+        <details>
+          <summary>Which trades does it work for? <svg class="i chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+          <p>Twenty UK trades, from plumbers, electricians and gas engineers to roofers, landscapers and tree surgeons. Each one gets its own questions about the job.</p>
+        </details>
+        <details>
+          <summary>Can I use it on my phone? <svg class="i chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+          <p>Yes. It's built phone-first: describe the job, take photos with your camera and copy the finished quote, all from the van.</p>
+        </details>
+        <details>
+          <summary>Can I change the quote before I send it? <svg class="i chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+          <p>Always. You choose the materials before anything is written, and the finished quote is plain text — so you can change any wording before you send it.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLOSING -->
+  <section class="closing">
+    <div class="wrap center">
+      <p class="eyebrow">For UK tradespeople</p>
+      <h2>Your next customer is waiting for a quote.</h2>
+      <p>Reply first. Reply properly. Get your evenings back.</p>
+      <div class="cta-row" style="justify-content:center;margin-top:8px"><a class="btn btn-primary" href="#top">Start a quote <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a></div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div class="logo" style="font-size:16px">
+      <svg width="24" height="20" viewBox="0 0 30 26" aria-hidden="true">
+        <rect x="6" y="1" width="22" height="7" rx="3.5" fill="#6F8DFF"/>
+        <rect x="1" y="10" width="27" height="7" rx="3.5" fill="#4A69EC"/>
+        <rect x="7" y="19" width="21" height="6.5" rx="3.25" fill="#2446D8"/>
+      </svg>
+      <span class="muted" style="font-weight:500;font-size:13px">© 2026 QuoteFetch</span>
+    </div>
+    <nav>
+      <a href="#how">How it works</a>
+      <a href="#trust">Why trust it</a>
+      <a href="#proof">Example quote</a>
+      <a href="/pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+  </div>
+</footer>
+
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+    {"@type":"Question","name":"Does QuoteFetch make up prices?","acceptedAnswer":{"@type":"Answer","text":"No. Every material is left as Price TBC until you look it up from suppliers like Screwfix, Toolstation, B&Q and Amazon and pick the one you want, so every price is one you chose."}},
+    {"@type":"Question","name":"Will it say my work meets regulations?","acceptedAnswer":{"@type":"Answer","text":"No. It never writes compliance claims like Part P or Gas Safe on your behalf. It states only the certifications you have added to your profile, in your own words."}},
+    {"@type":"Question","name":"Which trades does QuoteFetch work for?","acceptedAnswer":{"@type":"Answer","text":"Twenty UK trades, from plumbers, electricians and gas engineers to roofers, landscapers and tree surgeons. Each one gets its own questions about the job."}},
+    {"@type":"Question","name":"Can I use QuoteFetch on my phone?","acceptedAnswer":{"@type":"Answer","text":"Yes. It is built phone-first: describe the job, take photos with your camera and copy the finished quote, all from the van."}},
+    {"@type":"Question","name":"Can I change the quote before I send it?","acceptedAnswer":{"@type":"Answer","text":"Yes. You choose the materials before anything is written, and the finished quote is plain text, so you can change any wording before you send it."}}
+  ]
+}
+</script>
+</body>
+</html>

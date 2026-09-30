@@ -2,14 +2,14 @@ import { ChevronDown } from 'lucide-react';
 import { SectionHeading } from './cta-link';
 
 // Answers must stay true to what the app does (CLAUDE.md's never-do rules in particular).
-const FAQS = [
+export const FAQS = [
   [
     'Does QuoteFetch make up prices?',
     "No. Every material is left as \"Price TBC\" until you look it up. From the saved quote you can search current prices from Screwfix, Toolstation, B&Q and Amazon and pick the one you want, so every price is one you chose.",
   ],
   [
     'Will it say my work meets regulations?',
-    "No. It never writes compliance claims like Part P or Gas Safe on your behalf. If you add your own certifications to your profile, it can state those as you wrote them.",
+    "No. It never writes compliance claims like Part P or Gas Safe on your behalf. If you add your own certifications to your profile, it states those exactly as you wrote them.",
   ],
   [
     'Which trades does it work for?',
@@ -17,13 +17,24 @@ const FAQS = [
   ],
   [
     'Can I use it on my phone?',
-    'Yes. It is built for the phone first: describe the job, take photos with your camera and copy the finished quote, all from the van.',
+    "Yes. It's built phone-first: describe the job, take photos with your camera and copy the finished quote, all from the van.",
   ],
   [
-    'Can I change the quote?',
-    'You choose the materials before anything is written. The finished quote is plain text, so you can change any wording after you paste it into your email or message.',
+    'Can I change the quote before I send it?',
+    'Always. You choose the materials before anything is written, and the finished quote is plain text, so you can change any wording before you send it.',
   ],
 ];
+
+// schema.org FAQPage built from the same list, so the structured data can't drift from the page.
+export const FAQ_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: FAQS.map(([name, text]) => ({
+    '@type': 'Question',
+    name,
+    acceptedAnswer: { '@type': 'Answer', text },
+  })),
+};
 
 export default function FaqSection() {
   return (
