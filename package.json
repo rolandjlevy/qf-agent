@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "test:impact": "node .claude/skills/test-impact/scan.mjs",
     "eval": "node scripts/eval.mjs",
+    "eval:quotes": "node scripts/eval-quotes.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {
