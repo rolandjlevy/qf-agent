@@ -138,6 +138,8 @@ async function generateQuote(testCase) {
     sectionStore: {},
     materials,
     followUpAnswerBullets: await summarizeFollowUpAnswers(followUpAnswers),
+    followUpAnswers,
+    photoFindings,
     jobKnowledge: formatJobForPhaseB(jobEntry(trade, jobType)),
   }
   await runAgent({

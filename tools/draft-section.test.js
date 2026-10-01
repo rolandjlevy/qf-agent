@@ -7,7 +7,7 @@ vi.mock('../lib/anthropic-client.js', () => ({
 }));
 
 const { createMessage } = await import('../lib/anthropic-client.js');
-const { draftSection, buildPriorSectionsContext, isOverBudget } = await import('./draft-section.js');
+const { draftSection, buildPriorSectionsContext, isOverBudget, formatFollowUpAnswers } = await import('./draft-section.js');
 
 function textResponse(text) {
   return { content: [{ type: 'text', text }] };
@@ -163,5 +163,71 @@ describe('draftSection', () => {
     const prompts = createMessage.mock.calls.map((c) => c[1].messages[0].content);
     expect(prompts[0]).not.toContain('PACK GUIDANCE');
     expect(prompts[1]).not.toContain('INJECTED');
+  });
+  const answers = [{ question: 'Who is arranging scaffolding?', answer: 'Included in this quote' }];
+
+  it.each(['scope', 'assumptions', 'exclusions'])("adds the run's follow-up answers to the %s prompt", async (section) => {
+    createMessage.mockResolvedValueOnce(textResponse('• One point.'));
+    await draftSection({ section }, { ...baseToolContext(), followUpAnswers: answers });
+    const prompt = createMessage.mock.calls[0][1].messages[0].content;
+    expect(prompt).toContain('Q: Who is arranging scaffolding?\nA: Included in this quote');
+  });
+
+  it.each(['assumptions', 'exclusions'])('tells the %s prompt never to contradict the answers', async (section) => {
+    createMessage.mockResolvedValueOnce(textResponse('• One point.'));
+    await draftSection({ section }, { ...baseToolContext(), followUpAnswers: answers });
+    expect(createMessage.mock.calls[0][1].messages[0].content).toContain("Never contradict the trader's answers");
+  });
+
+  it("prefers the run's answers over any the model passes, and falls back to the model's", async () => {
+    createMessage.mockResolvedValue(textResponse('• One point.'));
+    await draftSection({ section: 'exclusions', context: { follow_up_answers: { 'Waste?': 'Customer arranges it' } } }, { ...baseToolContext(), followUpAnswers: answers });
+    await draftSection({ section: 'exclusions', context: { follow_up_answers: { 'Waste?': 'Customer arranges it' } } }, baseToolContext());
+    const prompts = createMessage.mock.calls.map((c) => c[1].messages[0].content);
+    expect(prompts[0]).toContain('Included in this quote');
+    expect(prompts[0]).not.toContain('Customer arranges it');
+    expect(prompts[1]).toContain('Q: Waste?\nA: Customer arranges it');
+  });
+
+  it('leaves the answers block out when there are none', async () => {
+    createMessage.mockResolvedValueOnce(textResponse('• One point.'));
+    await draftSection({ section: 'assumptions' }, baseToolContext());
+    expect(createMessage.mock.calls[0][1].messages[0].content).not.toContain("THE TRADER'S ANSWERS");
+  });
+
+  const findings = { observations: ['Clay plain tiles on the rear slope'], resolved: [], unclear: ['who supplies materials'] };
+
+  it.each(['assumptions', 'exclusions'])('adds photo observations and unconfirmed points to the %s prompt', async (section) => {
+    createMessage.mockResolvedValueOnce(textResponse('• One point.'));
+    await draftSection({ section }, { ...baseToolContext(), photoFindings: findings });
+    const prompt = createMessage.mock.calls[0][1].messages[0].content;
+    expect(prompt).toContain('Clay plain tiles on the rear slope');
+    expect(prompt).toContain('UNCONFIRMED POINTS');
+    expect(prompt).toContain('who supplies materials');
+  });
+
+  it('gives the scope prompt the observations but not the unconfirmed points', async () => {
+    createMessage.mockResolvedValueOnce(textResponse('• One point.'));
+    await draftSection({ section: 'scope' }, { ...baseToolContext(), photoFindings: findings });
+    const prompt = createMessage.mock.calls[0][1].messages[0].content;
+    expect(prompt).toContain('Clay plain tiles on the rear slope');
+    expect(prompt).not.toContain('UNCONFIRMED POINTS');
+  });
+
+  it('ignores photo findings the model passes itself', async () => {
+    createMessage.mockResolvedValueOnce(textResponse('• One point.'));
+    await draftSection({ section: 'assumptions', context: { photoFindings: { unclear: ['INJECTED'] } } }, baseToolContext());
+    expect(createMessage.mock.calls[0][1].messages[0].content).not.toContain('INJECTED');
+  });
+});
+
+describe('formatFollowUpAnswers', () => {
+  it('formats Q/A pairs and skips incomplete ones', () => {
+    expect(formatFollowUpAnswers([{ question: 'Q1', answer: 'A1' }, { question: 'Q2' }])).toBe('Q: Q1\nA: A1');
+  });
+
+  it('formats a plain object, and returns an empty string for nothing', () => {
+    expect(formatFollowUpAnswers({ Q1: 'A1' })).toBe('Q: Q1\nA: A1');
+    expect(formatFollowUpAnswers(undefined)).toBe('');
   });
 });
