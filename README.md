@@ -4,6 +4,18 @@ See [live demo](https://quotefetch-agent.vercel.app) of the project
 
 An agentic tool that turns a rough trade job description into a professional written quote. Claude drives the sequence using tools — it decides whether to ask follow-up questions, which materials to look up, and in what order to draft sections. Available both as a CLI and as a web app, both built on the same agent loop and tools.
 
+## Example job photos
+
+Each example job on `/quote/new` attaches its own Unsplash photo (`lib/example-photos.json`). Review them all, with weak matches flagged, at [`/internal/example-photos`](https://quotefetch-agent.vercel.app/internal/example-photos) (or http://localhost:3000/internal/example-photos locally). The page isn't linked from the site and is marked noindex.
+
+To swap a photo, find a free (not Unsplash+) photo on unsplash.com and run, from the repo:
+
+```bash
+node --env-file=.env scripts/unsplash-examples.mjs <example slug> <photo link>
+```
+
+The example slug is shown under each photo on the review page. It needs `UNSPLASH_ACCESS_KEY` and `UNSPLASH_APP_NAME` in `.env`.
+
 ## Setup
 
 ```bash

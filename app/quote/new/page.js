@@ -2,7 +2,7 @@ import { countGeneratedQuotes, getGeneratedQuoteById, getTraderProfile, listRece
 import { VALID_TRADES, tradeLabel } from '../../../lib/constants.js';
 import { quoteTitle, relativeTime } from '../../../lib/new-quote.js';
 import { SAMPLE_QUOTE_KEYS, sampleQuoteFor } from '../../../lib/sample-quotes.js';
-import { exampleJobBySlug } from '../../../lib/example-jobs.js';
+import { exampleJobBySlug, exampleSlug } from '../../../lib/example-jobs.js';
 import NewQuoteFlow from './new-quote-flow.js';
 
 // Read live: the trade default and recent quotes come from the database and change at any time.
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 const validTrade = (trade) => (VALID_TRADES.includes(trade) ? trade : null);
 
 // ?from=<quote id> (a "Start from a recent quote" card) pre-fills that quote's description and trade;
-// ?example=<slug> (the homepage's example chips) does the same from lib/example-jobs.js;
+// ?example=<slug> (the homepage's example chips) does the same from lib/example-jobs.js, plus its photo;
 // ?trade=<slug> (the homepage's trade chips) only picks the trade.
 export default async function NewQuotePage({ searchParams }) {
   const { from, example: exampleParam, trade: tradeParam } = await searchParams;
@@ -39,6 +39,7 @@ export default async function NewQuotePage({ searchParams }) {
       key={fromQuote ? `from-${fromQuote.id}` : example ? `example-${exampleParam}` : `new-${validTrade(tradeParam) ?? ''}`}
       initialTrade={validTrade(fromQuote?.trade) ?? example?.trade ?? validTrade(tradeParam) ?? validTrade(profile?.trade)}
       initialDescription={fromQuote?.job_description ?? example?.jobDescription ?? ''}
+      initialExample={example ? exampleSlug(example) : null}
       recentQuotes={recentQuotes}
       quoteCount={quoteCount}
       sampleTitles={sampleTitles}

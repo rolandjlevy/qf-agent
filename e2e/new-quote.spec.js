@@ -113,10 +113,17 @@ test('example chips follow the trade, fill the text and hide once edited', async
   await expect(chips).toHaveCount(3);
 });
 
-test('example chips show on a page opened from a homepage example', async ({ page }) => {
+test('a homepage example opens with its chips and its photo', async ({ page }) => {
   await page.goto('/quote/new?example=retile-shower-enclosure');
   await expect(textarea(page)).not.toHaveValue('');
-  await expect(page.locator('[data-slot=example-chip]')).toHaveCount(3);
+  const chips = page.locator('[data-slot=example-chip]');
+  await expect(chips).toHaveCount(3);
+  const removeButtons = page.getByRole('button', { name: /^Remove photo/ });
+  await expect(removeButtons).toHaveCount(1);
+  await expect(page.getByText(/Example photo by .+ on Unsplash/)).toBeVisible();
+  // Another example swaps the photo rather than adding a second.
+  await chips.first().click();
+  await expect(removeButtons).toHaveCount(1);
 });
 
 test('photo hint follows the trade', async ({ page }, testInfo) => {

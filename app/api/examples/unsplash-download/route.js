@@ -4,12 +4,12 @@ export const runtime = 'nodejs'
 
 // Unsplash's API guidelines require reporting a download whenever a photo is "used";
 // here that's a trader picking an example job. The key stays server-side, and only a
-// known trade is accepted, so this can't be used to ping arbitrary URLs.
+// known example slug is accepted, so this can't be used to ping arbitrary URLs.
 export async function POST(request) {
   const body = await request.json().catch(() => null)
-  const photo = examplePhoto(body?.trade)
+  const photo = examplePhoto(body?.example)
   if (!photo) {
-    return Response.json({ error: 'unknown trade' }, { status: 400 })
+    return Response.json({ error: 'unknown example' }, { status: 400 })
   }
 
   const key = process.env.UNSPLASH_ACCESS_KEY
