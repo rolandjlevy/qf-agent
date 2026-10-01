@@ -98,16 +98,25 @@ test('a ninth photo is refused inline', async ({ page }) => {
   await expect(page.getByRole('status')).toHaveText("You can add up to 8 photos, so 1 wasn't added.");
 });
 
-test('example chips follow the trade, fill the text and hide', async ({ page }) => {
+test('example chips follow the trade, fill the text and hide once edited', async ({ page }) => {
   await chooseTrade(page, 'Roofer');
   const chips = page.locator('[data-slot=example-chip]');
   await expect(chips).toHaveCount(3);
   await chips.nth(1).click();
   await expect(textarea(page)).toBeFocused();
   await expect(textarea(page)).not.toHaveValue('');
+  // An untouched example keeps the chips up, so the trader can swap templates.
+  await expect(chips).toHaveCount(3);
+  await textarea(page).pressSequentially(' More detail.');
   await expect(chips).toHaveCount(0);
   await textarea(page).fill('');
   await expect(chips).toHaveCount(3);
+});
+
+test('example chips show on a page opened from a homepage example', async ({ page }) => {
+  await page.goto('/quote/new?example=retile-shower-enclosure');
+  await expect(textarea(page)).not.toHaveValue('');
+  await expect(page.locator('[data-slot=example-chip]')).toHaveCount(3);
 });
 
 test('photo hint follows the trade', async ({ page }, testInfo) => {

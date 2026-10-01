@@ -15,6 +15,7 @@ import StepIndicator, { stepForPhase } from '@/components/quote/step-indicator';
 import TradeChip from '@/components/quote/trade-chip';
 import JobComposer from '@/components/quote/job-composer';
 import ExampleChips from '@/components/quote/example-chips';
+import { showsExampleChips } from '@/lib/example-jobs';
 import RecentQuotes from '@/components/quote/recent-quotes';
 import SampleQuote from '@/components/quote/sample-quote';
 import {
@@ -904,7 +905,7 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', re
             textareaRef={textareaRef}
           />
 
-          {!jobDescription.trim() && <ExampleChips trade={trade} onPick={handlePickExample} />}
+          {showsExampleChips(trade, jobDescription) && <ExampleChips trade={trade} onPick={handlePickExample} />}
 
           <PrimaryAction
             enabled={canContinue.enabled}
