@@ -13,11 +13,11 @@ import HomeFooter from '@/components/home/home-footer';
 export const metadata = {
   title: 'QuoteFetch — AI Quoting Software for UK Tradespeople',
   description:
-    "Turn a customer's message and a few photos into a professional quote in minutes — materials, scope, assumptions and exclusions. Built for UK sole traders. Never makes up prices.",
+    "Turn rough notes, a customer's message or a few photos into a professional quote in minutes — materials, scope, assumptions and exclusions. Built for UK sole traders. Never makes up prices.",
   openGraph: {
     title: 'QuoteFetch — AI Quoting for UK Tradespeople',
     description:
-      "Reply first, win the job, keep your evening. QuoteFetch drafts clear, professional quotes from a customer's message. Never invents a price.",
+      "Turn rough notes into a professional quote, ready to send. QuoteFetch drafts clear, professional quotes from your notes or a customer's message. Never invents a price.",
     images: ['/og-image.png'],
   },
   twitter: { card: 'summary_large_image' },
@@ -34,7 +34,9 @@ export default function Home() {
       <script
         type="application/ld+json"
         // Escaped '<' so no answer text can close the script tag.
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD).replace(/</g, '\\u003c') }}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(FAQ_JSON_LD).replace(/</g, '\\u003c'),
+        }}
       />
       <HeroSection />
       <div className={band}>

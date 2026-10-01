@@ -24,11 +24,12 @@ export default function HeroSection() {
             AI quoting for UK trades
           </p>
           <h1 id="hero-heading" className="m-0 text-[34px] leading-[1.1] font-bold tracking-[-0.025em] md:text-[52px]">
-            Reply first. Win the job. <span className="text-brand">Keep your evening.</span>
+            Turn rough notes into <span className="text-brand">a professional quote, ready to send</span>
           </h1>
           <p className="m-0 max-w-[560px] text-base leading-relaxed text-muted-foreground md:text-lg">
-            QuoteFetch turns a customer&apos;s message and a couple of photos into a clear, professional quote
-            (materials, scope, assumptions and exclusions) ready to send. Built for UK sole traders.
+            Paste the customer&apos;s message or add a photo. QuoteFetch asks the questions for your trade, works out the
+            materials, scope, assumptions and exclusions, and finds current prices for each material. You pick your
+            prices and send.
           </p>
           <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center">
             <CtaLink />
