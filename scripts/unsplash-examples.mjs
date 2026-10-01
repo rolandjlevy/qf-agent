@@ -1,8 +1,11 @@
-// Fills lib/example-photos.json from the Unsplash API, one hotlinked photo per trade.
-// Refresh all:   node --env-file=.env scripts/unsplash-examples.mjs
-// Set one trade: node --env-file=.env scripts/unsplash-examples.mjs plumber https://unsplash.com/photos/<slug>-<id>
+// Fills lib/example-photos.json from the Unsplash API, one hotlinked photo per example job.
+// Refresh all (60 requests, over a demo key's 50 an hour):
+//                  node --env-file=.env scripts/unsplash-examples.mjs
+// Set one example: node --env-file=.env scripts/unsplash-examples.mjs dripping-kitchen-tap https://unsplash.com/photos/<slug>-<id>
 import fs from 'node:fs'
-import { VALID_TRADES } from '../lib/constants.js'
+import { EXAMPLE_JOBS, exampleSlug } from '../lib/example-jobs.js'
+
+const EXAMPLE_SLUGS = EXAMPLE_JOBS.map(exampleSlug)
 
 const FILE = new URL('../lib/example-photos.json', import.meta.url)
 const key = process.env.UNSPLASH_ACCESS_KEY
@@ -35,15 +38,15 @@ async function fetchPhoto(id) {
 }
 
 const data = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8')) : { photos: {} }
-const [trade, photo] = process.argv.slice(2)
+const [example, photo] = process.argv.slice(2)
 
-if (trade) {
-  if (!VALID_TRADES.includes(trade) || !photo) {
-    console.error(`Usage: ... <trade> <photo link or id>, trade one of: ${VALID_TRADES.join(', ')}`)
+if (example) {
+  if (!EXAMPLE_SLUGS.includes(example) || !photo) {
+    console.error(`Usage: ... <example> <photo link or id>, example one of: ${EXAMPLE_SLUGS.join(', ')}`)
     process.exit(1)
   }
-  data.photos[trade] = await fetchPhoto(photoId(photo))
-  console.log(`${trade}: ${data.photos[trade].id} by ${data.photos[trade].photographer}`)
+  data.photos[example] = await fetchPhoto(photoId(photo))
+  console.log(`${example}: ${data.photos[example].id} by ${data.photos[example].photographer}`)
 } else {
   for (const [t, p] of Object.entries(data.photos)) {
     data.photos[t] = await fetchPhoto(p.id)
@@ -53,5 +56,5 @@ if (trade) {
 
 const photos = Object.fromEntries(Object.entries(data.photos).sort(([a], [b]) => a.localeCompare(b)))
 fs.writeFileSync(FILE, `${JSON.stringify({ utmSource: appName, photos }, null, 2)}\n`)
-const missing = VALID_TRADES.filter((t) => !photos[t])
+const missing = EXAMPLE_SLUGS.filter((s) => !photos[s])
 if (missing.length) console.log(`No photo yet for: ${missing.join(', ')}`)

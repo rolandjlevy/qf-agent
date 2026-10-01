@@ -80,8 +80,8 @@ function MenuRow({ href, active, onClick, children }) {
   );
 }
 
-// One header for every page, chosen by route (lib/header-context.js): the homepage gets its section links and
-// "Start a quote"; app pages get Quotes, "+ New quote" and the account menu; /quote/new drops "+ New quote".
+// One header for every page, chosen by route (lib/header-context.js): the homepage and /quote/new get the section
+// links and "Start a quote"; app pages get Quotes, "+ New quote" and the account menu; example quotes drop "+ New quote".
 export default function AppHeader() {
   const pathname = usePathname() ?? '';
   const [menuOpen, setMenuOpen] = useState(false);

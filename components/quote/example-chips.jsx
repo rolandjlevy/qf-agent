@@ -1,6 +1,6 @@
 import { examplesFor } from '@/lib/example-jobs';
 
-// The selected trade's examples as one-tap chips. The parent hides this once there's text.
+// The selected trade's examples as one-tap chips. The parent hides this once the text isn't an example (showsExampleChips).
 export default function ExampleChips({ trade, onPick }) {
   const examples = examplesFor(trade);
   if (!examples.length) return null;

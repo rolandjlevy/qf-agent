@@ -19,8 +19,8 @@ export default function PhotoThumbnails({ photos, onRemove, onAdd }) {
   });
 
   // An attached example photo keeps the credit Unsplash's guidelines require wherever it's shown.
-  const exampleTrade = photos.find((p) => p.fromExample)?.fromExample;
-  const exampleSource = exampleTrade ? examplePhoto(exampleTrade) : null;
+  const exampleKey = photos.find((p) => p.fromExample)?.fromExample;
+  const exampleSource = exampleKey ? examplePhoto(exampleKey) : null;
   const credit = exampleSource ? unsplashCredit(exampleSource) : null;
 
   return (

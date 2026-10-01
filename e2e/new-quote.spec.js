@@ -98,16 +98,32 @@ test('a ninth photo is refused inline', async ({ page }) => {
   await expect(page.getByRole('status')).toHaveText("You can add up to 8 photos, so 1 wasn't added.");
 });
 
-test('example chips follow the trade, fill the text and hide', async ({ page }) => {
+test('example chips follow the trade, fill the text and hide once edited', async ({ page }) => {
   await chooseTrade(page, 'Roofer');
   const chips = page.locator('[data-slot=example-chip]');
   await expect(chips).toHaveCount(3);
   await chips.nth(1).click();
   await expect(textarea(page)).toBeFocused();
   await expect(textarea(page)).not.toHaveValue('');
+  // An untouched example keeps the chips up, so the trader can swap templates.
+  await expect(chips).toHaveCount(3);
+  await textarea(page).pressSequentially(' More detail.');
   await expect(chips).toHaveCount(0);
   await textarea(page).fill('');
   await expect(chips).toHaveCount(3);
+});
+
+test('a homepage example opens with its chips and its photo', async ({ page }) => {
+  await page.goto('/quote/new?example=retile-shower-enclosure');
+  await expect(textarea(page)).not.toHaveValue('');
+  const chips = page.locator('[data-slot=example-chip]');
+  await expect(chips).toHaveCount(3);
+  const removeButtons = page.getByRole('button', { name: /^Remove photo/ });
+  await expect(removeButtons).toHaveCount(1);
+  await expect(page.getByText(/Example photo by .+ on Unsplash/)).toBeVisible();
+  // Another example swaps the photo rather than adding a second.
+  await chips.first().click();
+  await expect(removeButtons).toHaveCount(1);
 });
 
 test('photo hint follows the trade', async ({ page }, testInfo) => {

@@ -15,7 +15,7 @@ export default function ClosingCtaBand() {
         <h2 id="closing-heading" className="m-0 text-[30px] leading-tight font-bold tracking-[-0.02em] md:text-[40px]">
           Your next customer is waiting for a quote.
         </h2>
-        <p className="m-0 text-base text-[#C9C7C1] md:text-lg">Reply first. Reply properly. Get your evenings back.</p>
+        <p className="m-0 text-base text-[#C9C7C1] md:text-lg">Describe the job. Check the materials. Send the quote.</p>
         <CtaLink className="mt-2 w-full sm:w-auto" />
       </div>
     </section>

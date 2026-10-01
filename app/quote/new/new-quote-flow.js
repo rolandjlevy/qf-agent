@@ -15,6 +15,7 @@ import StepIndicator, { stepForPhase } from '@/components/quote/step-indicator';
 import TradeChip from '@/components/quote/trade-chip';
 import JobComposer from '@/components/quote/job-composer';
 import ExampleChips from '@/components/quote/example-chips';
+import { exampleSlug, showsExampleChips } from '@/lib/example-jobs';
 import RecentQuotes from '@/components/quote/recent-quotes';
 import SampleQuote from '@/components/quote/sample-quote';
 import {
@@ -109,9 +110,10 @@ function groupStepsByTurn(steps) {
   return turns;
 }
 
-// initialTrade/initialDescription come from the profile, or a recent quote (page.js); trade may be null.
+// initialTrade/initialDescription come from the profile, a recent quote or an example (page.js); trade may be null.
+// initialExample is the ?example= slug, whose photo is attached on load as a chip tap would.
 // Tone isn't chosen here: the quote route uses the profile's. sampleTitles maps sample key to title.
-export default function NewQuoteFlow({ initialTrade, initialDescription = '', recentQuotes = [], quoteCount = 0, sampleTitles = {} }) {
+export default function NewQuoteFlow({ initialTrade, initialDescription = '', initialExample = null, recentQuotes = [], quoteCount = 0, sampleTitles = {} }) {
   const router = useRouter();
   const [trade, setTrade] = useState(initialTrade);
   const [jobDescription, setJobDescription] = useState(initialDescription);
@@ -209,6 +211,14 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', re
   }
 
   useEffect(() => stopPolling, []);
+
+  // The ref keeps Strict Mode's second effect run from attaching the photo twice.
+  const initialExampleAttachedRef = useRef(false);
+  useEffect(() => {
+    if (!initialExample || initialExampleAttachedRef.current) return;
+    initialExampleAttachedRef.current = true;
+    pickExamplePhoto(initialExample);
+  }, [initialExample]);
 
   useEffect(() => {
     const text = question?.question ?? null;
@@ -607,25 +617,27 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', re
     applyProposeMaterialsResult(data, drafts);
   }
 
-  // An example chip fills the description; only the example its trade's Unsplash photo was
-  // chosen for also attaches that photo (lib/example-jobs.js).
+  // An example chip fills the description and attaches that example's Unsplash photo.
   function handlePickExample(example) {
     setJobDescription(example.jobDescription);
     textareaRef.current?.focus();
-    if (!example.withPhoto) return;
-    attachExamplePhoto(example.trade);
-    // Unsplash requires a download report when a photo is used; failure is ignored.
+    pickExamplePhoto(exampleSlug(example));
+  }
+
+  // Unsplash requires a download report when a photo is used; failure is ignored.
+  function pickExamplePhoto(slug) {
+    attachExamplePhoto(slug);
     fetch('/api/examples/unsplash-download', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ trade: example.trade }),
+      body: JSON.stringify({ example: slug }),
     }).catch(() => {});
   }
 
   // Adds the example's photo as a job photo, through the same compress-and-upload path as
   // the trader's own. It replaces any earlier example photo but leaves uploaded ones alone.
-  async function attachExamplePhoto(exampleTrade) {
-    const photo = examplePhoto(exampleTrade);
+  async function attachExamplePhoto(slug) {
+    const photo = examplePhoto(slug);
     if (!photo) return;
     setPhotos((prev) => {
       prev
@@ -638,10 +650,10 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', re
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const file = new File(
         [await response.blob()],
-        `${exampleTrade}-example.jpg`,
+        `${slug}-example.jpg`,
         { type: 'image/jpeg' },
       );
-      await handleAddPhotos([file], { fromExample: exampleTrade });
+      await handleAddPhotos([file], { fromExample: slug });
     } catch (err) {
       console.warn('Could not attach the example photo:', err.message);
     }
@@ -904,7 +916,7 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', re
             textareaRef={textareaRef}
           />
 
-          {!jobDescription.trim() && <ExampleChips trade={trade} onPick={handlePickExample} />}
+          {showsExampleChips(trade, jobDescription) && <ExampleChips trade={trade} onPick={handlePickExample} />}
 
           <PrimaryAction
             enabled={canContinue.enabled}

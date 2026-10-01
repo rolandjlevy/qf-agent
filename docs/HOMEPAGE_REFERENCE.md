@@ -6,9 +6,9 @@
 
 AI quoting for UK trades
 
-# Reply first. Win the job. Keep your evening.
+# Turn rough notes into a professional quote, ready to send
 
-QuoteFetch turns a customer's message and a couple of photos into a clear, professional quote — materials, scope, assumptions and exclusions — ready to send. Built for UK sole traders.
+Paste the customer's message or add a photo. QuoteFetch asks the questions for your trade, works out the materials, scope, assumptions and exclusions, and finds current prices for each material. You pick your prices and send.
 
 [Start a quote](#top) [See a real example](#proof)
 
@@ -257,7 +257,7 @@ For UK tradespeople
 
 ## Your next customer is waiting for a quote.
 
-Reply first. Reply properly. Get your evenings back.
+Describe the job. Check the materials. Send the quote.
 
 [Start a quote](#top)
 
