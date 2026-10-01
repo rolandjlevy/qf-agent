@@ -6,7 +6,7 @@ const CUSTOMER_MESSAGE =
 const MATERIALS = ['Consumer unit 10-way RCBO', 'RCBO 32A Type A × 2', 'Surge protection device'];
 const SECTIONS = ['Scope of work', 'Assumptions', 'Exclusions', 'Next steps'];
 
-// A drawn example of the flow, not a live widget: the buttons in it are decoration.
+// A drawn example of the flow, not a live widget: nothing in it is clickable.
 export default function ConversionPreview() {
   return (
     <figure
@@ -86,13 +86,11 @@ export default function ConversionPreview() {
             ))}
           </ul>
 
-          <span
-            aria-hidden="true"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-button bg-foreground text-sm font-semibold text-white"
-          >
-            <Copy className="size-4" />
-            Copy quote
-          </span>
+          {/* A caption, not a button: a solid button here read as clickable. */}
+          <p className="m-0 flex items-center gap-1.5 border-t border-border-subtle pt-3 text-[13px] font-medium text-foreground">
+            <Copy className="size-3.5 text-muted-foreground" aria-hidden="true" />
+            Paste into an email or WhatsApp and send it
+          </p>
         </div>
       </div>
     </figure>
