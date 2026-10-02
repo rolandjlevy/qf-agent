@@ -1,4 +1,5 @@
 import { writeFileSync, mkdirSync, existsSync } from 'fs'
+import { randomInt } from 'crypto'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 
@@ -27,15 +28,25 @@ function slugify(str) {
     .slice(0, 30)
 }
 
-// Business name, contact details, and date on one pipe-separated line
-// instead of three stacked lines — contact_details itself can be multi-line
+// No 0/O or 1/I, so a number read out over the phone can't be misheard.
+const QUOTE_CODE_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
+
+// Q-YYYYMMDD-XXXX: unique without a database round-trip, so the CLI, evals and sample quotes all get one.
+export function newQuoteNumber(date = new Date()) {
+  const code = Array.from({ length: 4 }, () => QUOTE_CODE_CHARS[randomInt(QUOTE_CODE_CHARS.length)]).join('')
+  return `Q-${date.toISOString().slice(0, 10).replaceAll('-', '')}-${code}`
+}
+
+// Business name, contact details, customer, quote number and date on one pipe-separated line
+// instead of stacked lines — contact_details itself can be multi-line
 // (the profile form's field is "phone / email / address"), so each of its
 // lines becomes its own pipe segment too rather than breaking the "one
 // line" result.
-function formatHeaderLine(traderProfile) {
+export function formatHeaderLine(traderProfile, { customerName, quoteNumber } = {}) {
   const businessName = traderProfile?.business_name || '[YOUR BUSINESS NAME]'
   const contactDetails = traderProfile?.contact_details || '[YOUR CONTACT DETAILS]'
-  return [businessName, contactDetails, `Date: ${formatDate()}`]
+  const customer = customerName?.trim() || '[CUSTOMER NAME]'
+  return [businessName, contactDetails, `Customer: ${customer}`, `Quote no: ${quoteNumber}`, `Date: ${formatDate()}`]
     .flatMap((part) => part.split('\n'))
     .map((line) => line.trim())
     .filter(Boolean)
@@ -57,18 +68,18 @@ function formatFollowUpAnswers(bullets) {
   return `${FOLLOW_UP_ANSWERS_HEADING}\n${list}`
 }
 
-function assembleQuote(sections, traderProfile, followUpAnswerBullets) {
+function assembleQuote(sections, traderProfile, followUpAnswerBullets, { customerName, quoteNumber }) {
   const s = (key, fallback = '') => {
     // Accept both snake_case (tool API) and camelCase (KB format)
     const camelMap = { scope: 'scopeOfWork', next_steps: 'nextSteps' }
     return sections[key] || sections[camelMap[key]] || fallback
   }
 
-  const customerLine = sections.customer_name ? `Dear ${sections.customer_name},\n\n` : ''
+  const customerLine = customerName ? `Dear ${customerName},\n\n` : ''
   const answersBlock = formatFollowUpAnswers(followUpAnswerBullets)
 
   const parts = [
-    formatHeaderLine(traderProfile),
+    formatHeaderLine(traderProfile, { customerName, quoteNumber }),
     '',
     customerLine + s('introduction'),
     ...(answersBlock ? ['', answersBlock] : []),
@@ -101,7 +112,7 @@ function assembleQuote(sections, traderProfile, followUpAnswerBullets) {
 // per run), so the model doesn't need to retype the full quote text or the
 // job context just to trigger the save.
 export function saveQuote({ sections: sectionsInput, metadata } = {}, toolContext = {}) {
-  const { traderProfile, sectionStore = {}, trade: ctxTrade, jobDescription: ctxJobDescription, followUpAnswerBullets } = toolContext
+  const { traderProfile, sectionStore = {}, trade: ctxTrade, jobDescription: ctxJobDescription, followUpAnswerBullets, customerName: ctxCustomerName } = toolContext
   const sections = { ...sectionStore, ...sectionsInput }
 
   const missing = SECTION_NAMES.filter((name) => !sections[name])
@@ -114,7 +125,9 @@ export function saveQuote({ sections: sectionsInput, metadata } = {}, toolContex
   const dateStr = isoDate()
 
   const baseFilename = `quote-${dateStr}-${trade}-${jobSlug}`
-  const content = assembleQuote(sections, traderProfile, followUpAnswerBullets)
+  const customerName = (sections.customer_name || ctxCustomerName || '').trim()
+  const quoteNumber = newQuoteNumber()
+  const content = assembleQuote(sections, traderProfile, followUpAnswerBullets, { customerName, quoteNumber })
 
   // Writing to the local output/ dir is best-effort: on Vercel the
   // filesystem is read-only outside /tmp (and /tmp is ephemeral), so a
@@ -140,12 +153,13 @@ export function saveQuote({ sections: sectionsInput, metadata } = {}, toolContex
   // persist to Neon — stashed on toolContext so it never has to flow back
   // through the model's own context a second time. The return value here is
   // what the model actually sees as this tool's result.
-  toolContext.savedQuote = { file_path: filePath, file_written: fileWritten, filename: resolvedFilename, content, char_count: content.length }
+  toolContext.savedQuote = { file_path: filePath, file_written: fileWritten, filename: resolvedFilename, content, char_count: content.length, quote_number: quoteNumber }
 
   return {
     success: true,
     file_written: fileWritten,
     filename: resolvedFilename,
+    quote_number: quoteNumber,
     char_count: content.length,
   }
 }

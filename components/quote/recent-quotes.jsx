@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
 
-// `quotes` is `{ id, title, trade, age }[]`, formatted on the server (`trade` is null on quotes saved
+// `quotes` is `{ id, title, trade, customer, age }[]`, formatted on the server (`trade` is null on quotes saved
 // before it was stored). Each card restarts /quote/new pre-filled; `total` counts every saved quote.
 export default function RecentQuotes({ quotes, total }) {
   return (
@@ -43,8 +43,8 @@ export default function RecentQuotes({ quotes, total }) {
                   {q.title}
                 </span>
               </span>
-              <span className="mt-4 border-t border-border-subtle pt-3 text-[11px] text-muted-foreground tabular-nums">
-                {q.age}
+              <span className="mt-4 truncate border-t border-border-subtle pt-3 text-[11px] text-muted-foreground tabular-nums">
+                {q.customer ? `${q.customer} · ${q.age}` : q.age}
               </span>
             </Link>
           </li>
