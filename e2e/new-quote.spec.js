@@ -95,7 +95,7 @@ test('primary button stays on screen on mobile', async ({ page }, testInfo) => {
 test('a ninth photo is refused inline', async ({ page }) => {
   await page.locator('input[type=file][multiple]').setInputFiles(Array.from({ length: 9 }, (_, i) => photo(i + 1)));
   await expect(page.getByRole('button', { name: /^Remove photo/ })).toHaveCount(8);
-  await expect(page.getByRole('status')).toHaveText("You can add up to 8 photos, so 1 wasn't added.");
+  await expect(page.getByRole('status').filter({ hasText: 'up to 8' })).toHaveText("You can add up to 8 photos, so 1 wasn't added.");
 });
 
 test('example chips follow the trade, fill the text and hide once edited', async ({ page }) => {
@@ -124,6 +124,41 @@ test('a homepage example opens with its chips and its photo', async ({ page }) =
   // Another example swaps the photo rather than adding a second.
   await chips.first().click();
   await expect(removeButtons).toHaveCount(1);
+});
+
+test('changing trade clears an untouched example and its photo, but keeps the trader\'s own text', async ({ page }) => {
+  await page.goto('/quote/new?example=retile-shower-enclosure');
+  const removeButtons = page.getByRole('button', { name: /^Remove photo/ });
+  await expect(removeButtons).toHaveCount(1);
+  await chooseTrade(page, 'Plumber');
+  await expect(textarea(page)).toHaveValue('');
+  await expect(removeButtons).toHaveCount(0);
+  await expect(page.locator('[data-slot=example-chip]')).toHaveCount(3);
+
+  await textarea(page).fill('Customer says the kitchen tap drips all night.');
+  await chooseTrade(page, 'Roofer');
+  await expect(textarea(page)).toHaveValue('Customer says the kitchen tap drips all night.');
+});
+
+test('removing the last photo always clears the description, with an undo', async ({ page }) => {
+  const removeButtons = page.getByRole('button', { name: /^Remove photo/ });
+  const gallery = page.locator('input[type=file][multiple]').first();
+  // Photos first, then typing: the order the old rule got wrong.
+  await gallery.setInputFiles([photo(1), photo(2)]);
+  await textarea(page).fill('Leaking gutter at the back of the house.');
+  await removeButtons.first().click();
+  await expect(textarea(page)).toHaveValue('Leaking gutter at the back of the house.');
+  await removeButtons.first().click();
+  await expect(textarea(page)).toHaveValue('');
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(textarea(page)).toHaveValue('Leaking gutter at the back of the house.');
+  await expect(page.getByRole('button', { name: 'Undo' })).toHaveCount(0);
+
+  // An example's text goes with its photo the same way.
+  await page.goto('/quote/new?example=retile-shower-enclosure');
+  await expect(removeButtons).toHaveCount(1);
+  await removeButtons.first().click();
+  await expect(textarea(page)).toHaveValue('');
 });
 
 test('photo hint follows the trade', async ({ page }, testInfo) => {

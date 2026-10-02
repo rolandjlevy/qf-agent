@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { buttonStyle } from './button-style.js';
+import { CARD_CLASS, ChoiceChip, StepActions, TextField, stepClass } from '@/components/quote/step-layout';
 
 // Every choice group always gets this trailing option (a UI guarantee, not
 // something the model is asked to add) so a set of options never traps the
@@ -18,7 +18,18 @@ const OTHER_OPTION = 'Other';
 // show before materials are proposed (see lib/propose-materials.js) — the
 // question/choices/answer shape is identical in both places, so this is the
 // one place that shape gets rendered and reduced to an answer string.
-export default function AskQuestionForm({ question, onSubmit, submitting, submitLabel = '💬 Answer', actions, initialAnswer }) {
+// `children` render above the question (the step's heading); `sticky` pins the buttons on mobile.
+export default function AskQuestionForm({
+  question,
+  onSubmit,
+  submitting,
+  submitLabel = 'Answer',
+  onBack,
+  backLabel,
+  sticky = false,
+  initialAnswer,
+  children,
+}) {
   const [choiceSelections, setChoiceSelections] = useState(initialAnswer?.choiceSelections ?? {});
   const [otherText, setOtherText] = useState(initialAnswer?.otherText ?? {});
   const [notes, setNotes] = useState(initialAnswer?.notes ?? '');
@@ -63,95 +74,97 @@ export default function AskQuestionForm({ question, onSubmit, submitting, submit
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-      <p>
-        <strong>{question.question}</strong>
-        {question.context && (
-          <>
-            <br />
-            <span style={{ color: '#666' }}>{question.context}</span>
-          </>
-        )}
-      </p>
+    <form onSubmit={handleSubmit} className={stepClass(sticky)}>
+      {children}
 
-      {hasChoices &&
-        question.choices.map((group, i) => (
-          <fieldset
-            key={i}
-            style={{ border: '1px solid #ddd', borderRadius: 4, padding: '0.5rem 0.75rem' }}
-          >
-            {group.label && <legend>{group.label}</legend>}
-            {[
-              // Drop any "Other" the model included on its own despite the
-              // prompt saying not to — the interface always adds exactly one.
-              ...group.options.filter((o) => o.toLowerCase() !== OTHER_OPTION.toLowerCase()),
-              OTHER_OPTION,
-            ].map((option) => {
-              const isCheckbox = group.type === 'checkbox';
-              const checked = isCheckbox
-                ? (choiceSelections[i] || []).includes(option)
-                : choiceSelections[i] === option;
-              return (
-                <label key={option} style={{ display: 'block' }}>
-                  <input
-                    type={isCheckbox ? 'checkbox' : 'radio'}
-                    name={`ask-question-choice-${i}`}
-                    value={option}
-                    checked={checked}
-                    required={!isCheckbox}
-                    onChange={(e) => {
-                      setChoiceSelections((prev) => {
-                        if (isCheckbox) {
-                          const current = prev[i] || [];
-                          const next = e.target.checked
-                            ? [...current, option]
-                            : current.filter((o) => o !== option);
-                          return { ...prev, [i]: next };
-                        }
-                        return { ...prev, [i]: option };
-                      });
-                    }}
-                  />{' '}
-                  {option}
-                </label>
-              );
-            })}
-            {(group.type === 'checkbox'
+      <div className={`${CARD_CLASS} flex flex-col gap-4 p-4 md:p-5`}>
+        <div className="flex flex-col gap-1">
+          <p className="m-0 text-[17px] leading-snug font-semibold">{question.question}</p>
+          {question.context && <p className="m-0 text-[14px] leading-snug text-muted-foreground">{question.context}</p>}
+        </div>
+
+        {hasChoices &&
+          question.choices.map((group, i) => {
+            const isCheckbox = group.type === 'checkbox';
+            const otherPicked = isCheckbox
               ? (choiceSelections[i] || []).includes(OTHER_OPTION)
-              : choiceSelections[i] === OTHER_OPTION) && (
-              <input
-                type="text"
-                placeholder="Please specify"
-                value={otherText[i] || ''}
-                onChange={(e) => setOtherText((prev) => ({ ...prev, [i]: e.target.value }))}
-                style={{
-                  marginTop: '0.25rem',
-                  marginLeft: '1.4rem',
-                  display: 'block',
-                  padding: '0.5rem',
-                  fontFamily: 'inherit',
-                  fontSize: 'inherit',
-                }}
-                autoFocus
-              />
-            )}
-          </fieldset>
-        ))}
+              : choiceSelections[i] === OTHER_OPTION;
+            return (
+              // eslint-disable-next-line react/no-array-index-key
+              <fieldset key={i} className="m-0 flex min-w-0 flex-col gap-2.5 border-0 p-0">
+                {group.label && (
+                  <legend className="float-left mb-0.5 w-full p-0 text-[13px] font-semibold tracking-wider text-muted-foreground uppercase">
+                    {group.label}
+                    {isCheckbox && <span className="font-medium tracking-normal normal-case"> (pick any)</span>}
+                  </legend>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    // Drop any "Other" the model included on its own despite the
+                    // prompt saying not to — the interface always adds exactly one.
+                    ...group.options.filter((o) => o.toLowerCase() !== OTHER_OPTION.toLowerCase()),
+                    OTHER_OPTION,
+                  ].map((option) => {
+                    const checked = isCheckbox
+                      ? (choiceSelections[i] || []).includes(option)
+                      : choiceSelections[i] === option;
+                    return (
+                      <ChoiceChip
+                        key={option}
+                        type={isCheckbox ? 'checkbox' : 'radio'}
+                        name={`ask-question-choice-${i}`}
+                        value={option}
+                        checked={checked}
+                        required={!isCheckbox}
+                        onChange={(e) => {
+                          setChoiceSelections((prev) => {
+                            if (isCheckbox) {
+                              const current = prev[i] || [];
+                              const next = e.target.checked
+                                ? [...current, option]
+                                : current.filter((o) => o !== option);
+                              return { ...prev, [i]: next };
+                            }
+                            return { ...prev, [i]: option };
+                          });
+                        }}
+                      >
+                        {option}
+                      </ChoiceChip>
+                    );
+                  })}
+                </div>
+                {otherPicked && (
+                  <TextField
+                    aria-label={`${group.label || question.question} (other)`}
+                    placeholder="Please specify"
+                    value={otherText[i] || ''}
+                    onChange={(e) => setOtherText((prev) => ({ ...prev, [i]: e.target.value }))}
+                    autoFocus
+                  />
+                )}
+              </fieldset>
+            );
+          })}
 
-      <input
-        type="text"
-        style={{ padding: '0.5rem', fontFamily: 'inherit', fontSize: 'inherit' }}
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        placeholder={hasChoices ? 'Additional notes or comments (optional)' : undefined}
-        autoFocus={!hasChoices}
-      />
-      <div style={{ display: 'flex', gap: '0.5rem' }}>
-        {actions}
-        <button style={{ ...buttonStyle, width: 'fit-content', padding: '0.5rem 1rem' }} type="submit" disabled={submitting}>
-          {submitting ? '⏳ Answering…' : submitLabel}
-        </button>
+        <TextField
+          aria-label={hasChoices ? 'Additional notes' : 'Your answer'}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder={hasChoices ? 'Anything else? (optional)' : 'Type your answer'}
+          autoFocus={!hasChoices}
+        />
       </div>
+
+      <StepActions
+        onBack={onBack}
+        backLabel={backLabel}
+        continueLabel={submitLabel}
+        continueType="submit"
+        submitting={submitting}
+        submittingLabel="Answering…"
+        sticky={sticky}
+      />
     </form>
   );
 }

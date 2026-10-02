@@ -27,7 +27,8 @@ function useIsDesktop() {
   return isDesktop;
 }
 
-export default function JobComposer({ value, onChange, trade, photos, onAddPhotos, onRemovePhoto, textareaRef }) {
+// `onUndoClear`, when set, offers to restore a description that was cleared along with the last photo.
+export default function JobComposer({ value, onChange, trade, photos, onAddPhotos, onRemovePhoto, textareaRef, onUndoClear }) {
   const ownRef = useRef(null);
   const ref = textareaRef ?? ownRef;
   const galleryRef = useRef(null);
@@ -105,6 +106,21 @@ export default function JobComposer({ value, onChange, trade, photos, onAddPhoto
         <p role="status" className={cn('m-0 text-sm text-destructive', !photoMessage && 'sr-only')}>
           {photoMessage}
         </p>
+        <div role="status" className={cn('flex items-center gap-1.5 text-sm text-muted-foreground', !onUndoClear && 'sr-only')}>
+          {onUndoClear && (
+            <>
+              Description cleared with the last photo.
+              <button
+                type="button"
+                data-slot="undo-clear"
+                onClick={onUndoClear}
+                className="inline-flex min-h-11 items-center px-1 font-semibold text-brand underline-offset-2 hover:text-brand-hover hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                Undo
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <PhotoGuidanceCard trade={trade} showAskCustomer={photos.length === 0} />

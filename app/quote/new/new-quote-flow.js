@@ -7,7 +7,6 @@ import { compressImages } from '../../../lib/compress-image.js';
 import MaterialsRefinement from '../../materials-refinement.js';
 import { recordRefinementEvents } from '../../../lib/actions/log-refinement.js';
 import AskQuestionForm from '../../ask-question-form.js';
-import { buttonStyle } from '../../button-style.js';
 import { PhotoFindingsReview } from '../../job-photos.js';
 import { KeyQuestions, keyQuestionAnswer } from '../../key-questions-form.js';
 import { keyQuestionsFor } from '../../../lib/key-questions.js';
@@ -15,7 +14,7 @@ import StepIndicator, { stepForPhase } from '@/components/quote/step-indicator';
 import TradeChip from '@/components/quote/trade-chip';
 import JobComposer from '@/components/quote/job-composer';
 import ExampleChips from '@/components/quote/example-chips';
-import { exampleSlug, showsExampleChips } from '@/lib/example-jobs';
+import { exampleSlug, isExampleDescription, showsExampleChips } from '@/lib/example-jobs';
 import RecentQuotes from '@/components/quote/recent-quotes';
 import SampleQuote from '@/components/quote/sample-quote';
 import {
@@ -24,6 +23,7 @@ import {
   QuoteDraftingProgress,
 } from '@/components/quote/loading-states';
 import PrimaryAction from '@/components/quote/primary-action';
+import { StepHeader } from '@/components/quote/step-layout';
 import { useMobileFocusScroll } from '@/components/quote/use-mobile-focus-scroll';
 import { continueState } from '@/lib/new-quote';
 import {
@@ -184,6 +184,9 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', in
   const pollStartRef = useRef(null);
   const dialogRef = useRef(null);
   const textareaRef = useRef(null);
+  // Bumped whenever the example photo is replaced or dropped, so a download still in flight is discarded.
+  const examplePhotoRequestRef = useRef(0);
+  const [clearedDescription, setClearedDescription] = useState(null);
   // steps.length snapshot taken when waitingForNext turns true — pollStatus
   // only inspects steps written after this point to decide whether the next
   // turn needs another answer.
@@ -329,6 +332,7 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', in
     runIdRef.current = null;
     setTrade(initialTrade);
     setJobDescription(initialDescription);
+    setClearedDescription(null);
     setPhase('form');
     setRefinementMaterials([]);
     setClarifyingQuestion(null);
@@ -362,6 +366,7 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', in
   // so they're usually ready by the time the trader has finished typing.
   async function handleAddPhotos(files, meta = {}) {
     if (!files.length) return;
+    setClearedDescription(null);
     const entries = files.map((file) => ({
       id: crypto.randomUUID(),
       previewUrl: URL.createObjectURL(file),
@@ -403,7 +408,12 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', in
     );
   }
 
+  // Removing the last photo also clears the description, with an Undo under the box.
   function handleRemovePhoto(id) {
+    if (photos.every((p) => p.id === id) && jobDescription.trim()) {
+      setClearedDescription(jobDescription);
+      setJobDescription('');
+    }
     setPhotos((prev) => {
       const photo = prev.find((p) => p.id === id);
       if (photo) URL.revokeObjectURL(photo.previewUrl);
@@ -507,11 +517,11 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', in
     setPhotoAnalysis({
       ...data,
       sourcePhotos: readyPhotos,
-      // A tentative reading only goes into the quote if the trader ticks it themselves.
+      // Tentative readings, and anything from a photo judged not to show the job, start unticked.
       observations: data.observations.map((o) => ({
         ...o,
         id: crypto.randomUUID(),
-        checked: o.confidence !== 'low',
+        checked: o.confidence !== 'low' && data.photos[o.imageIndex - 1]?.kind !== 'irrelevant',
       })),
     });
     photoAnalysisKeyRef.current = key;
@@ -617,9 +627,32 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', in
     applyProposeMaterialsResult(data, drafts);
   }
 
+  // An untouched example belongs to the old trade, so it goes (with its photo) and the new trade's chips show.
+  // Anything the trader typed or pasted stays.
+  function handleTradeChange(next) {
+    if (next !== trade && isExampleDescription(jobDescription)) {
+      setJobDescription('');
+      setClearedDescription(null);
+      removeExamplePhotos();
+    }
+    setTrade(next);
+  }
+
+  function handleDescriptionChange(value) {
+    setClearedDescription(null);
+    setJobDescription(value);
+  }
+
+  function handleUndoClear() {
+    setJobDescription(clearedDescription);
+    setClearedDescription(null);
+    textareaRef.current?.focus();
+  }
+
   // An example chip fills the description and attaches that example's Unsplash photo.
   function handlePickExample(example) {
     setJobDescription(example.jobDescription);
+    setClearedDescription(null);
     textareaRef.current?.focus();
     pickExamplePhoto(exampleSlug(example));
   }
@@ -634,25 +667,30 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', in
     }).catch(() => {});
   }
 
-  // Adds the example's photo as a job photo, through the same compress-and-upload path as
-  // the trader's own. It replaces any earlier example photo but leaves uploaded ones alone.
-  async function attachExamplePhoto(slug) {
-    const photo = examplePhoto(slug);
-    if (!photo) return;
+  // Removes the example photo (uploaded ones stay) and discards any still downloading.
+  function removeExamplePhotos() {
+    examplePhotoRequestRef.current += 1;
     setPhotos((prev) => {
       prev
         .filter((p) => p.fromExample)
         .forEach((p) => URL.revokeObjectURL(p.previewUrl));
       return prev.filter((p) => !p.fromExample);
     });
+  }
+
+  // Adds the example's photo as a job photo, through the same compress-and-upload path as
+  // the trader's own. It replaces any earlier example photo but leaves uploaded ones alone.
+  async function attachExamplePhoto(slug) {
+    const photo = examplePhoto(slug);
+    if (!photo) return;
+    removeExamplePhotos();
+    const request = examplePhotoRequestRef.current;
     try {
       const response = await fetch(unsplashPhotoFileUrl(photo));
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const file = new File(
-        [await response.blob()],
-        `${slug}-example.jpg`,
-        { type: 'image/jpeg' },
-      );
+      const blob = await response.blob();
+      if (request !== examplePhotoRequestRef.current) return;
+      const file = new File([blob], `${slug}-example.jpg`, { type: 'image/jpeg' });
       await handleAddPhotos([file], { fromExample: slug });
     } catch (err) {
       console.warn('Could not attach the example photo:', err.message);
@@ -895,7 +933,7 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', in
           <h1 className="m-0 text-[32px] leading-tight font-bold tracking-[-0.02em] md:text-[44px] md:leading-[1.15] md:tracking-[-0.025em]">
             What&apos;s the job?
           </h1>
-          <TradeChip value={trade} onChange={setTrade} />
+          <TradeChip value={trade} onChange={handleTradeChange} />
         </div>
       ) : (
         <h1 className="sr-only">New quote</h1>
@@ -908,12 +946,13 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', in
         <form onSubmit={handleProposeMaterials} className="flex flex-col gap-5 pb-36 md:gap-7 md:pb-0">
           <JobComposer
             value={jobDescription}
-            onChange={setJobDescription}
+            onChange={handleDescriptionChange}
             trade={trade}
             photos={photos}
             onAddPhotos={handleAddPhotos}
             onRemovePhoto={handleRemovePhoto}
             textareaRef={textareaRef}
+            onUndoClear={clearedDescription ? handleUndoClear : null}
           />
 
           {showsExampleChips(trade, jobDescription) && <ExampleChips trade={trade} onPick={handlePickExample} />}
@@ -970,28 +1009,16 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', in
       {phase === 'proposing' && <MaterialsLoading />}
 
       {phase === 'clarifying' && clarifyingQuestion && (
-        <div>
-          <h2>Quick question</h2>
-          <AskQuestionForm
-            question={clarifyingQuestion}
-            onSubmit={handleClarifyingAnswer}
-            initialAnswer={clarifyingInitialAnswer}
-            submitLabel="➡️ Continue"
-            actions={
-              <button
-                type="button"
-                style={{
-                  ...buttonStyle,
-                  width: 'fit-content',
-                  padding: '0.5rem 1rem',
-                }}
-                onClick={handleBack}
-              >
-                ⬅️ Back
-              </button>
-            }
-          />
-        </div>
+        <AskQuestionForm
+          question={clarifyingQuestion}
+          onSubmit={handleClarifyingAnswer}
+          initialAnswer={clarifyingInitialAnswer}
+          submitLabel="Continue"
+          onBack={handleBack}
+          sticky
+        >
+          <StepHeader title="Quick question">One more detail that changes which materials the job needs.</StepHeader>
+        </AskQuestionForm>
       )}
 
       {phase === 'refining' && (
@@ -1008,7 +1035,11 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', in
         <QuoteDraftingProgress steps={steps} materialsCount={checkedMaterialsCount} />
       )}
 
-      {error && <p style={{ color: 'crimson' }}>{error}</p>}
+      {error && (
+        <p role="alert" className="m-0 mt-4 rounded-control border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {error}
+        </p>
+      )}
 
       <dialog
         ref={dialogRef}
@@ -1023,36 +1054,18 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', in
           if (submittingAnswer) return;
           handleCancel();
         }}
-        style={{
-          maxWidth: 480,
-          width: '90%',
-          border: '1px solid #ddd',
-          borderRadius: 8,
-          padding: '1.25rem',
-        }}
+        className="m-auto w-[90%] max-w-[520px] rounded-card border border-border bg-background p-5 shadow-card backdrop:bg-foreground/40"
       >
         {!question && waitingForNext && (
-          <p style={{ color: '#666' }}>Thinking about your answer…</p>
+          <p className="m-0 text-[15px] text-muted-foreground">Thinking about your answer…</p>
         )}
         {question && (
           <AskQuestionForm
             question={question}
             onSubmit={handleAnswerSubmit}
             submitting={submittingAnswer}
-            actions={
-              <button
-                type="button"
-                style={{
-                  ...buttonStyle,
-                  width: 'fit-content',
-                  padding: '0.5rem 1rem',
-                }}
-                onClick={handleCancel}
-                disabled={submittingAnswer}
-              >
-                ❌ Cancel
-              </button>
-            }
+            onBack={handleCancel}
+            backLabel="Cancel"
           />
         )}
       </dialog>
