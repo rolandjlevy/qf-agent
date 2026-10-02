@@ -288,6 +288,8 @@ export async function draftSection({ section, context } = {}, toolContext = {}) 
     jobKnowledge: toolContext.jobKnowledge,
     photoFindings: toolContext.photoFindings,
   }
+  // Kept for save_quote's header, which otherwise shows the [CUSTOMER NAME] placeholder.
+  if (typeof context?.customer_name === 'string' && context.customer_name.trim()) toolContext.customerName = context.customer_name.trim()
   // The web flow's answers come from the run, so drafting never depends on the model passing them on.
   if (toolContext.followUpAnswers?.length) merged.follow_up_answers = toolContext.followUpAnswers
 

@@ -168,7 +168,7 @@ CLI input is validated up front too: `qf.js`'s `--trade` and `--tone` options us
 
 Assembled quotes are plain-text, following the knowledge bank spec: all-caps section headings, bullet points only, no markdown tables. Must paste cleanly into an email client. The CLI additionally writes this to `output/` as a `.md` file (best-effort — see `save_quote` above); both surfaces persist the same content to `generated_quotes.content` in Neon.
 
-Header: `[BUSINESS NAME] | [CONTACT DETAILS] | Date: ...` on one pipe-separated line (`tools/save-quote.js`'s `formatHeaderLine`) — a multi-line `contact_details` value has each of its own lines folded into additional pipe segments, so the header is always exactly one line regardless.
+Header: `[BUSINESS NAME] | [CONTACT DETAILS] | Customer: ... | Quote no: ... | Date: ...` on one pipe-separated line (`tools/save-quote.js`'s `formatHeaderLine`). Drafting never knows the customer, so it's `[CUSTOMER NAME]` unless `draft_section` was given `customer_name` (CLI `ask_user`); the trader adds the name afterwards on `/quote/[id]`. The quote number is `Q-YYYYMMDD-XXXX` (`newQuoteNumber`), generated with no database lookup, so it's unique but not sequential — a multi-line `contact_details` value has each of its own lines folded into additional pipe segments, so the header is always exactly one line regardless.
 
 Section order: header · introduction · MATERIALS & EQUIPMENT · SCOPE OF WORK · ASSUMPTIONS · EXCLUSIONS · NEXT STEPS · DISCLAIMERS.
 
