@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Building2, ChevronRight, CircleHelp, Menu, Plus, User, X } from 'lucide-react';
 import Logo from '@/components/logo';
 import { cn } from '@/lib/utils';
-import { headerContext, isQuotesPath } from '@/lib/header-context';
+import { headerContext, isNewQuotePath, isQuotesPath } from '@/lib/header-context';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,8 +80,8 @@ function MenuRow({ href, active, onClick, children }) {
   );
 }
 
-// One header for every page, chosen by route (lib/header-context.js): the homepage and /quote/new get the section
-// links and "Start a quote"; app pages get Quotes, "+ New quote" and the account menu; example quotes drop "+ New quote".
+// One header per route (lib/header-context.js): marketing pages get the section links and "Start a quote" (the account menu
+// instead on /quote/new); app pages get Quotes, "+ New quote" and the account menu; example quotes drop "+ New quote".
 export default function AppHeader() {
   const pathname = usePathname() ?? '';
   const [menuOpen, setMenuOpen] = useState(false);
@@ -89,6 +89,8 @@ export default function AppHeader() {
   const marketing = context === 'marketing';
   const onQuotes = isQuotesPath(pathname);
   const onProfile = pathname.startsWith('/profile');
+  const onNewQuote = isNewQuotePath(pathname);
+  const accountMenu = !marketing || onNewQuote;
 
   // On the homepage, a section link in the menu scrolls once the menu has closed: the sheet's
   // scroll lock would otherwise restore the old position and undo the jump.
@@ -104,7 +106,12 @@ export default function AppHeader() {
   }
 
   const mobileRows = marketing
-    ? [...MARKETING_LINKS.map((l) => ({ ...l, active: l.href === pathname })), { href: '/quotes', label: 'Your quotes' }]
+    ? [
+        ...MARKETING_LINKS.map((l) => ({ ...l, active: l.href === pathname })),
+        { href: '/quotes', label: 'Your quotes' },
+        // The menu already has FAQ, so only the account menu's business link is added.
+        ...(onNewQuote ? [ACCOUNT_LINKS[0]] : []),
+      ]
     : [{ href: '/quotes', label: 'Quotes', active: onQuotes }, ...ACCOUNT_LINKS.map((l) => ({ ...l, active: l.href === '/profile' && onProfile }))];
 
   return (
@@ -148,9 +155,11 @@ export default function AppHeader() {
               >
                 Your quotes
               </Link>
-              <Link href="/quote/new" className={blueButton}>
-                Start a quote
-              </Link>
+              {!onNewQuote && (
+                <Link href="/quote/new" className={blueButton}>
+                  Start a quote
+                </Link>
+              )}
             </>
           ) : (
             context === 'app' && (
@@ -162,7 +171,7 @@ export default function AppHeader() {
             )
           )}
 
-          {!marketing && (
+          {accountMenu && (
             // Non-modal: the rest of the page stays readable and scrollable while it is open.
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger
