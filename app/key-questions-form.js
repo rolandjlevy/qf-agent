@@ -1,6 +1,6 @@
 'use client';
 
-import { buttonStyle } from './button-style.js';
+import { CARD_CLASS, ChoiceChip, StepActions, StepHeader, TextField, stepClass } from '@/components/quote/step-layout';
 
 const OTHER_OPTION = 'Other';
 const NOT_SURE_OPTION = 'Not sure – assume for now';
@@ -19,60 +19,59 @@ export function KeyQuestions({ title, questions, answers, onChange, onBack, onCo
 
   return (
     <form
+      aria-labelledby="key-questions-heading"
+      className={stepClass()}
       onSubmit={(e) => {
         e.preventDefault();
         onContinue();
       }}
     >
-      <h2>{title}</h2>
-      <p style={{ color: '#666' }}>
-        Answer what you can. Anything you skip or aren't sure about is written into the quote as an assumption.
-      </p>
+      <StepHeader id="key-questions-heading" title={title}>
+        Answer what you can. Anything you skip or aren&apos;t sure about is written into the quote as an assumption.
+      </StepHeader>
 
-      {questions.map((q, i) => {
-        const entry = answers[q.topic] ?? {};
-        return (
-          <fieldset
-            key={q.topic}
-            style={{ border: '1px solid #ddd', borderRadius: 4, padding: '0.5rem 0.75rem', marginBottom: '0.75rem' }}
-          >
-            <legend>
-              <strong>{q.question}</strong>
-            </legend>
-            {[...q.options, OTHER_OPTION, NOT_SURE_OPTION].map((option) => (
-              <label key={option} style={{ display: 'block' }}>
-                <input
-                  type="radio"
-                  name={`key-question-${i}`}
-                  value={option}
-                  checked={entry.choice === option}
-                  onChange={() => setEntry(q.topic, { choice: option })}
-                />{' '}
-                {option}
-              </label>
-            ))}
-            {entry.choice === OTHER_OPTION && (
-              <input
-                type="text"
-                placeholder="Please specify"
-                value={entry.otherText ?? ''}
-                onChange={(e) => setEntry(q.topic, { otherText: e.target.value })}
-                style={{ marginTop: '0.25rem', marginLeft: '1.4rem', padding: '0.5rem', fontFamily: 'inherit', fontSize: 'inherit' }}
-                autoFocus
-              />
-            )}
-          </fieldset>
-        );
-      })}
+      <ol className="m-0 flex list-none flex-col gap-3.5 p-0">
+        {questions.map((q, i) => {
+          const entry = answers[q.topic] ?? {};
+          return (
+            <li key={q.topic}>
+              <fieldset className={`${CARD_CLASS} m-0 flex min-w-0 flex-col gap-3 p-4 md:p-5`}>
+                <legend className="float-left mb-0.5 flex w-full items-baseline gap-2.5 p-0 text-[15px] leading-snug font-semibold">
+                  <span className="text-[13px] font-semibold text-brand tabular-nums" aria-hidden="true">
+                    {i + 1}.
+                  </span>
+                  {q.question}
+                </legend>
+                <div className="flex flex-wrap gap-2">
+                  {[...q.options, OTHER_OPTION, NOT_SURE_OPTION].map((option) => (
+                    <ChoiceChip
+                      key={option}
+                      name={`key-question-${i}`}
+                      value={option}
+                      checked={entry.choice === option}
+                      onChange={() => setEntry(q.topic, { choice: option })}
+                      dashed={option === NOT_SURE_OPTION}
+                    >
+                      {option}
+                    </ChoiceChip>
+                  ))}
+                </div>
+                {entry.choice === OTHER_OPTION && (
+                  <TextField
+                    aria-label={`${q.question} (other)`}
+                    placeholder="Please specify"
+                    value={entry.otherText ?? ''}
+                    onChange={(e) => setEntry(q.topic, { otherText: e.target.value })}
+                    autoFocus
+                  />
+                )}
+              </fieldset>
+            </li>
+          );
+        })}
+      </ol>
 
-      <div style={{ display: 'flex', gap: '0.5rem' }}>
-        <button type="button" style={buttonStyle} onClick={onBack}>
-          ⬅️ Back
-        </button>
-        <button type="submit" style={buttonStyle}>
-          ➡️ Continue
-        </button>
-      </div>
+      <StepActions onBack={onBack} continueType="submit" />
     </form>
   );
 }
