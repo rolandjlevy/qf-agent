@@ -46,16 +46,22 @@ export default function StepIndicator({ current }) {
               className="flex items-center"
             >
               {i > 0 && <span className="mx-4 h-[2px] w-14 bg-border" aria-hidden="true" />}
+              {/* The current step's ring is a real border on a wrapper, not ring-offset's box-shadow, which some browsers
+                  don't draw. Negative margin keeps the row the same size. */}
               <span
-                className={cn(
-                  'flex size-6 shrink-0 items-center justify-center rounded-full text-xs',
-                  isCurrent
-                    ? 'bg-brand font-semibold text-primary-foreground ring-2 ring-brand/20 ring-offset-2 ring-offset-background'
-                    : 'border border-input bg-card font-medium text-muted-foreground',
-                )}
+                className={cn('flex shrink-0 rounded-full', isCurrent && '-m-[3.5px] border-[1.5px] border-brand/50 p-0.5')}
                 aria-hidden="true"
               >
-                {step}
+                <span
+                  className={cn(
+                    'flex size-6 items-center justify-center rounded-full text-xs',
+                    isCurrent
+                      ? 'bg-brand font-semibold text-primary-foreground'
+                      : 'border border-input bg-card font-medium text-muted-foreground',
+                  )}
+                >
+                  {step}
+                </span>
               </span>
               <span
                 className={cn(
