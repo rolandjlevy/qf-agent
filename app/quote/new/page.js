@@ -28,6 +28,7 @@ export default async function NewQuotePage({ searchParams }) {
     id: q.id,
     title: quoteTitle(q.job_description),
     trade: validTrade(q.trade) ? tradeLabel(q.trade) : null,
+    customer: q.customer_name ?? null,
     age: relativeTime(q.generated_at),
   }));
   // Titles only: the samples' full text stays out of the client bundle.

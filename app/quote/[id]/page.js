@@ -4,8 +4,10 @@ import { getGeneratedQuoteById, getQuoteLinePrices } from '../../../lib/db.js';
 import { extractMaterialsFromToolCallLog } from '../../../lib/quote-materials.js';
 import { extractIntegerQuantity } from '../../../lib/quantity.js';
 import { FOLLOW_UP_ANSWERS_HEADING } from '../../../tools/save-quote.js';
+import { applyCustomerName } from '../../../lib/quote-customer.js';
 import QuoteActions from '../../quote-actions.js';
 import MaterialsPricing from '../../materials-pricing.js';
+import CustomerNameField from '../../customer-name-field.js';
 
 // Belt-and-braces alongside app/quotes/page.js's force-dynamic — this route
 // is already dynamic due to its [id] param, but explicit costs nothing.
@@ -118,8 +120,8 @@ function rebuildMaterialsBody(body, activeMaterials, overridesByName) {
 // Mirrors tools/save-quote.js's assembleQuote() join style exactly, so a
 // quote with no line overrides at all produces byte-identical output to the
 // original quote.content.
-function buildDisplayContent(quote, preamble, sections, materials, overridesByName) {
-  if (!sections.length || !materials.length) return quote.content;
+function buildDisplayContent(content, preamble, sections, materials, overridesByName) {
+  if (!sections.length || !materials.length) return content;
 
   const activeMaterials = materials.filter((m) => (overridesByName[m.name]?.status ?? 'active') === 'active');
   const rebuiltSections = sections.map((section) =>
@@ -191,7 +193,9 @@ export default async function QuotePage({ params }) {
   const quote = await getGeneratedQuoteById(idNum);
   if (!quote) notFound();
 
-  const { preamble = '', sections = [] } = quote.content ? parseQuoteSections(quote.content) : {};
+  // Everything below (screen, Copy, Download) works from the content with the customer name applied.
+  const content = applyCustomerName(quote.content, quote.customer_name);
+  const { preamble = '', sections = [] } = content ? parseQuoteSections(content) : {};
 
   let toolCallLog = [];
   try {
@@ -216,7 +220,7 @@ export default async function QuotePage({ params }) {
     }),
   );
 
-  const displayContent = quote.content ? buildDisplayContent(quote, preamble, sections, materials, overridesByName) : quote.content;
+  const displayContent = content ? buildDisplayContent(content, preamble, sections, materials, overridesByName) : content;
 
   return (
     <div>
@@ -224,6 +228,7 @@ export default async function QuotePage({ params }) {
       <p style={{ color: '#666' }}>
         Generated {formatDate(quote.generated_at)}
       </p>
+      <CustomerNameField quoteId={idNum} customerName={quote.customer_name} />
       {quote.content ? (
         <>
           {preamble && <pre style={preStyle}>{renderPreamble(preamble)}</pre>}
