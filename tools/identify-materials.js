@@ -1,6 +1,6 @@
 import { createClient, createMessage, getIdentifyMaterialsModel } from '../lib/anthropic-client.js'
 import { NEVER_DO_RULES } from '../prompts/system.js'
-import { isRejectedLabel } from '../lib/material-rules.js'
+import { isRejectedLabel, stripAlternatives } from '../lib/material-rules.js'
 import { tradeLabel } from '../lib/constants.js'
 
 export function isRejectedMaterial(m) {
@@ -124,7 +124,9 @@ Return this exact JSON structure:
     throw new Error('identify_materials: model response was missing a "materials" array')
   }
 
-  const materials = parsed.materials.filter((m) => !isRejectedMaterial(m))
+  const materials = parsed.materials
+    .filter((m) => !isRejectedMaterial(m))
+    .map((m) => (typeof m.notes === 'string' ? { ...m, notes: stripAlternatives(m.notes) || null } : m))
 
   // Available to draft_section's materials-section call without the model
   // having to pass the list back explicitly.

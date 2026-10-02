@@ -251,6 +251,8 @@ export async function POST(request) {
         sectionStore: {},
         materials: legacyMaterials,
         followUpAnswerBullets,
+        followUpAnswers,
+        photoFindings,
         jobKnowledge,
       }
 
