@@ -1,9 +1,10 @@
 import Link from 'next/link'
-import { FileText, Plus } from 'lucide-react'
-import { listGeneratedQuotes } from '../../lib/db.js'
+import { ChevronDown, FileText, Plus } from 'lucide-react'
+import { countGeneratedQuotes, listGeneratedQuotes } from '../../lib/db.js'
+import { QUOTES_PAGE_SIZE, quotesToShow } from '../../lib/quote-list.js'
 import { VALID_TRADES, tradeLabel } from '../../lib/constants.js'
 import { quoteTitle, relativeTime } from '../../lib/new-quote.js'
-import { PageHeader, PageShell } from '@/components/app-page'
+import { PageHeader, PageShell, secondaryButtonClass } from '@/components/app-page'
 import { primaryButtonClass } from '@/components/quote/primary-action'
 import QuoteCardActions from './quote-card-actions.js'
 
@@ -21,8 +22,9 @@ function NewQuoteLink() {
   )
 }
 
-export default async function QuotesPage() {
-  const quotes = await listGeneratedQuotes()
+export default async function QuotesPage({ searchParams }) {
+  const show = quotesToShow((await searchParams).show)
+  const [quotes, total] = await Promise.all([listGeneratedQuotes(show), countGeneratedQuotes()])
 
   return (
     <PageShell>
@@ -31,7 +33,7 @@ export default async function QuotesPage() {
         description={
           quotes.length === 0
             ? 'Quotes you create will be saved here.'
-            : `${quotes.length} saved ${quotes.length === 1 ? 'quote' : 'quotes'}, newest first.`
+            : `${total} saved ${total === 1 ? 'quote' : 'quotes'}, newest first.`
         }
       />
 
@@ -90,6 +92,19 @@ export default async function QuotesPage() {
             )
           })}
         </ul>
+      )}
+
+      {total > quotes.length && (
+        <div className="flex flex-col items-center gap-2">
+          {/* scroll={false}: the new cards appear below, and the page stays where the trader was. */}
+          <Link href={`/quotes?show=${show + QUOTES_PAGE_SIZE}`} scroll={false} className={secondaryButtonClass()}>
+            <ChevronDown className="size-[18px]" strokeWidth={1.75} aria-hidden="true" />
+            Show {Math.min(QUOTES_PAGE_SIZE, total - quotes.length)} more
+          </Link>
+          <p className="m-0 text-[13px] text-muted-foreground tabular-nums">
+            Showing {quotes.length} of {total}
+          </p>
+        </div>
       )}
     </PageShell>
   )
