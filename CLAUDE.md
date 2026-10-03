@@ -166,6 +166,8 @@ Two protections in `app/api/quote/route.js`, each fixing a real production incid
 
 **Trade slugs are permanent identifiers.** `VALID_TRADES` values (`lib/constants.js`) are stored in `generated_quotes`/`quote_runs` rows and used as lookup keys (`keyQuestionsFor`, `jobsFor`), so never rename one. Display text comes from `TRADE_LABELS` via `tradeLabel(slug)` (falls back to the slug), used by the `/quote/new` picker (sorted by label) and in every LLM prompt's trade text.
 
+**Request limits** (`lib/request-limits.js`): with no sign-in yet, the routes that spend Anthropic tokens (`/api/quote`, `propose-materials`, `analyse-photos`) share a per-IP rate limit (30 a minute; the price search has its own 20), held in Upstash Redis by `lib/rate-limit.js` so every instance counts together. It fails open: with Redis slow (over 1s), erroring or out of quota, the request goes through, and with no `KV_REST_API_*` credentials it counts in memory per instance. They also reject a job description over 5,000 characters (the composer's `maxLength` matches) or more than 60 materials; Q&A pairs are cut to 12, rather than rejected. The Server Actions validate their ids, and `selectLinePrice` stores only http(s) product URLs. `/quotes` doesn't carry quote text: Copy and Download fetch it on click (`getQuoteText`).
+
 CLI input is validated up front too: `qf.js`'s `--trade` and `--tone` options use yargs `choices` against `VALID_TRADES`/`VALID_TONES` (in `lib/constants.js`, shared with the web UI), so an invalid value fails fast instead of silently flowing into every prompt. The web route validates the same way against a 400 response.
 
 ## Quote output
@@ -209,6 +211,8 @@ PRICE_PROVIDER=           # optional, defaults to 'serper'; 'dataforseo' is an u
 PRICE_CACHE_TTL_SECONDS=  # optional, defaults to 604800 (7 days); price_search_cache row lifetime
 UNSPLASH_ACCESS_KEY=      # optional; Unsplash API Access Key, for scripts/unsplash-examples.mjs and the example-photo download reports. Unset = reports skipped
 UNSPLASH_APP_NAME=        # optional; app name registered with Unsplash, written into lib/example-photos.json as the credit links' utm_source
+KV_REST_API_URL=          # optional; Upstash Redis (qf-rate-limit, free plan, auto-upgrade off) for lib/rate-limit.js. Set by the Vercel integration
+KV_REST_API_TOKEN=        # optional; its token. Unset = rate limits count in memory per instance
 ```
 
 `qf.js` treats an empty-string `ANTHROPIC_API_KEY`/`CLAUDE_MODEL` as unset before calling `dotenv.config()` — this devcontainer's `remoteEnv` pre-sets both to `""` when the host has no value, which would otherwise make `dotenv` skip loading the real value from `.env` (its default `override: false` treats an existing-but-empty var as "already set"). This still means a real operator/CI-supplied value is never silently overridden by a stray local `.env`. `scripts/web-env.mjs` applies the same clearing (plus `DATABASE_URL`) before spawning `next`, since Next's own `.env` loader has the identical behaviour.

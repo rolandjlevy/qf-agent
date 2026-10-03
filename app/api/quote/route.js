@@ -21,6 +21,14 @@ import { waitForAnswer } from '../../../lib/quote-runs.js'
 import { summarizeFollowUpAnswers } from '../../../lib/summarize-follow-up-answers.js'
 import { sanitizePhotoFindings } from '../../../lib/photo-findings.js'
 import { jobEntry, formatJobForPhaseB } from '../../../lib/trade-knowledge/index.js'
+import {
+  MAX_JOB_DESCRIPTION_LENGTH,
+  MAX_MATERIALS,
+  cleanJobDescription,
+  sanitizeQaPairs,
+  validateMaterials,
+} from '../../../lib/request-limits.js'
+import { clientIp, isQuoteRequestRateLimited, rateLimitedResponse } from '../../../lib/rate-limit.js'
 
 // save_quote (via tools/save-quote.js) uses Node's fs module — must run in
 // the Node runtime, not edge.
@@ -50,23 +58,9 @@ const PIPELINE_MARGIN_MS = 90 * 1000
 const WATCHDOG_INTERVAL_MS = 15000
 const WATCHDOG_STALL_MS = 60000
 
-// Materials-refinement flow (see CLAUDE.md's Phase 3a addendum): this route
-// is now always Phase B — the trader has already reviewed a Phase A proposal
-// via /api/quote/propose-materials and refined it client-side, so `materials`
-// is required and authoritative, never re-derived by the agent loop itself.
-function validateMaterials(materials) {
-  // An empty array is valid and deliberate — a labour-only job can
-  // legitimately have no materials at all; only a missing/malformed field
-  // (not an array, or a malformed entry) is rejected below.
-  if (!Array.isArray(materials)) return null
-  for (const m of materials) {
-    if (!m || typeof m.label !== 'string' || !m.label.trim()) return null
-    if (m.quantity !== undefined && typeof m.quantity !== 'string') return null
-    if (m.description !== undefined && typeof m.description !== 'string') return null
-  }
-  return materials
-}
-
+// This route is always Phase B (CLAUDE.md's Phase 3a addendum): `materials` is the trader-refined list,
+// required and authoritative (validateMaterials, lib/request-limits.js), never re-derived by the agent loop.
+//
 // Converts the refined {label, quantity?, description?} list back into the
 // {name, quantity, notes, confidence} shape tools/identify-materials.js has
 // always produced, so lib/quote-materials.js's extractMaterialsFromToolCallLog
@@ -85,23 +79,14 @@ function toLegacyMaterialShape(materials) {
   }))
 }
 
-// { question, answer } pairs gathered during Phase A's clarifying-question
-// round-trip (lib/propose-materials.js) — supplementary context for
-// buildInitialMessage, not authoritative like `materials`, so malformed
-// entries are dropped rather than rejecting the whole request over them.
-function sanitizeFollowUpAnswers(followUpAnswers) {
-  if (!Array.isArray(followUpAnswers)) return []
-  return followUpAnswers.filter(
-    (qa) => qa && typeof qa.question === 'string' && qa.question.trim() && typeof qa.answer === 'string' && qa.answer.trim(),
-  )
-}
 
 export async function POST(request) {
+  if (await isQuoteRequestRateLimited(clientIp(request))) return rateLimitedResponse()
   const body = await request.json().catch(() => null)
   const trade = body?.trade
-  const jobDescription = typeof body?.jobDescription === 'string' ? body.jobDescription.trim() : ''
+  const jobDescription = cleanJobDescription(body?.jobDescription)
   const materials = validateMaterials(body?.materials)
-  const followUpAnswers = sanitizeFollowUpAnswers(body?.followUpAnswers)
+  const followUpAnswers = sanitizeQaPairs(body?.followUpAnswers)
   const photoFindings = sanitizePhotoFindings(body?.photoFindings)
   // Phase A's knowledge-pack match; an unknown or unreviewed id is just ignored.
   const jobKnowledge = formatJobForPhaseB(jobEntry(trade, body?.jobType))
@@ -110,11 +95,11 @@ export async function POST(request) {
     return Response.json({ error: `trade must be one of: ${VALID_TRADES.join(', ')}` }, { status: 400 })
   }
   if (!jobDescription) {
-    return Response.json({ error: 'jobDescription is required' }, { status: 400 })
+    return Response.json({ error: `jobDescription is required, up to ${MAX_JOB_DESCRIPTION_LENGTH} characters` }, { status: 400 })
   }
   if (!materials) {
     return Response.json(
-      { error: 'materials is required — an array of { label, description? } refined via /api/quote/propose-materials (may be empty for a labour-only job)' },
+      { error: `materials is required — an array of up to ${MAX_MATERIALS} { label, quantity?, description? } refined via /api/quote/propose-materials (may be empty for a labour-only job)` },
       { status: 400 },
     )
   }

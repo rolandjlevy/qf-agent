@@ -1,21 +1,17 @@
 import { proposeMaterials } from '../../../../lib/propose-materials.js'
 import { VALID_TRADES } from '../../../../lib/constants.js'
 import { sanitizePhotoFindings } from '../../../../lib/photo-findings.js'
+import {
+  MAX_JOB_DESCRIPTION_LENGTH,
+  cleanJobDescription,
+  sanitizeQaPairs,
+} from '../../../../lib/request-limits.js'
+import { clientIp, isQuoteRequestRateLimited, rateLimitedResponse } from '../../../../lib/rate-limit.js'
 
 // No fs/inquirer dependency, but kept consistent with the sibling /api/quote
 // route (which does need Node for save_quote's fs.writeFileSync).
 export const runtime = 'nodejs'
 
-// { question, answer } pairs only — anything else is either malformed client
-// state or from a stale/tampered request, and this step is a proposal aid,
-// not an authoritative record, so we just drop bad entries rather than 400
-// the whole request over them.
-function sanitizeQaPairs(pairs) {
-  if (!Array.isArray(pairs)) return []
-  return pairs.filter(
-    (qa) => qa && typeof qa.question === 'string' && qa.question.trim() && typeof qa.answer === 'string' && qa.answer.trim(),
-  )
-}
 
 // Phase A of the materials-refinement flow (see CLAUDE.md's Phase 3a
 // addendum, and the follow-up that added the clarifying-question round-trip
@@ -27,9 +23,10 @@ function sanitizeQaPairs(pairs) {
 // (the trader answers it, then the client calls this again with the answer
 // appended to `priorQuestions` — see app/quote/new/page.js).
 export async function POST(request) {
+  if (await isQuoteRequestRateLimited(clientIp(request))) return rateLimitedResponse()
   const body = await request.json().catch(() => null)
   const trade = body?.trade
-  const jobDescription = typeof body?.jobDescription === 'string' ? body.jobDescription.trim() : ''
+  const jobDescription = cleanJobDescription(body?.jobDescription)
   const priorQuestions = sanitizeQaPairs(body?.priorQuestions)
   const keyAnswers = sanitizeQaPairs(body?.keyAnswers)
   const photoFindings = sanitizePhotoFindings(body?.photoFindings)
@@ -38,7 +35,7 @@ export async function POST(request) {
     return Response.json({ error: `trade must be one of: ${VALID_TRADES.join(', ')}` }, { status: 400 })
   }
   if (!jobDescription) {
-    return Response.json({ error: 'jobDescription is required' }, { status: 400 })
+    return Response.json({ error: `jobDescription is required, up to ${MAX_JOB_DESCRIPTION_LENGTH} characters` }, { status: 400 })
   }
 
   try {

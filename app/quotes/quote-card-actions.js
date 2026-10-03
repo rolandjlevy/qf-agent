@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import { Check, Copy, Download, Eye, Loader2, Trash2, X } from 'lucide-react'
-import { deleteQuote } from '../../lib/actions/quotes.js'
+import { deleteQuote, getQuoteText } from '../../lib/actions/quotes.js'
 import { downloadQuote } from '../quote-actions.js'
 import { secondaryButtonClass } from '@/components/app-page'
 import {
@@ -19,20 +19,37 @@ import {
 const ICON = 'size-4'
 
 // View, Copy, Download and Delete for one quote card on /quotes (the card must be `relative`). Delete asks first.
-export default function QuoteCardActions({ id, title, content, jobDescription, generatedAt }) {
+export default function QuoteCardActions({ id, title, hasContent, jobDescription, generatedAt }) {
   const [copyState, setCopyState] = useState('idle') // idle | copied | error
+  const [downloadFailed, setDownloadFailed] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [deleting, startDelete] = useTransition()
   const button = secondaryButtonClass({ size: 'sm' })
 
+  // The text is fetched on click. Passing ClipboardItem a promise keeps the click's permission while it loads
+  // (Safari refuses a clipboard write that comes after an await); older browsers get writeText.
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(content)
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+        const blob = getQuoteText(id).then((text) => new Blob([text], { type: 'text/plain' }))
+        await navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })])
+      } else {
+        await navigator.clipboard.writeText(await getQuoteText(id))
+      }
       setCopyState('copied')
     } catch {
       setCopyState('error')
     } finally {
       setTimeout(() => setCopyState('idle'), 2000)
+    }
+  }
+
+  async function handleDownload() {
+    try {
+      downloadQuote(await getQuoteText(id), jobDescription, generatedAt)
+    } catch {
+      setDownloadFailed(true)
+      setTimeout(() => setDownloadFailed(false), 2000)
     }
   }
 
@@ -49,7 +66,7 @@ export default function QuoteCardActions({ id, title, content, jobDescription, g
         <Eye className={ICON} strokeWidth={1.75} aria-hidden="true" />
         View
       </Link>
-      {content && (
+      {hasContent && (
         <>
           <button type="button" data-slot="secondary-action" onClick={handleCopy} className={button}>
             {copyState === 'copied' ? (
@@ -64,11 +81,11 @@ export default function QuoteCardActions({ id, title, content, jobDescription, g
           <button
             type="button"
             data-slot="secondary-action"
-            onClick={() => downloadQuote(content, jobDescription, generatedAt)}
+            onClick={handleDownload}
             className={button}
           >
             <Download className={ICON} strokeWidth={1.75} aria-hidden="true" />
-            Download
+            <span aria-live="polite">{downloadFailed ? 'Download failed' : 'Download'}</span>
           </button>
         </>
       )}

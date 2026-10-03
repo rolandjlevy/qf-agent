@@ -73,7 +73,7 @@ export default function CustomerNameField({ quoteId, customerName }) {
           maxLength={CUSTOMER_NAME_MAX}
           autoComplete="off"
           autoFocus
-          placeholder="e.g. Mrs Patel"
+          placeholder="e.g. Jason Carper"
           style={{ width: '20rem', maxWidth: '100%', padding: '0.4rem 0.6rem', fontSize: '1rem' }}
         />
         <button type="submit" disabled={isPending} style={iconButtonStyle}>
