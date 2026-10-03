@@ -1,19 +1,23 @@
 import Link from 'next/link';
+import { FileText } from 'lucide-react';
 import { exampleJobBySlug } from '@/lib/example-jobs';
 import CtaLink, { SecondaryLink } from './cta-link';
 import ConversionPreview from './conversion-preview';
 
 // One-tap jobs that open /quote/new already filled in (lib/example-jobs.js). A renamed example drops out.
 const HERO_EXAMPLES = [
-  ['Bathroom refit', 'full-bathroom-refit'],
-  ['Boiler swap', 'old-boiler-swap-to-a-combi'],
-  ['Consumer unit', 'old-fuse-box-needs-replacing'],
   ['Retile a shower', 'retile-shower-enclosure'],
+  ['Boiler swap', 'old-boiler-swap-to-a-combi'],
+  ['Bathroom refit', 'full-bathroom-refit'],
+  ['Consumer unit', 'old-fuse-box-needs-replacing'],
 ].filter(([, slug]) => exampleJobBySlug(slug));
 
 export default function HeroSection() {
   return (
-    <section aria-labelledby="hero-heading" className="px-4 pt-10 pb-14 md:px-6 md:pt-20 md:pb-20">
+    <section
+      aria-labelledby="hero-heading"
+      className="px-4 pt-10 pb-14 md:px-6 md:pt-20 md:pb-20"
+    >
       <div className="mx-auto grid max-w-[1120px] items-center gap-10 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
         <div className="flex flex-col items-start gap-5 md:gap-6">
           <p className="m-0 inline-flex items-center gap-2 rounded-full border border-brand-subtle-border bg-brand-tint px-3.5 py-1.5 text-[13px] font-semibold text-brand">
@@ -23,24 +27,35 @@ export default function HeroSection() {
             </span>
             AI quoting for UK trades
           </p>
-          <h1 id="hero-heading" className="m-0 text-[34px] leading-[1.1] font-bold tracking-[-0.025em] md:text-[52px]">
-            Turn rough notes into <span className="text-brand">a professional quote, ready to send</span>
+          <h1
+            id="hero-heading"
+            className="m-0 text-[34px] leading-[1.1] font-bold tracking-[-0.025em] md:text-[52px]"
+          >
+            QuoteFetch turns rough notes into{' '}
+            <span className="text-brand">
+              a professional quote, ready to send.
+            </span>
           </h1>
           <p className="m-0 max-w-[560px] text-base leading-relaxed text-muted-foreground md:text-lg">
-            Paste the customer&apos;s message or add a photo. QuoteFetch asks the questions for your trade, works out the
-            materials, scope, assumptions and exclusions, and finds current prices for each material. You pick your
-            prices and send.
+            Just add your customer’s message or photo. QuoteFetch asks the right
+            questions for your trade, works out the materials, scope,
+            assumptions and exclusions. Then you pick your prices for each
+            material and send.
           </p>
           <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center">
             <CtaLink />
-            <SecondaryLink href="#proof">See a real example</SecondaryLink>
+            <SecondaryLink href="#proof" Icon={FileText}>See a real example</SecondaryLink>
           </div>
           <p className="m-0 max-w-[520px] text-sm text-muted-foreground">
-            Works on your phone, on site: describe the job, take photos, send the quote before you leave the van.
+            Works on your phone, on site: describe the job, take photos, send
+            the quote before you leave the van.
           </p>
 
           <div className="flex w-full flex-col items-start gap-2">
-            <span id="hero-examples-label" className="text-[13px] font-medium text-muted-foreground">
+            <span
+              id="hero-examples-label"
+              className="text-[13px] font-medium text-muted-foreground"
+            >
               Or try a common job:
             </span>
             {/* Mobile: one row that scrolls sideways, as on /quote/new's example chips. */}

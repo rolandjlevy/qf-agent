@@ -1,7 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { Check, Copy, Download, Eye, TriangleAlert } from 'lucide-react'
 import { buttonStyle } from './button-style.js'
+import IconLabel from './icon-label.js'
 
 function slugify(text) {
   return String(text)
@@ -20,7 +22,20 @@ function buildFilename(jobDescription, generatedAt) {
   return `quote-${datePart}-${slugify(jobDescription)}.txt`
 }
 
-export default function QuoteActions({ content, jobDescription, generatedAt, id, downloadLabel = '⬇️ Download as text' }) {
+// Saves the quote as a .txt file named after the job and date.
+export function downloadQuote(content, jobDescription, generatedAt) {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = buildFilename(jobDescription, generatedAt)
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  URL.revokeObjectURL(url)
+}
+
+export default function QuoteActions({ content, jobDescription, generatedAt, id, downloadLabel = 'Download as text' }) {
   const [copyState, setCopyState] = useState('idle') // idle | copied | error
 
   async function handleCopy() {
@@ -38,15 +53,7 @@ export default function QuoteActions({ content, jobDescription, generatedAt, id,
   }
 
   function handleDownload() {
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = buildFilename(jobDescription, generatedAt)
-    document.body.appendChild(anchor)
-    anchor.click()
-    document.body.removeChild(anchor)
-    URL.revokeObjectURL(url)
+    downloadQuote(content, jobDescription, generatedAt)
   }
 
   return (
@@ -57,17 +64,23 @@ export default function QuoteActions({ content, jobDescription, generatedAt, id,
           className="btn-link"
           style={{ ...buttonStyle, display: 'inline-block', color: 'inherit', textDecoration: 'none' }}
         >
-          👁️ View
+          <IconLabel Icon={Eye}>View</IconLabel>
         </a>
       )}
       {content && (
         <button onClick={handleCopy} style={buttonStyle}>
-          {copyState === 'copied' ? '✅ Copied!' : copyState === 'error' ? '⚠️ Copy failed' : '📋 Copy'}
+          {copyState === 'copied' ? (
+            <IconLabel Icon={Check}>Copied!</IconLabel>
+          ) : copyState === 'error' ? (
+            <IconLabel Icon={TriangleAlert}>Copy failed</IconLabel>
+          ) : (
+            <IconLabel Icon={Copy}>Copy</IconLabel>
+          )}
         </button>
       )}
       {content && (
         <button onClick={handleDownload} style={buttonStyle}>
-          {downloadLabel}
+          <IconLabel Icon={Download}>{downloadLabel}</IconLabel>
         </button>
       )}
     </>

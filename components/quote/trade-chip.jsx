@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TRADES_BY_LABEL, tradeLabel } from '@/lib/constants';
+import TradeIcon from '@/components/trade-icon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Command,
@@ -57,6 +58,7 @@ export default function TradeChip({ value, onChange }) {
                   }}
                   className="min-h-11"
                 >
+                  <TradeIcon trade={slug} className="text-muted-foreground" />
                   {tradeLabel(slug)}
                   <Check
                     className={cn('ml-auto size-4 text-brand', slug === value ? 'opacity-100' : 'opacity-0')}

@@ -39,8 +39,8 @@ export function SectionHeading({ id, eyebrow, title, lead }) {
   );
 }
 
-// The quieter button beside CtaLink: white, bordered, brand-blue on hover.
-export function SecondaryLink({ href, className, children }) {
+// The quieter button beside CtaLink: white, bordered, brand-blue on hover. `Icon` is a lucide icon shown before the label.
+export function SecondaryLink({ href, Icon, className, children }) {
   return (
     <Link
       href={href}
@@ -49,6 +49,7 @@ export function SecondaryLink({ href, className, children }) {
         className,
       )}
     >
+      {Icon && <Icon className="size-[18px]" strokeWidth={1.75} aria-hidden="true" />}
       {children}
     </Link>
   );

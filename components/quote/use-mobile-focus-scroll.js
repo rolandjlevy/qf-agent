@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { focusScrollTarget } from '@/lib/new-quote';
 
 const MOBILE = '(max-width: 767px)';
@@ -42,4 +42,15 @@ export function useMobileFocusScroll(ref) {
       root.removeEventListener('focusin', onFocusIn);
     };
   }, [ref]);
+}
+
+// On phones, jump to the top of the page whenever `screen` changes (a Continue or Back that moved the
+// flow on), since the button sits at the bottom. Arriving on the page doesn't count as a change.
+export function useMobileScrollTopOn(screen) {
+  const prevRef = useRef(screen);
+  useEffect(() => {
+    if (prevRef.current === screen) return;
+    prevRef.current = screen;
+    if (window.matchMedia(MOBILE).matches) window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [screen]);
 }

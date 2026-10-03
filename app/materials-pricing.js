@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { Bookmark, Check, ChevronDown, ChevronRight, Circle, CircleCheck, ExternalLink, RefreshCw, RotateCcw, Search, ShoppingCart, Trash2, X } from 'lucide-react'
 import { buttonStyle, closeButtonStyle } from './button-style.js'
+import IconLabel from './icon-label.js'
 import { selectLinePrice, updateLineQuantity, updateLineStatus } from '../lib/actions/quote-prices.js'
 import { MERCHANT_CATEGORIES, merchantCategory } from '../lib/pricing/merchant-category.js'
 import { extractIntegerQuantity, splitQuantity, joinQuantity } from '../lib/quantity.js'
@@ -126,9 +128,8 @@ const changeButtonStyle = {
 
 // Same green-600 as findPricesButtonStyle — the hover state (globals.css's
 // .select-button rule) steps to green-700 for a slightly darker press state.
-// Fixed height + flex centering (rather than vertical padding alone) so the
-// button's height doesn't inflate when the unselected state's larger 1.3em
-// emoji glyph sets a taller line box than the "✓ Selected"/"⏳ Saving…" text.
+// Fixed height + flex centering, so the button stays the same height
+// whichever icon and label (Select, Saving…, Selected) it shows.
 const selectButtonStyle = {
   ...buttonStyle,
   display: 'inline-flex',
@@ -452,15 +453,22 @@ function PricePickerModal({ materialName, initialQuery, quoteId, selectedProduct
   return (
     <div style={overlayStyle} onClick={onClose}>
       <div style={dialogStyle} onClick={(e) => e.stopPropagation()}>
-        <button type="button" style={closeButtonStyle} onClick={onClose} aria-label="Close">
-          ✕
+        <button
+          type="button"
+          style={{ ...closeButtonStyle, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={onClose}
+          aria-label="Close"
+        >
+          <X size={16} strokeWidth={1.75} aria-hidden="true" />
         </button>
         <div style={dialogHeaderStyle}>
-          <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>🛒 Find prices — {query}</h3>
+          <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>
+            <IconLabel Icon={ShoppingCart} size={20}>Find prices — {query}</IconLabel>
+          </h3>
           <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.5rem' }}>
             <input style={inputStyle} value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search query" />
             <button type="submit" style={buttonStyle} disabled={status === 'loading'}>
-              {status === 'loading' ? '⏳ Searching…' : '🔍 Search'}
+              <IconLabel Icon={Search} busy={status === 'loading'}>{status === 'loading' ? 'Searching…' : 'Search'}</IconLabel>
             </button>
           </form>
 
@@ -532,8 +540,8 @@ function PricePickerModal({ materialName, initialQuery, quoteId, selectedProduct
                 onClick={() => setExpandedId(isExpanded ? null : product.id)}
                 aria-expanded={isExpanded}
               >
-                <span aria-hidden="true" style={{ width: '1.5rem', textAlign: 'center', color: '#666', fontSize: '1.6rem', lineHeight: 1 }}>
-                  {isExpanded ? '▾' : '▸'}
+                <span aria-hidden="true" style={{ width: '1.5rem', display: 'inline-flex', justifyContent: 'center', color: '#666' }}>
+                  {isExpanded ? <ChevronDown size={20} strokeWidth={1.75} /> : <ChevronRight size={20} strokeWidth={1.75} />}
                 </span>
                 {product.imageUrl && <img src={product.imageUrl} alt="" style={{ width: 48, height: 48, objectFit: 'contain' }} />}
                 <div style={{ flex: 1 }}>
@@ -544,7 +552,11 @@ function PricePickerModal({ materialName, initialQuery, quoteId, selectedProduct
                   </div>
                 </div>
                 <div style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>{formatPrice(product)}</div>
-                {isSelected && <span style={{ color: '#2e7d46', fontWeight: 'bold', whiteSpace: 'nowrap' }}>✓ Selected</span>}
+                {isSelected && (
+                  <span style={{ color: '#2e7d46', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                    <IconLabel Icon={Check}>Selected</IconLabel>
+                  </span>
+                )}
               </div>
 
               {isExpanded && (
@@ -564,7 +576,7 @@ function PricePickerModal({ materialName, initialQuery, quoteId, selectedProduct
                     {product.productUrl && (
                       <div>
                         <a href={product.productUrl} target="_blank" rel="noreferrer">
-                          View product page ↗
+                          <IconLabel Icon={ExternalLink}>View product page</IconLabel>
                         </a>
                       </div>
                     )}
@@ -579,14 +591,11 @@ function PricePickerModal({ materialName, initialQuery, quoteId, selectedProduct
                     }}
                   >
                     {isSelected ? (
-                      '✓ Selected'
+                      <IconLabel Icon={Check}>Selected</IconLabel>
                     ) : isSavingThis ? (
-                      '⏳ Saving…'
+                      <IconLabel busy>Saving…</IconLabel>
                     ) : (
-                      <>
-                        <span style={{ fontSize: '1.3em', verticalAlign: '-0.1em', marginRight: '0.3em', filter: 'brightness(2.5)' }}>🛒</span>
-                        Select
-                      </>
+                      <IconLabel Icon={ShoppingCart}>Select</IconLabel>
                     )}
                   </button>
                 </div>
@@ -597,7 +606,7 @@ function PricePickerModal({ materialName, initialQuery, quoteId, selectedProduct
 
         <div style={{ marginTop: '1rem', textAlign: 'right' }}>
           <button style={buttonStyle} onClick={onClose}>
-            ✖️ Close
+            <IconLabel Icon={X}>Close</IconLabel>
           </button>
         </div>
         </div>
@@ -714,7 +723,7 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
         return (
           <div key={material.name} className="materials-row" style={selected ? materialRowPricedStyle : materialRowStyle}>
             <span style={selected ? pricedTagStyle : notPricedTagStyle}>
-              {selected ? '✅ Priced' : '○ Not priced yet'}
+              {selected ? <IconLabel Icon={CircleCheck} size={14}>Priced</IconLabel> : <IconLabel Icon={Circle} size={14}>Not priced yet</IconLabel>}
             </span>
             <span className="material-description" style={{ minWidth: 0 }}>
               • {getDisplayName(material.name)}
@@ -739,12 +748,12 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
                   {formatPrice(selected)} · {selected.merchant}
                 </span>
                 <button style={changeButtonStyle} onClick={() => setOpenMaterial(material.name)}>
-                  🔁 Change
+                  <IconLabel Icon={RefreshCw}>Change</IconLabel>
                 </button>
               </span>
             ) : (
               <button className="select-button" style={findPricesButtonStyle} onClick={() => setOpenMaterial(material.name)}>
-                🔍 Find prices
+                <IconLabel Icon={Search}>Find prices</IconLabel>
               </button>
             )}
             <button
@@ -752,10 +761,10 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
               disabled={isPending}
               onClick={() => handleStatusChange(material.name, 'saved_for_later')}
             >
-              {isSaving ? '⏳ Saving…' : '🔖 Save for later'}
+              <IconLabel Icon={Bookmark} busy={isSaving}>{isSaving ? 'Saving…' : 'Save for later'}</IconLabel>
             </button>
             <button style={dangerButtonStyle} disabled={isPending} onClick={() => handleDelete(material.name)}>
-              {isDeleting ? '⏳ Removing…' : '🗑️ Delete'}
+              <IconLabel Icon={Trash2} busy={isDeleting}>{isDeleting ? 'Removing…' : 'Delete'}</IconLabel>
             </button>
           </div>
         )
@@ -788,14 +797,14 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
                   {material.notes ? ` — ${material.notes}` : ''}
                 </span>
                 <button style={smallButtonStyle} disabled={isPending} onClick={() => handleStatusChange(material.name, 'active')}>
-                  {isReAdding ? '⏳ Re-adding…' : '↩️ Re-add'}
+                  <IconLabel Icon={RotateCcw} busy={isReAdding}>{isReAdding ? 'Re-adding…' : 'Re-add'}</IconLabel>
                 </button>
                 <button
                   style={dangerButtonStyle}
                   disabled={isPending}
                   onClick={() => handleDelete(material.name, { alreadySavedForLater: true })}
                 >
-                  {isDeleting ? '⏳ Removing…' : '🗑️ Delete'}
+                  <IconLabel Icon={Trash2} busy={isDeleting}>{isDeleting ? 'Removing…' : 'Delete'}</IconLabel>
                 </button>
               </div>
             )

@@ -224,7 +224,8 @@ export default async function QuotePage({ params }) {
 
   return (
     <div>
-      <h1>{quote.job_description}</h1>
+      <h1>Your Quote</h1>
+      <h2 style={{ color: '#5C5851', fontWeight: 500 }}>{quote.job_description}</h2>
       <p style={{ color: '#666' }}>
         Generated {formatDate(quote.generated_at)}
       </p>

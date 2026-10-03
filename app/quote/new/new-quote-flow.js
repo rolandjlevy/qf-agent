@@ -24,7 +24,7 @@ import {
 } from '@/components/quote/loading-states';
 import PrimaryAction from '@/components/quote/primary-action';
 import { StepHeader } from '@/components/quote/step-layout';
-import { useMobileFocusScroll } from '@/components/quote/use-mobile-focus-scroll';
+import { useMobileFocusScroll, useMobileScrollTopOn } from '@/components/quote/use-mobile-focus-scroll';
 import { continueState } from '@/lib/new-quote';
 import {
   examplePhoto,
@@ -180,6 +180,7 @@ export default function NewQuoteFlow({ initialTrade, initialDescription = '', in
   const runIdRef = useRef(null);
   const shellRef = useRef(null);
   useMobileFocusScroll(shellRef);
+  useMobileScrollTopOn(phase);
   const pollTimerRef = useRef(null);
   const pollStartRef = useRef(null);
   const dialogRef = useRef(null);

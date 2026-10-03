@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
+import { Undo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { acceptPhotoFiles } from '@/lib/new-quote';
 import PhotoPicker from './photo-picker';
@@ -114,8 +115,9 @@ export default function JobComposer({ value, onChange, trade, photos, onAddPhoto
                 type="button"
                 data-slot="undo-clear"
                 onClick={onUndoClear}
-                className="inline-flex min-h-11 items-center px-1 font-semibold text-brand underline-offset-2 hover:text-brand-hover hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className="inline-flex min-h-11 items-center gap-1 px-1 font-semibold text-brand underline-offset-2 hover:text-brand-hover hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
+                <Undo2 className="size-4" strokeWidth={2} aria-hidden="true" />
                 Undo
               </button>
             </>
