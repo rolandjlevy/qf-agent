@@ -1,4 +1,4 @@
-import { Wrench } from 'lucide-react';
+import { Plus, Wrench } from 'lucide-react';
 import CtaLink, { SecondaryLink, SectionHeading } from './cta-link';
 
 // No plans exist yet (no sign-in until Phase 4), so this names no price or plan.
@@ -18,7 +18,7 @@ export default function PricingTeaser() {
         </p>
         <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center">
           <CtaLink href="/pricing">See pricing</CtaLink>
-          <SecondaryLink href="/quote/new">Start a quote</SecondaryLink>
+          <SecondaryLink href="/quote/new" Icon={Plus}>Start a quote</SecondaryLink>
         </div>
       </div>
     </section>

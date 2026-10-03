@@ -17,7 +17,7 @@ export const metadata = {
   openGraph: {
     title: 'QuoteFetch — AI Quoting for UK Tradespeople',
     description:
-      "Turn rough notes into a professional quote, ready to send. QuoteFetch drafts clear, professional quotes from your notes or a customer's message. Never invents a price.",
+      "QuoteFetch turns rough notes into a professional quote, ready to send. QuoteFetch drafts clear, professional quotes from your notes or a customer's message. Never invents a price.",
     images: ['/og-image.png'],
   },
   twitter: { card: 'summary_large_image' },

@@ -1,4 +1,5 @@
 import { getTraderProfile } from '../../lib/db.js'
+import { PageHeader, PageShell } from '@/components/app-page'
 import ProfileForm from './profile-form.js'
 
 // Always read live from Neon — the CLI (`node qf.js profile`) can update
@@ -9,9 +10,12 @@ export default async function ProfilePage() {
   const profile = await getTraderProfile()
 
   return (
-    <div>
-      <h1>Trader Profile</h1>
+    <PageShell className="pb-40 md:pb-12">
+      <PageHeader
+        title="Your business"
+        description="These details go on every quote, so your customers know who it's from."
+      />
       <ProfileForm profile={profile} />
-    </div>
+    </PageShell>
   )
 }

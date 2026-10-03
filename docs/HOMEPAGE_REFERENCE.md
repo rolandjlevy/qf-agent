@@ -6,15 +6,18 @@
 
 AI quoting for UK trades
 
-# Turn rough notes into a professional quote, ready to send
+# QuoteFetch turns rough notes into a professional quote, ready to send
 
-Paste the customer's message or add a photo. QuoteFetch asks the questions for your trade, works out the materials, scope, assumptions and exclusions, and finds current prices for each material. You pick your prices and send.
+Just add your customer’s message or photo. QuoteFetch asks the right
+questions for your trade, works out the materials, scope,
+assumptions and exclusions. Then you pick your prices for each
+material and send.
 
 [Start a quote](#top) [See a real example](#proof)
 
 Works on your phone, on site — describe the job, take photos, send the quote before you leave the van.
 
-Or try a common job: [Bathroom refit](#top) [Boiler swap](#top) [Consumer unit](#top) [Retile a shower](#top)
+Or try a common job: [Retile a shower](#top) [Boiler swap](#top) [Bathroom refit](#top) [Consumer unit](#top)
 
 From message to quote
 
@@ -120,16 +123,19 @@ Thanks for getting in touch! Here's our quote for replacing the old rewireable f
    **Your details, on every quote**
 
    Business name and contact filled in from your profile.
+
 2. 2
 
    **One specific product per line**
 
    Never a made-up price — look up current prices from Screwfix, Toolstation, B&Q or Amazon and pick the one you want.
+
 3. 3
 
    **Scope in plain English**
 
    So the customer knows exactly what they're paying for.
+
 4. 4
 
    **Assumptions & exclusions in writing**

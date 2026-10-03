@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { CARD_CLASS, CheckRow, StepActions, StepHeader, Tag, TextField, stepClass } from '@/components/quote/step-layout';
 
 // The loading state before this step is MaterialsLoading (components/quote/loading-states.jsx).
@@ -96,16 +96,18 @@ export default function MaterialsRefinement({ materials, onToggle, onAdd, onBack
                   type="button"
                   data-slot="add-material-confirm"
                   onClick={commitAdd}
-                  className="inline-flex h-11 flex-1 items-center justify-center rounded-control bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:flex-none"
+                  className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-control bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:flex-none"
                 >
+                  <Plus className="size-4" strokeWidth={2} aria-hidden="true" />
                   Add
                 </button>
                 <button
                   type="button"
                   data-slot="add-material-cancel"
                   onClick={cancelAdd}
-                  className="inline-flex h-11 flex-1 items-center justify-center rounded-control border border-border bg-card px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:flex-none"
+                  className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-control border border-border bg-card px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:flex-none"
                 >
+                  <X className="size-4" strokeWidth={1.75} aria-hidden="true" />
                   Cancel
                 </button>
               </div>

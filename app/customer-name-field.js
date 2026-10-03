@@ -1,9 +1,14 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { Check, Loader2, Pencil, UserPlus, X } from 'lucide-react'
 import { updateCustomerName } from '../lib/actions/quotes.js'
 import { CUSTOMER_NAME_MAX } from '../lib/quote-customer.js'
 import { buttonStyle } from './button-style.js'
+
+// buttonStyle laid out for an icon beside the label.
+const iconButtonStyle = { ...buttonStyle, display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }
+const iconProps = { size: 16, strokeWidth: 1.75, 'aria-hidden': true }
 
 // Shown on /quote/[id]: the saved name fills the quote's [CUSTOMER NAME] placeholder and greeting.
 export default function CustomerNameField({ quoteId, customerName }) {
@@ -39,13 +44,15 @@ export default function CustomerNameField({ quoteId, customerName }) {
             <span>
               Customer: <strong>{customerName}</strong>
             </span>
-            <button type="button" onClick={() => setEditing(true)} style={buttonStyle}>
+            <button type="button" onClick={() => setEditing(true)} style={iconButtonStyle}>
+              <Pencil {...iconProps} />
               Edit
             </button>
           </>
         ) : (
-          <button type="button" onClick={() => setEditing(true)} style={buttonStyle}>
-            + Add customer name
+          <button type="button" onClick={() => setEditing(true)} style={iconButtonStyle}>
+            <UserPlus {...iconProps} />
+            Add customer name
           </button>
         )}
       </div>
@@ -69,10 +76,12 @@ export default function CustomerNameField({ quoteId, customerName }) {
           placeholder="e.g. Mrs Patel"
           style={{ width: '20rem', maxWidth: '100%', padding: '0.4rem 0.6rem', fontSize: '1rem' }}
         />
-        <button type="submit" disabled={isPending} style={buttonStyle}>
+        <button type="submit" disabled={isPending} style={iconButtonStyle}>
+          {isPending ? <Loader2 {...iconProps} className="animate-spin motion-reduce:animate-none" /> : <Check {...iconProps} />}
           {isPending ? 'Saving…' : 'Save'}
         </button>
-        <button type="button" onClick={handleCancel} disabled={isPending} style={buttonStyle}>
+        <button type="button" onClick={handleCancel} disabled={isPending} style={iconButtonStyle}>
+          <X {...iconProps} />
           Cancel
         </button>
       </div>

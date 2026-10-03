@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, ChevronRight, CircleHelp, Menu, Plus, User, X } from 'lucide-react';
+import { ArrowRight, Building2, ChevronRight, CircleHelp, Menu, Plus, User, X } from 'lucide-react';
 import Logo from '@/components/logo';
 import { cn } from '@/lib/utils';
 import { headerContext, isNewQuotePath, isQuotesPath } from '@/lib/header-context';
@@ -158,6 +158,7 @@ export default function AppHeader() {
               {!onNewQuote && (
                 <Link href="/quote/new" className={blueButton}>
                   Start a quote
+                  <ArrowRight className="size-4" strokeWidth={2} aria-hidden="true" />
                 </Link>
               )}
             </>

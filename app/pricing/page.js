@@ -1,4 +1,4 @@
-import { Wrench } from 'lucide-react';
+import { ListChecks, Wrench } from 'lucide-react';
 import CtaLink, { SecondaryLink, SectionHeading } from '@/components/home/cta-link';
 import HomeFooter from '@/components/home/home-footer';
 
@@ -25,7 +25,7 @@ export default function PricingPage() {
           </p>
           <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center">
             <CtaLink />
-            <SecondaryLink href="/#how">How it works</SecondaryLink>
+            <SecondaryLink href="/#how" Icon={ListChecks}>How it works</SecondaryLink>
           </div>
         </div>
       </section>

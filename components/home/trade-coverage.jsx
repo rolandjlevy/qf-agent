@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { TRADES_BY_LABEL, tradeLabel } from '@/lib/constants';
+import TradeIcon from '@/components/trade-icon';
 import { SectionHeading } from './cta-link';
 
 // Every trade the app supports (lib/constants.js), so the list can't claim one that isn't there.
@@ -19,8 +20,9 @@ export default function TradeCoverage() {
             <li key={trade}>
               <Link
                 href={`/quote/new?trade=${trade}`}
-                className="inline-flex h-11 items-center rounded-full border border-border bg-card px-4 text-sm font-medium text-foreground no-underline transition-colors hover:border-brand hover:bg-brand-tint hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className="inline-flex h-11 items-center gap-1.5 rounded-full border border-border bg-card px-4 text-sm font-medium text-foreground no-underline transition-colors hover:border-brand hover:bg-brand-tint hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
+                <TradeIcon trade={trade} className="text-brand" />
                 {tradeLabel(trade)}
               </Link>
             </li>
