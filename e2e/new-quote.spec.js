@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { authEnabled } from '../lib/auth.js';
+import { signIn } from './sign-in.js';
 
 // A 1×1 PNG: enough for the picker; uploads are intercepted, so these never leave the browser.
 const PNG = Buffer.from(
@@ -39,6 +41,7 @@ async function chooseTrade(page, label) {
 }
 
 test.beforeEach(async ({ page }) => {
+  await signIn(page.context());
   await page.route('**/api/quote/photos/upload', (route) => route.abort());
   await page.route('**/api/examples/unsplash-download', (route) => route.fulfill({ status: 200, body: '{}' }));
   await page.goto('/quote/new');
@@ -286,4 +289,14 @@ test('on mobile, a focused field scrolls up under the header', async ({ page }, 
     await page.waitForTimeout(500);
     expect(await labelTop()).toBe(before);
   }
+});
+
+test('without a session, the page asks for the password', async ({ browser }) => {
+  test.skip(!authEnabled(), 'APP_PASSWORD is not set, so there is no password gate');
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.goto('/quote/new');
+  await expect(page).toHaveURL(/\/login\?next=%2Fquote%2Fnew$/);
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  await context.close();
 });

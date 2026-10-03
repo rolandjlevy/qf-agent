@@ -1,4 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
+import dotenv from 'dotenv';
+
+// APP_PASSWORD, for e2e/sign-in.js: the tests sign in with the same password as the dev server.
+dotenv.config();
 
 // End-to-end checks for /quote/new against the dev server (npm run test:e2e). Kept out of
 // `npm test`: it needs DATABASE_URL and a browser. Photo uploads are intercepted in the tests.

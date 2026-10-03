@@ -1,6 +1,7 @@
 import { IBM_Plex_Sans } from 'next/font/google';
 import './globals.css';
 import AppHeader from '@/components/app-header';
+import { authEnabled } from '@/lib/auth';
 
 const plex = IBM_Plex_Sans({
   subsets: ['latin'],
@@ -35,7 +36,7 @@ export default function RootLayout({ children }) {
     // data-scroll-behavior: tells Next to switch off the homepage's smooth scrolling during page changes.
     <html lang="en" className={plex.variable} data-scroll-behavior="smooth" suppressHydrationWarning>
       <body className="m-0 bg-background font-sans text-foreground" suppressHydrationWarning>
-        <AppHeader />
+        <AppHeader signOut={authEnabled()} />
         {/* Legacy pages rely on this padding; redesigned pages mark themselves data-page-shell and set their own. */}
         <main className="px-6 py-4 has-[>[data-page-shell]]:p-0">{children}</main>
       </body>
