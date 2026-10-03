@@ -5,6 +5,7 @@ import { useDropzone } from 'react-dropzone';
 import { Undo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { acceptPhotoFiles } from '@/lib/new-quote';
+import { MAX_JOB_DESCRIPTION_LENGTH } from '@/lib/request-limits';
 import PhotoPicker from './photo-picker';
 import PhotoThumbnails from './photo-thumbnails';
 import PhotoGuidanceCard from './photo-guidance-card';
@@ -88,6 +89,7 @@ export default function JobComposer({ value, onChange, trade, photos, onAddPhoto
             name="jobDescription"
             value={value}
             onChange={(e) => onChange(e.target.value)}
+            maxLength={MAX_JOB_DESCRIPTION_LENGTH}
             placeholder={isDesktop ? PLACEHOLDER : PLACEHOLDER_SHORT}
             aria-describedby="job-description-help"
             data-slot="composer-textarea"

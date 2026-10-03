@@ -3,7 +3,6 @@ import { FileText, Plus } from 'lucide-react'
 import { listGeneratedQuotes } from '../../lib/db.js'
 import { VALID_TRADES, tradeLabel } from '../../lib/constants.js'
 import { quoteTitle, relativeTime } from '../../lib/new-quote.js'
-import { applyCustomerName } from '../../lib/quote-customer.js'
 import { PageHeader, PageShell } from '@/components/app-page'
 import { primaryButtonClass } from '@/components/quote/primary-action'
 import QuoteCardActions from './quote-card-actions.js'
@@ -82,7 +81,7 @@ export default async function QuotesPage() {
                   <QuoteCardActions
                     id={quote.id}
                     title={title}
-                    content={applyCustomerName(quote.content, quote.customer_name)}
+                    hasContent={quote.has_content}
                     jobDescription={quote.job_description}
                     generatedAt={quote.generated_at}
                   />

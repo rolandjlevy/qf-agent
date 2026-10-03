@@ -1,41 +1,15 @@
 import { getPriceSearchProvider } from '../../../../lib/pricing/index.js'
 import { PriceSearchError } from '../../../../lib/pricing/providers/PriceSearchProvider.js'
 import { MERCHANT_CATEGORIES } from '../../../../lib/pricing/merchant-category.js'
+import { clientIp, createRateLimiter } from '../../../../lib/rate-limit.js'
 
 export const runtime = 'nodejs'
 
 const MAX_QUERY_LENGTH = 200
 
-// No session concept in this app (single-tenant, no auth — see CLAUDE.md) so
-// this rate-limits per client IP rather than per session, as the brief's
-// fallback option specifies.
-//
-// In-memory only: this Map does not survive a Vercel serverless instance
-// recycling, and a request can land on a different instance than the one
-// that saw this IP's earlier requests (no session affinity — the same
-// caveat lib/quote-runs.js's pending_answers table exists to work around
-// for ask_user). That makes this a soft, best-effort abuse guard, not a
-// hard per-IP guarantee. Good enough for MVP; a Redis-backed limiter would
-// be needed for the real thing, same tradeoff as PRICE_CACHE_TTL_SECONDS's
-// Postgres-not-Redis call.
-const RATE_LIMIT_WINDOW_MS = 60_000
-const RATE_LIMIT_MAX_REQUESTS = 20
-const requestTimestampsByIp = new Map()
-
-function isRateLimited(ip) {
-  const now = Date.now()
-  const recent = (requestTimestampsByIp.get(ip) || []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS)
-  recent.push(now)
-  requestTimestampsByIp.set(ip, recent)
-  return recent.length > RATE_LIMIT_MAX_REQUESTS
-}
-
-function getClientIp(request) {
-  // Vercel sets x-forwarded-for; fall back to a shared bucket if it's ever
-  // absent (local dev without a proxy) rather than failing the request.
-  const forwarded = request.headers.get('x-forwarded-for')
-  return forwarded ? forwarded.split(',')[0].trim() : 'unknown'
-}
+// No session concept in this app (single-tenant, no auth — see CLAUDE.md), so this limits per client IP,
+// shared across instances in Upstash Redis (lib/rate-limit.js), with its own budget apart from the quote routes'.
+const isRateLimited = createRateLimiter({ prefix: 'pricing', max: 20, windowSeconds: 60 })
 
 const HTTP_STATUS_BY_ERROR_CODE = {
   RATE_LIMITED: 429,
@@ -47,8 +21,8 @@ const HTTP_STATUS_BY_ERROR_CODE = {
 }
 
 export async function POST(request) {
-  const ip = getClientIp(request)
-  if (isRateLimited(ip)) {
+  const ip = clientIp(request)
+  if (await isRateLimited(ip)) {
     return Response.json({ code: 'RATE_LIMITED', message: 'Too many price searches from this connection — try again shortly.' }, { status: 429 })
   }
 

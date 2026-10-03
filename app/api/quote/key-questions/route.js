@@ -1,5 +1,6 @@
 import { VALID_TRADES } from '../../../../lib/constants.js'
 import { keyQuestionsForJob } from '../../../../lib/trade-knowledge/index.js'
+import { MAX_JOB_DESCRIPTION_LENGTH, cleanJobDescription } from '../../../../lib/request-limits.js'
 
 export const runtime = 'nodejs'
 
@@ -8,13 +9,13 @@ export const runtime = 'nodejs'
 export async function POST(request) {
   const body = await request.json().catch(() => null)
   const trade = body?.trade
-  const jobDescription = typeof body?.jobDescription === 'string' ? body.jobDescription.trim() : ''
+  const jobDescription = cleanJobDescription(body?.jobDescription)
 
   if (!VALID_TRADES.includes(trade)) {
     return Response.json({ error: `trade must be one of: ${VALID_TRADES.join(', ')}` }, { status: 400 })
   }
   if (!jobDescription) {
-    return Response.json({ error: 'jobDescription is required' }, { status: 400 })
+    return Response.json({ error: `jobDescription is required, up to ${MAX_JOB_DESCRIPTION_LENGTH} characters` }, { status: 400 })
   }
 
   return Response.json({ questions: keyQuestionsForJob(trade, jobDescription) })

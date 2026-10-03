@@ -13,3 +13,9 @@ docs/test-photos/
 evals/results/
 test-results/
 playwright-report/
+
+# Upstash agent skills added by the Vercel integration (reference docs for AI assistants, not app code)
+.agents/
+.claude/skills/upstash-ratelimit-js
+.claude/skills/upstash-redis-js
+skills-lock.json
