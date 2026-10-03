@@ -1,305 +1,38 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { Bookmark, Check, ChevronDown, ChevronRight, Circle, CircleCheck, ExternalLink, RefreshCw, RotateCcw, Search, ShoppingCart, Trash2, X } from 'lucide-react'
-import { buttonStyle, closeButtonStyle } from './button-style.js'
-import IconLabel from './icon-label.js'
+import { Bookmark, Check, ChevronDown, ExternalLink, Lightbulb, Loader2, RefreshCw, RotateCcw, Search, ShoppingCart, Trash2, X } from 'lucide-react'
 import { selectLinePrice, updateLineQuantity, updateLineStatus } from '../lib/actions/quote-prices.js'
 import { MERCHANT_CATEGORIES, merchantCategory } from '../lib/pricing/merchant-category.js'
 import { extractIntegerQuantity, splitQuantity, joinQuantity } from '../lib/quantity.js'
+import { cn } from '@/lib/utils'
+import { secondaryButtonClass } from '@/components/app-page'
+import ConfirmDialog from '@/components/confirm-dialog'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 
-const overlayStyle = {
-  position: 'fixed',
-  inset: 0,
-  background: 'rgba(0,0,0,0.5)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '1rem',
-  zIndex: 1000,
-}
+const ICON = 'size-4 shrink-0'
+const smallButton = secondaryButtonClass({ size: 'sm' })
+const dangerButton = secondaryButtonClass({ size: 'sm', tone: 'danger' })
+// The brand-blue action for one line (Find prices, Select): smaller than the page's main button.
+const blueButton =
+  'inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-control border border-brand bg-brand px-3 text-sm font-semibold text-white transition-colors hover:border-brand-hover hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-60'
+const fieldClass =
+  'h-11 w-full rounded-control border border-input bg-card px-3.5 text-base text-foreground shadow-xs outline-none transition-all focus:border-brand focus:ring-2 focus:ring-brand-subtle-border md:text-[15px]'
 
-const dialogStyle = {
-  position: 'relative',
-  background: '#fff',
-  borderRadius: 8,
-  width: '100%',
-  maxWidth: 640,
-  maxHeight: '85vh',
-  display: 'flex',
-  flexDirection: 'column',
-  overflow: 'hidden',
-}
-
-const dialogHeaderStyle = {
-  flexShrink: 0,
-  padding: '1.25rem 1.25rem 0.75rem',
-  borderBottom: '1px solid #eee',
-}
-
-const dialogResultsStyle = {
-  flex: 1,
-  overflowY: 'auto',
-  padding: '0.75rem 1.25rem 1.25rem',
-}
-
-const inputStyle = {
-  flex: 1,
-  padding: '0.5rem',
-  border: '1px solid #ccc',
-  borderRadius: 6,
-  fontSize: '1rem',
-}
-
-// Longhand properties only — shorthand here causes a harmless but noisy
-// React hydration-mismatch warning against the browser's expanded style object.
-const quantityInputStyle = {
-  width: '4rem',
-  paddingTop: '0.2rem',
-  paddingBottom: '0.2rem',
-  paddingLeft: '0.4rem',
-  paddingRight: '0.4rem',
-  borderWidth: '1px',
-  borderStyle: 'solid',
-  borderColor: '#ccc',
-  borderTopLeftRadius: 4,
-  borderTopRightRadius: 4,
-  borderBottomLeftRadius: 4,
-  borderBottomRightRadius: 4,
-  fontSize: '0.85rem',
-}
-
-const quantityLabelStyle = {
-  display: 'inline-flex',
-  flexWrap: 'wrap',
-  alignItems: 'center',
-  gap: '0.3rem',
-  fontSize: '0.85rem',
-  color: '#444',
-}
-
-// Tailwind's canonical "secondary button": white fill, gray-300 border,
-// shadow-sm — a defined, slightly raised look rather than a flat outline.
-const smallButtonStyle = {
-  ...buttonStyle,
-  padding: '0.3rem 0.7rem',
-  fontSize: '0.85rem',
-  fontWeight: 500,
-  color: '#111827',
-  border: '1px solid #d1d5db',
-  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-}
-
-// Tailwind's "destructive" secondary button — same white/shadow treatment,
-// red-tinted border and text instead of gray.
-const dangerButtonStyle = {
-  ...smallButtonStyle,
-  color: '#dc2626',
-  border: '1px solid #fecaca',
-}
-
-// Tailwind's canonical solid/filled "primary button" (bg-green-600,
-// white text, shadow-sm) — the main CTA on an unpriced line.
-const findPricesButtonStyle = {
-  ...buttonStyle,
-  padding: '0.4rem 0.85rem',
-  fontSize: '0.85rem',
-  fontWeight: 600,
-  color: '#fff',
-  background: '#16a34a',
-  border: '1px solid #16a34a',
-  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-}
-
-// A "ghost" chip nested inside the badge — Change is the same action as
-// findPricesButtonStyle, just from the priced state, kept in the same green family.
-// flexShrink/whiteSpace pin this to its natural single-line size — without
-// them, a long price/merchant sibling squeezes it until its own text wraps.
-const changeButtonStyle = {
-  ...smallButtonStyle,
-  fontWeight: 600,
-  color: '#15803d',
-  background: '#fff',
-  border: 'none',
-  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-  flexShrink: 0,
-  whiteSpace: 'nowrap',
-}
-
-// Same green-600 as findPricesButtonStyle — the hover state (globals.css's
-// .select-button rule) steps to green-700 for a slightly darker press state.
-// Fixed height + flex centering, so the button stays the same height
-// whichever icon and label (Select, Saving…, Selected) it shows.
-const selectButtonStyle = {
-  ...buttonStyle,
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  height: 37,
-  padding: '0 1.1rem',
-  fontSize: '0.95rem',
-  fontWeight: 'bold',
-  color: '#fff',
-  background: '#16a34a',
-  border: '1px solid #16a34a',
-  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-}
-
-const selectedButtonStyle = {
-  ...selectButtonStyle,
-  background: '#dcfce7',
-  color: '#166534',
-  border: '1px solid #16a34a',
-  cursor: 'default',
-}
-
-const savingButtonStyle = {
-  ...selectButtonStyle,
-  opacity: 0.6,
-  cursor: 'not-allowed',
-}
-
-const savedForLaterRowStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '0.6rem',
-  flexWrap: 'wrap',
-  padding: '0.6rem 0.75rem',
-  marginBottom: '0.5rem',
-  border: '1px dashed #ddd',
-  borderRadius: 6,
-  color: '#666',
-}
-
-const productCardStyle = {
-  border: '1px solid #eee',
-  borderRadius: 6,
-  padding: '0.5rem 0.75rem',
-  marginBottom: '0.5rem',
-  background: '#fafafa',
-}
-
-const selectedProductCardStyle = {
-  ...productCardStyle,
-  border: '2px solid #2e7d46',
-  background: '#f2faf5',
-}
-
-const productSummaryRowStyle = {
-  display: 'flex',
-  gap: '0.75rem',
-  alignItems: 'center',
-  cursor: 'pointer',
-}
-
-const productDetailStyle = {
-  marginTop: '0.6rem',
-  paddingTop: '0.6rem',
-  borderTop: '1px solid #e0e0e0',
-  fontSize: '0.9rem',
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '0.75rem',
-}
-
-const productDetailInfoStyle = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '0.3rem',
-}
-
-const filterRowStyle = {
-  display: 'flex',
-  gap: '0.4rem',
-  flexWrap: 'wrap',
-  marginBottom: '0.75rem',
-}
-
-const filterButtonStyle = {
-  ...buttonStyle,
-  padding: '0.25rem 0.7rem',
-  fontSize: '0.8rem',
-  borderRadius: 999,
-}
-
-const activeFilterButtonStyle = {
-  ...filterButtonStyle,
-  background: '#2e2e2e',
-  border: '1px solid #2e2e2e',
-  color: '#fff',
-}
-
-const sortSelectStyle = {
-  padding: '0.3rem 0.5rem',
-  border: '1px solid #ccc',
-  borderRadius: 6,
-  fontSize: '0.8rem',
-  background: '#fff',
-  color: '#333',
-}
-
-// Tailwind's "soft badge" pattern (bg-green-100/text-green-800) — a shade
-// deeper than the priced row's own bg-green-50 so it still stands out on it.
-const badgeStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '0.5rem',
-  border: '1px solid #86efac',
-  background: '#dcfce7',
-  borderRadius: 6,
-  padding: '0.3rem 0.3rem 0.3rem 0.65rem',
-  fontSize: '0.85rem',
-  color: '#166534',
-}
-
-const introStyle = {
-  background: '#f5f8ff',
-  border: '1px solid #dbe6ff',
-  borderRadius: 6,
-  padding: '0.75rem 1rem',
-  marginBottom: '1rem',
-  fontSize: '0.9rem',
-  lineHeight: 1.5,
-  color: '#333',
-}
-
-// One card per line, clearly bounded from its neighbours (a plain flex row
-// read as one continuous block once there were more than a few materials).
-// A fixed-width column per field so the same field lines up at the same
-// x-position on every row on desktop — the template must stay identical
-// across rows. The responsive layout itself (flex-wrap up to 1024px, this
-// grid above it, both with phone/tablet/desktop media queries) lives in the
-// .materials-row class (globals.css), not here — inline style objects can't
-// declare those.
-const materialRowStyle = {
-  border: '1px solid #e5e7eb',
-  background: '#f9fafb',
-}
-
-const materialRowPricedStyle = {
-  ...materialRowStyle,
-  border: '1px solid #bbf7d0',
-  background: '#f0fdf4',
-}
-
-const statusTagStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '0.3rem',
-  fontSize: '1rem',
-  fontWeight: 'bold',
-  whiteSpace: 'nowrap',
-}
-
-const pricedTagStyle = {
-  ...statusTagStyle,
-  color: '#15803d',
-}
-
-const notPricedTagStyle = {
-  ...statusTagStyle,
-  color: '#b45309',
+// A small status tag: green once a line is priced, amber until then.
+function StatusTag({ priced }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-px text-[11px] font-semibold tracking-wide whitespace-nowrap',
+        priced ? 'border-green-200 bg-green-50 text-success' : 'border-amber-200 bg-amber-50 text-amber-800',
+      )}
+    >
+      {priced && <Check className="size-3" strokeWidth={2.5} aria-hidden="true" />}
+      {priced ? 'Priced' : 'Not priced yet'}
+    </span>
+  )
 }
 
 // Zero results / an error fall back to direct merchant search links rather
@@ -450,168 +183,260 @@ function PricePickerModal({ materialName, initialQuery, quoteId, selectedProduct
     }
   }
 
+  const loading = status === 'loading'
   return (
-    <div style={overlayStyle} onClick={onClose}>
-      <div style={dialogStyle} onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          style={{ ...closeButtonStyle, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-          onClick={onClose}
-          aria-label="Close"
-        >
-          <X size={16} strokeWidth={1.75} aria-hidden="true" />
-        </button>
-        <div style={dialogHeaderStyle}>
-          <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>
-            <IconLabel Icon={ShoppingCart} size={20}>Find prices — {query}</IconLabel>
-          </h3>
-          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.5rem' }}>
-            <input style={inputStyle} value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search query" />
-            <button type="submit" style={buttonStyle} disabled={status === 'loading'}>
-              <IconLabel Icon={Search} busy={status === 'loading'}>{status === 'loading' ? 'Searching…' : 'Search'}</IconLabel>
+    <Dialog open onOpenChange={(open) => !open && savingId == null && onClose()}>
+      <DialogContent
+        showCloseButton={false}
+        className="flex max-h-[88dvh] flex-col gap-0 overflow-hidden rounded-card bg-card p-0 sm:max-w-[640px]"
+      >
+        <div className="flex shrink-0 flex-col gap-3 border-b border-border px-4 pt-4 pb-3 md:px-6 md:pt-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <DialogTitle className="m-0 flex items-center gap-2 text-lg font-bold">
+                <ShoppingCart className="size-5 text-brand" strokeWidth={1.75} aria-hidden="true" />
+                Find prices
+              </DialogTitle>
+              <DialogDescription className="m-0 text-[13px] text-muted-foreground">
+                Live prices from Google Shopping. Pick one to add it to this line.
+              </DialogDescription>
+            </div>
+            {/* Own close button: shadcn's default is a 16px target, under the 44px minimum. */}
+            <DialogClose
+              className="-mt-1 -mr-2 inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              aria-label="Close"
+            >
+              <X className="size-5" aria-hidden="true" />
+            </DialogClose>
+          </div>
+
+          <form onSubmit={handleSearchSubmit} className="flex gap-2">
+            <input
+              data-slot="input"
+              className={cn(fieldClass, 'flex-1')}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search for"
+            />
+            <button type="submit" data-slot="secondary-action" className={cn(smallButton, 'min-h-11')} disabled={loading}>
+              {loading ? (
+                <Loader2 className={cn(ICON, 'animate-spin motion-reduce:animate-none')} aria-hidden="true" />
+              ) : (
+                <Search className={ICON} strokeWidth={1.75} aria-hidden="true" />
+              )}
+              <span className="hidden sm:inline">{loading ? 'Searching…' : 'Search'}</span>
+              <span className="sr-only sm:hidden">Search</span>
             </button>
           </form>
 
           {everFoundResults && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.6rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
-              <div style={{ ...filterRowStyle, marginBottom: 0 }}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {/* One row that scrolls sideways on phones, like the example chips. */}
+              <div
+                role="group"
+                aria-label="Shop"
+                className="-mx-4 flex max-w-[100vw] gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
+              >
                 {MERCHANT_FILTERS.map((filter) => (
                   <button
                     key={filter}
                     type="button"
-                    style={filter === merchantFilter ? activeFilterButtonStyle : filterButtonStyle}
-                    disabled={status === 'loading'}
+                    data-slot="filter-chip"
+                    aria-pressed={filter === merchantFilter}
+                    disabled={loading}
                     onClick={() => handleFilterClick(filter)}
+                    className={cn(
+                      'inline-flex h-9 shrink-0 items-center rounded-full border px-3 text-[13px] font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-60',
+                      filter === merchantFilter
+                        ? 'border-brand bg-brand-tint text-brand ring-1 ring-brand ring-inset'
+                        : 'border-border bg-card text-foreground hover:border-brand',
+                    )}
                   >
                     {filter}
                   </button>
                 ))}
               </div>
-              <select
-                aria-label="Sort results"
-                style={sortSelectStyle}
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-              >
-                {SORT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  aria-label="Sort results"
+                  data-slot="input"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="h-9 cursor-pointer appearance-none rounded-control border border-input bg-card pr-8 pl-3 text-[13px] text-foreground outline-none focus:border-brand focus:ring-2 focus:ring-brand-subtle-border"
+                >
+                  {SORT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              </div>
             </div>
           )}
         </div>
 
-        <div style={dialogResultsStyle}>
-        {saveError && (
-          <p style={{ color: 'crimson', marginTop: 0 }}>{saveError}</p>
-        )}
-
-        {status === 'loading' && <p>Searching Google Shopping…</p>}
-
-        {status === 'done' && products.length === 0 && (
-          <div>
-            <p>
-              {errorMessage || (merchantFilter === 'All' ? `No results for "${query}".` : `No results from ${merchantFilter} for "${query}".`)}
-              {merchantFilter === 'All' ? ' Try a direct search instead:' : ' Try another merchant, or a direct search:'}
+        <div className="flex-1 overflow-y-auto px-4 py-3 md:px-6 md:py-4" aria-busy={loading}>
+          {saveError && (
+            <p role="alert" className="m-0 mb-3 text-[13px] text-destructive">
+              {saveError}
             </p>
-            <ul style={{ paddingLeft: '1.2rem' }}>
-              {merchantSearchLinks(query).map((link) => (
-                <li key={link.url}>
-                  <a href={link.url} target="_blank" rel="noreferrer">
-                    {link.label}
-                  </a>
-                </li>
+          )}
+
+          {loading && (
+            <div role="status" className="flex flex-col gap-2">
+              <span className="sr-only">Searching for prices…</span>
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-3 rounded-xl border border-border-subtle p-3">
+                  <Skeleton index={i} className="size-12 shrink-0" />
+                  <div className="flex flex-1 flex-col gap-2">
+                    <Skeleton index={i} className="h-3.5 w-4/5" />
+                    <Skeleton index={i} className="h-3 w-2/5" />
+                  </div>
+                  <Skeleton index={i} className="h-4 w-12" />
+                </div>
               ))}
-            </ul>
-          </div>
-        )}
-
-        {status === 'done' && sortedProducts.map((product) => {
-          const isSelected = selectedProduct?.id === product.id
-          const isExpanded = expandedId === product.id
-          const isSavingThis = savingId === product.id
-          const isBusy = savingId != null
-          return (
-            <div key={product.id} style={isSelected ? selectedProductCardStyle : productCardStyle}>
-              <div
-                style={productSummaryRowStyle}
-                onClick={() => setExpandedId(isExpanded ? null : product.id)}
-                aria-expanded={isExpanded}
-              >
-                <span aria-hidden="true" style={{ width: '1.5rem', display: 'inline-flex', justifyContent: 'center', color: '#666' }}>
-                  {isExpanded ? <ChevronDown size={20} strokeWidth={1.75} /> : <ChevronRight size={20} strokeWidth={1.75} />}
-                </span>
-                {product.imageUrl && <img src={product.imageUrl} alt="" style={{ width: 48, height: 48, objectFit: 'contain' }} />}
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 'bold' }}>{product.title}</div>
-                  <div style={{ color: '#666', fontSize: '0.85rem' }}>
-                    {product.merchant}
-                    {product.rating ? ` · ${product.rating}★ (${product.reviewCount ?? 0})` : ''}
-                  </div>
-                </div>
-                <div style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>{formatPrice(product)}</div>
-                {isSelected && (
-                  <span style={{ color: '#2e7d46', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                    <IconLabel Icon={Check}>Selected</IconLabel>
-                  </span>
-                )}
-              </div>
-
-              {isExpanded && (
-                <div style={productDetailStyle}>
-                  <div style={productDetailInfoStyle}>
-                    <div>
-                      <strong>Merchant:</strong> {product.merchant}
-                    </div>
-                    <div>
-                      <strong>Availability:</strong> {product.availability === 'unknown' ? 'Not stated' : product.availability}
-                    </div>
-                    {product.rating != null && (
-                      <div>
-                        <strong>Rating:</strong> {product.rating}★ ({product.reviewCount ?? 0} reviews)
-                      </div>
-                    )}
-                    {product.productUrl && (
-                      <div>
-                        <a href={product.productUrl} target="_blank" rel="noreferrer">
-                          <IconLabel Icon={ExternalLink}>View product page</IconLabel>
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    className="select-button"
-                    style={isSelected ? selectedButtonStyle : isBusy ? savingButtonStyle : selectButtonStyle}
-                    disabled={isBusy || isSelected}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleSelect(product)
-                    }}
-                  >
-                    {isSelected ? (
-                      <IconLabel Icon={Check}>Selected</IconLabel>
-                    ) : isSavingThis ? (
-                      <IconLabel busy>Saving…</IconLabel>
-                    ) : (
-                      <IconLabel Icon={ShoppingCart}>Select</IconLabel>
-                    )}
-                  </button>
-                </div>
-              )}
             </div>
-          )
-        })}
+          )}
 
-        <div style={{ marginTop: '1rem', textAlign: 'right' }}>
-          <button style={buttonStyle} onClick={onClose}>
-            <IconLabel Icon={X}>Close</IconLabel>
-          </button>
+          {status === 'done' && products.length === 0 && (
+            <div className="flex flex-col gap-2 py-2">
+              <p className="m-0 text-[15px]">
+                {errorMessage || (merchantFilter === 'All' ? `No results for "${query}".` : `No results from ${merchantFilter} for "${query}".`)}
+              </p>
+              <p className="m-0 text-[13px] text-muted-foreground">
+                {merchantFilter === 'All' ? 'Try a direct search instead:' : 'Try another shop, or a direct search:'}
+              </p>
+              <ul className="m-0 flex list-none flex-col gap-1 p-0">
+                {merchantSearchLinks(query).map((link) => (
+                  <li key={link.url}>
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-brand no-underline hover:text-brand-hover hover:underline"
+                    >
+                      <ExternalLink className={ICON} strokeWidth={1.75} aria-hidden="true" />
+                      {link.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {status === 'done' && sortedProducts.length > 0 && (
+            <ul className="m-0 flex list-none flex-col gap-2 p-0">
+              {sortedProducts.map((product) => {
+                const isSelected = selectedProduct?.id === product.id
+                const isExpanded = expandedId === product.id
+                const isSavingThis = savingId === product.id
+                const isBusy = savingId != null
+                return (
+                  <li
+                    key={product.id}
+                    className={cn(
+                      'rounded-xl border transition-colors',
+                      isSelected ? 'border-success bg-green-50 ring-1 ring-success ring-inset' : 'border-border bg-card hover:border-brand-subtle-border',
+                    )}
+                  >
+                    <button
+                      type="button"
+                      data-slot="product-row"
+                      onClick={() => setExpandedId(isExpanded ? null : product.id)}
+                      aria-expanded={isExpanded}
+                      className="flex w-full items-center gap-3 rounded-xl p-3 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+                    >
+                      {product.imageUrl ? (
+                        <img src={product.imageUrl} alt="" className="size-12 shrink-0 rounded-md bg-white object-contain" />
+                      ) : (
+                        <span className="flex size-12 shrink-0 items-center justify-center rounded-md bg-surface-muted text-muted-foreground" aria-hidden="true">
+                          <ShoppingCart className="size-5" strokeWidth={1.5} />
+                        </span>
+                      )}
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="line-clamp-2 text-sm leading-snug font-semibold">{product.title}</span>
+                        <span className="truncate text-[12.5px] text-muted-foreground">
+                          {product.merchant}
+                          {product.rating ? ` · ${product.rating}★ (${product.reviewCount ?? 0})` : ''}
+                        </span>
+                      </span>
+                      <span className="flex shrink-0 flex-col items-end gap-1">
+                        <span className="text-[15px] font-bold tabular-nums">{formatPrice(product)}</span>
+                        {isSelected && (
+                          <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-success">
+                            <Check className="size-3.5" strokeWidth={2.5} aria-hidden="true" />
+                            Selected
+                          </span>
+                        )}
+                      </span>
+                      <ChevronDown
+                        className={cn('size-5 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none', isExpanded && 'rotate-180')}
+                        strokeWidth={1.75}
+                        aria-hidden="true"
+                      />
+                    </button>
+
+                    {isExpanded && (
+                      <div className="flex flex-col gap-3 border-t border-border-subtle px-3 pt-3 pb-3 text-[13px] sm:flex-row sm:items-end sm:justify-between">
+                        <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                          <dt className="text-muted-foreground">Shop</dt>
+                          <dd className="m-0">{product.merchant}</dd>
+                          <dt className="text-muted-foreground">Availability</dt>
+                          <dd className="m-0">{product.availability === 'unknown' ? 'Not stated' : product.availability}</dd>
+                          {product.rating != null && (
+                            <>
+                              <dt className="text-muted-foreground">Rating</dt>
+                              <dd className="m-0">
+                                {product.rating}★ ({product.reviewCount ?? 0} reviews)
+                              </dd>
+                            </>
+                          )}
+                          {product.productUrl && (
+                            <dd className="col-span-2 m-0">
+                              <a
+                                href={product.productUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex min-h-9 items-center gap-1.5 font-medium text-brand no-underline hover:text-brand-hover hover:underline"
+                              >
+                                <ExternalLink className="size-3.5" strokeWidth={1.75} aria-hidden="true" />
+                                View product page
+                              </a>
+                            </dd>
+                          )}
+                        </dl>
+                        {isSelected ? (
+                          <span className="inline-flex min-h-10 items-center gap-1.5 self-start rounded-control border border-success bg-green-50 px-3.5 text-sm font-semibold text-success sm:self-auto">
+                            <Check className={ICON} strokeWidth={2} aria-hidden="true" />
+                            Selected
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            data-slot="primary-action"
+                            className={cn(blueButton, 'self-start sm:self-auto')}
+                            disabled={isBusy}
+                            onClick={() => handleSelect(product)}
+                          >
+                            {isSavingThis ? (
+                              <Loader2 className={cn(ICON, 'animate-spin motion-reduce:animate-none')} aria-hidden="true" />
+                            ) : (
+                              <ShoppingCart className={ICON} strokeWidth={1.75} aria-hidden="true" />
+                            )}
+                            {isSavingThis ? 'Saving…' : 'Select'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </div>
-        </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -650,6 +475,7 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
   const [openMaterial, setOpenMaterial] = useState(null)
   const [lineError, setLineError] = useState(null)
   const [pendingAction, setPendingAction] = useState(null) // { name, status } | null
+  const [confirmDelete, setConfirmDelete] = useState(null) // { name, alreadySavedForLater } | null
 
   if (!materials.length) return null
 
@@ -657,7 +483,8 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
 
   const activeMaterials = materials.filter((m) => statuses[m.name] === 'active')
   const savedMaterials = materials.filter((m) => statuses[m.name] === 'saved_for_later')
-  const allPriced = activeMaterials.length > 0 && activeMaterials.every((material) => selections[material.name])
+  const pricedCount = activeMaterials.filter((material) => selections[material.name]).length
+  const allPriced = activeMaterials.length > 0 && pricedCount === activeMaterials.length
   const currency = Object.values(selections)[0]?.currency || 'GBP'
   // Recomputed fresh on every render from live state — no "recalculate"
   // button, nothing to go stale, unpriced materials just don't contribute yet.
@@ -696,120 +523,194 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
     }
   }
 
-  function handleDelete(materialName, { alreadySavedForLater = false } = {}) {
-    const hint = alreadySavedForLater ? '' : ' (use "Save for later" instead if you might want it back)'
-    if (!confirm(`Remove "${getDisplayName(materialName)}" from this quote? This can't be undone${hint}.`)) return
-    handleStatusChange(materialName, 'deleted')
+  async function handleConfirmDelete() {
+    await handleStatusChange(confirmDelete.name, 'deleted')
+    setConfirmDelete(null)
   }
 
   return (
-    <div style={{ marginTop: '0.75rem' }}>
-      <div style={introStyle}>
-        <strong>What to do:</strong> click <em>Find prices</em> on each item below to search live
-        prices and pick one — the materials total updates as you go. Use <em>Save for later</em>{' '}
-        to set an item aside without pricing it, or <em>Delete</em> to remove it from the quote.
+    <div className="flex flex-col gap-3">
+      <div className="flex items-start gap-2.5 rounded-xl border border-brand-subtle-border bg-brand-tint p-3.5 text-[13px] leading-relaxed">
+        <Lightbulb className="mt-0.5 size-[18px] shrink-0 text-brand" strokeWidth={1.75} aria-hidden="true" />
+        <p className="m-0">
+          <strong className="font-semibold">Find prices</strong> for each item to build the materials total. Use{' '}
+          <strong className="font-semibold">Save for later</strong> to set an item aside, or{' '}
+          <strong className="font-semibold">Delete</strong> to remove it from the quote.
+        </p>
       </div>
 
       {lineError && (
-        <p style={{ color: 'crimson', fontSize: '0.85rem', marginTop: 0 }}>{lineError}</p>
+        <p role="alert" className="m-0 text-[13px] text-destructive">
+          {lineError}
+        </p>
       )}
 
-      {activeMaterials.map((material) => {
-        const selected = selections[material.name]
-        const isPending = pendingAction?.name === material.name
-        const isDeleting = isPending && pendingAction.status === 'deleted'
-        const isSaving = isPending && pendingAction.status === 'saved_for_later'
-        const unit = quantityUnits[material.name]
-        return (
-          <div key={material.name} className="materials-row" style={selected ? materialRowPricedStyle : materialRowStyle}>
-            <span style={selected ? pricedTagStyle : notPricedTagStyle}>
-              {selected ? <IconLabel Icon={CircleCheck} size={14}>Priced</IconLabel> : <IconLabel Icon={Circle} size={14}>Not priced yet</IconLabel>}
-            </span>
-            <span className="material-description" style={{ minWidth: 0 }}>
-              • {getDisplayName(material.name)}
-              {material.notes ? ` — ${material.notes}` : ''}
-            </span>
-            <label style={quantityLabelStyle}>
-              Qty{unit ? ` (${unit})` : ''}:
-              <input
-                type="number"
-                min="1"
-                step="1"
-                style={quantityInputStyle}
-                value={quantities[material.name] ?? ''}
-                onChange={(e) => handleQuantityChange(material.name, e.target.value)}
-                onBlur={() => handleQuantityBlur(material.name)}
-                aria-label={`Quantity for ${getDisplayName(material.name)}`}
-              />
-            </label>
-            {selected ? (
-              <span style={badgeStyle}>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  {formatPrice(selected)} · {selected.merchant}
-                </span>
-                <button style={changeButtonStyle} onClick={() => setOpenMaterial(material.name)}>
-                  <IconLabel Icon={RefreshCw}>Change</IconLabel>
-                </button>
-              </span>
-            ) : (
-              <button className="select-button" style={findPricesButtonStyle} onClick={() => setOpenMaterial(material.name)}>
-                <IconLabel Icon={Search}>Find prices</IconLabel>
-              </button>
-            )}
-            <button
-              style={smallButtonStyle}
-              disabled={isPending}
-              onClick={() => handleStatusChange(material.name, 'saved_for_later')}
+      <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+        {activeMaterials.map((material) => {
+          const selected = selections[material.name]
+          const isPending = pendingAction?.name === material.name
+          const isSaving = isPending && pendingAction.status === 'saved_for_later'
+          const unit = quantityUnits[material.name]
+          const name = getDisplayName(material.name)
+          return (
+            <li
+              key={material.name}
+              className={cn(
+                'flex flex-col gap-3 rounded-xl border p-3.5 md:p-4',
+                selected ? 'border-green-200 bg-green-50/50' : 'border-border bg-card',
+              )}
             >
-              <IconLabel Icon={Bookmark} busy={isSaving}>{isSaving ? 'Saving…' : 'Save for later'}</IconLabel>
-            </button>
-            <button style={dangerButtonStyle} disabled={isPending} onClick={() => handleDelete(material.name)}>
-              <IconLabel Icon={Trash2} busy={isDeleting}>{isDeleting ? 'Removing…' : 'Delete'}</IconLabel>
-            </button>
-          </div>
-        )
-      })}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="text-[15px] leading-snug font-semibold">{name}</span>
+                  {material.notes && <span className="text-[13px] leading-snug text-muted-foreground">{material.notes}</span>}
+                </div>
+                <StatusTag priced={Boolean(selected)} />
+              </div>
+
+              {/* Phones: Qty and the icon buttons, then the price or Find prices full width. Wider: one line. */}
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="order-1 inline-flex shrink-0 items-center gap-1.5 text-[13px] text-muted-foreground">
+                  Qty
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    data-slot="input"
+                    value={quantities[material.name] ?? ''}
+                    onChange={(e) => handleQuantityChange(material.name, e.target.value)}
+                    onBlur={() => handleQuantityBlur(material.name)}
+                    aria-label={`Quantity for ${name}`}
+                    className="h-10 w-16 rounded-control border border-input bg-card px-2.5 text-[15px] text-foreground tabular-nums shadow-xs outline-none focus:border-brand focus:ring-2 focus:ring-brand-subtle-border"
+                  />
+                  {unit && <span>{unit}</span>}
+                </label>
+
+                {selected ? (
+                  <span className="order-3 inline-flex min-h-10 w-full min-w-0 items-center gap-2 rounded-control border border-green-200 bg-card py-1 pr-1 pl-3 text-[13px] md:order-2 md:w-auto md:max-w-sm md:flex-1">
+                    <span className="min-w-0 flex-1 truncate">
+                      <strong className="font-semibold tabular-nums">{formatPrice(selected)}</strong>
+                      <span className="text-muted-foreground"> · {selected.merchant}</span>
+                    </span>
+                    <button
+                      type="button"
+                      data-slot="secondary-action"
+                      onClick={() => setOpenMaterial(material.name)}
+                      className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-md px-2 text-[13px] font-semibold text-brand transition-colors hover:bg-brand-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    >
+                      <RefreshCw className="size-3.5" strokeWidth={1.75} aria-hidden="true" />
+                      Change
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    data-slot="primary-action"
+                    className={cn(blueButton, 'order-3 w-full md:order-2 md:w-auto')}
+                    onClick={() => setOpenMaterial(material.name)}
+                  >
+                    <Search className={ICON} strokeWidth={1.75} aria-hidden="true" />
+                    Find prices
+                  </button>
+                )}
+
+                <div className="order-2 ml-auto flex shrink-0 gap-2 md:order-3">
+                  <button
+                    type="button"
+                    data-slot="secondary-action"
+                    className={cn(smallButton, 'px-2.5 md:px-3')}
+                    disabled={isPending}
+                    onClick={() => handleStatusChange(material.name, 'saved_for_later')}
+                    aria-label={`Save ${name} for later`}
+                  >
+                    {isSaving ? (
+                      <Loader2 className={cn(ICON, 'animate-spin motion-reduce:animate-none')} aria-hidden="true" />
+                    ) : (
+                      <Bookmark className={ICON} strokeWidth={1.75} aria-hidden="true" />
+                    )}
+                    <span className="hidden md:inline">{isSaving ? 'Saving…' : 'Save for later'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    data-slot="secondary-action"
+                    className={cn(dangerButton, 'px-2.5 md:px-3')}
+                    disabled={isPending}
+                    onClick={() => setConfirmDelete({ name: material.name, alreadySavedForLater: false })}
+                    aria-label={`Delete ${name}`}
+                  >
+                    <Trash2 className={ICON} strokeWidth={1.75} aria-hidden="true" />
+                    <span className="hidden md:inline">Delete</span>
+                  </button>
+                </div>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
 
       {activeMaterials.length > 0 && (
-        <div style={{ marginTop: '0.75rem', paddingTop: '0.6rem', borderTop: '1px solid #ddd' }}>
-          {allPriced ? (
-            <span style={{ fontWeight: 'bold' }}>Final total for materials: {formatAmount(materialsTotal, currency)}</span>
-          ) : (
-            <span style={{ fontWeight: 'bold' }}>
-              Running total for materials: {formatAmount(materialsTotal, currency)}{' '}
-              <span style={{ fontWeight: 'normal', color: '#666' }}>(whilst there are materials still pending / unselected)</span>
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-muted px-4 py-3">
+          <div className="flex flex-col">
+            <span className="text-[15px] font-semibold">{allPriced ? 'Materials total' : 'Materials total so far'}</span>
+            <span className="text-[13px] text-muted-foreground">
+              {allPriced ? 'Every item is priced' : `${pricedCount} of ${activeMaterials.length} items priced`}
             </span>
-          )}
+          </div>
+          <span className="text-xl font-bold tabular-nums">{formatAmount(materialsTotal, currency)}</span>
         </div>
       )}
 
       {savedMaterials.length > 0 && (
-        <div style={{ marginTop: '0.75rem', paddingTop: '0.6rem', borderTop: '1px dashed #ddd' }}>
-          <p style={{ margin: '0 0 0.4rem', fontSize: '0.85rem', color: '#666' }}>Saved for later ({savedMaterials.length}) — not included in this quote</p>
-          {savedMaterials.map((material) => {
-            const isPending = pendingAction?.name === material.name
-            const isDeleting = isPending && pendingAction.status === 'deleted'
-            const isReAdding = isPending && pendingAction.status === 'active'
-            return (
-              <div key={material.name} style={savedForLaterRowStyle}>
-                <span>
-                  • {getDisplayName(material.name)}
-                  {material.notes ? ` — ${material.notes}` : ''}
-                </span>
-                <button style={smallButtonStyle} disabled={isPending} onClick={() => handleStatusChange(material.name, 'active')}>
-                  <IconLabel Icon={RotateCcw} busy={isReAdding}>{isReAdding ? 'Re-adding…' : 'Re-add'}</IconLabel>
-                </button>
-                <button
-                  style={dangerButtonStyle}
-                  disabled={isPending}
-                  onClick={() => handleDelete(material.name, { alreadySavedForLater: true })}
+        <section aria-labelledby="saved-for-later-heading" className="flex flex-col gap-2 pt-1">
+          <div className="flex flex-col">
+            <h3 id="saved-for-later-heading" className="m-0 text-sm font-semibold">
+              Saved for later ({savedMaterials.length})
+            </h3>
+            <span className="text-[13px] text-muted-foreground">Not included in this quote</span>
+          </div>
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">
+            {savedMaterials.map((material) => {
+              const isPending = pendingAction?.name === material.name
+              const isReAdding = isPending && pendingAction.status === 'active'
+              const name = getDisplayName(material.name)
+              return (
+                <li
+                  key={material.name}
+                  className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-input bg-surface-muted px-3.5 py-2.5"
                 >
-                  <IconLabel Icon={Trash2} busy={isDeleting}>{isDeleting ? 'Removing…' : 'Delete'}</IconLabel>
-                </button>
-              </div>
-            )
-          })}
-        </div>
+                  <span className="min-w-0 flex-1 text-sm text-muted-foreground">
+                    {name}
+                    {material.notes ? ` — ${material.notes}` : ''}
+                  </span>
+                  <button
+                    type="button"
+                    data-slot="secondary-action"
+                    className={smallButton}
+                    disabled={isPending}
+                    onClick={() => handleStatusChange(material.name, 'active')}
+                  >
+                    {isReAdding ? (
+                      <Loader2 className={cn(ICON, 'animate-spin motion-reduce:animate-none')} aria-hidden="true" />
+                    ) : (
+                      <RotateCcw className={ICON} strokeWidth={1.75} aria-hidden="true" />
+                    )}
+                    {isReAdding ? 'Re-adding…' : 'Re-add'}
+                  </button>
+                  <button
+                    type="button"
+                    data-slot="secondary-action"
+                    className={cn(dangerButton, 'px-2.5')}
+                    disabled={isPending}
+                    onClick={() => setConfirmDelete({ name: material.name, alreadySavedForLater: true })}
+                    aria-label={`Delete ${name}`}
+                  >
+                    <Trash2 className={ICON} strokeWidth={1.75} aria-hidden="true" />
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
       )}
 
       {openMaterial && (
@@ -825,6 +726,24 @@ export default function MaterialsPricing({ quoteId, materials, overridesByName }
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmDelete != null}
+        onOpenChange={(open) => !open && setConfirmDelete(null)}
+        title="Remove this item?"
+        description={
+          confirmDelete && (
+            <>
+              &ldquo;{getDisplayName(confirmDelete.name)}&rdquo; will be removed from this quote. This can&apos;t be undone
+              {confirmDelete.alreadySavedForLater ? '.' : '. Use Save for later instead if you might want it back.'}
+            </>
+          )
+        }
+        confirmLabel="Remove item"
+        pendingLabel="Removing…"
+        pending={pendingAction?.status === 'deleted'}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   )
 }

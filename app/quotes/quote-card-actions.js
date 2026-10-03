@@ -2,19 +2,11 @@
 
 import Link from 'next/link'
 import { useState, useTransition } from 'react'
-import { Check, Copy, Download, Eye, Loader2, Trash2, X } from 'lucide-react'
+import { Check, Copy, Download, Eye, Trash2 } from 'lucide-react'
 import { deleteQuote, getQuoteText } from '../../lib/actions/quotes.js'
 import { downloadQuote } from '../quote-actions.js'
 import { secondaryButtonClass } from '@/components/app-page'
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import ConfirmDialog from '@/components/confirm-dialog'
 
 const ICON = 'size-4'
 
@@ -101,38 +93,16 @@ export default function QuoteCardActions({ id, title, hasContent, jobDescription
         <span className="hidden md:inline">Delete</span>
       </button>
 
-      <Dialog open={confirmOpen} onOpenChange={(open) => !deleting && setConfirmOpen(open)}>
-        <DialogContent className="rounded-card bg-card">
-          <DialogHeader>
-            <DialogTitle className="m-0 text-lg font-bold">Delete this quote?</DialogTitle>
-            <DialogDescription className="m-0 text-muted-foreground">
-              &ldquo;{title}&rdquo; will be deleted permanently. This can&apos;t be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <button type="button" data-slot="secondary-action" disabled={deleting} className={button}>
-                <X className={ICON} strokeWidth={1.75} aria-hidden="true" />
-                Cancel
-              </button>
-            </DialogClose>
-            <button
-              type="button"
-              data-slot="secondary-action"
-              onClick={handleDelete}
-              disabled={deleting}
-              className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-control border border-destructive bg-destructive px-4 text-sm font-semibold text-white transition-colors hover:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {deleting ? (
-                <Loader2 className={`${ICON} animate-spin motion-reduce:animate-none`} aria-hidden="true" />
-              ) : (
-                <Trash2 className={ICON} strokeWidth={1.75} aria-hidden="true" />
-              )}
-              {deleting ? 'Deleting…' : 'Delete quote'}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Delete this quote?"
+        description={<>&ldquo;{title}&rdquo; will be deleted permanently. This can&apos;t be undone.</>}
+        confirmLabel="Delete quote"
+        pendingLabel="Deleting…"
+        pending={deleting}
+        onConfirm={handleDelete}
+      />
     </div>
   )
 }

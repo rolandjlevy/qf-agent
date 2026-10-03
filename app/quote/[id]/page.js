@@ -1,5 +1,7 @@
 import { Fragment } from 'react';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { ArrowLeft, ChevronDown } from 'lucide-react';
 import { getGeneratedQuoteById, getQuoteLinePrices } from '../../../lib/db.js';
 import { extractMaterialsFromToolCallLog } from '../../../lib/quote-materials.js';
 import { extractIntegerQuantity } from '../../../lib/quantity.js';
@@ -8,6 +10,10 @@ import { applyCustomerName } from '../../../lib/quote-customer.js';
 import QuoteActions from '../../quote-actions.js';
 import MaterialsPricing from '../../materials-pricing.js';
 import CustomerNameField from '../../customer-name-field.js';
+import { VALID_TRADES, tradeLabel } from '../../../lib/constants.js';
+import { cn } from '@/lib/utils';
+import { PageShell } from '@/components/app-page';
+import { CARD_CLASS } from '@/components/quote/step-layout';
 
 // Belt-and-braces alongside app/quotes/page.js's force-dynamic — this route
 // is already dynamic due to its [id] param, but explicit costs nothing.
@@ -155,35 +161,8 @@ function formatDate(iso) {
   });
 }
 
-const preStyle = {
-  whiteSpace: 'pre-wrap',
-  fontFamily: 'inherit',
-  border: '1px solid #ddd',
-  borderRadius: 6,
-  padding: '1rem 1.25rem',
-  lineHeight: 1.75,
-  marginBottom: '0.5rem',
-};
-
-const detailsStyle = {
-  border: '1px solid #ddd',
-  borderRadius: 6,
-  marginBottom: '0.5rem',
-};
-
-const summaryStyle = {
-  cursor: 'pointer',
-  fontWeight: 'bold',
-  padding: '0.75rem 1.25rem',
-};
-
-const sectionBodyStyle = {
-  whiteSpace: 'pre-wrap',
-  fontFamily: 'inherit',
-  margin: 0,
-  padding: '0 1.25rem 1rem',
-  lineHeight: 1.75,
-};
+// The quote's own text: plain, wrapped, in the page font, as it pastes into an email.
+const QUOTE_TEXT_CLASS = 'm-0 font-sans text-[15px] leading-[1.7] whitespace-pre-wrap text-foreground';
 
 export default async function QuotePage({ params }) {
   const { id } = await params;
@@ -222,47 +201,68 @@ export default async function QuotePage({ params }) {
 
   const displayContent = content ? buildDisplayContent(content, preamble, sections, materials, overridesByName) : content;
 
+  const trade = VALID_TRADES.includes(quote.trade) ? tradeLabel(quote.trade) : null;
+  const hasMaterials = materials.length > 0;
+
   return (
-    <div>
-      <h1>Your Quote</h1>
-      <h2 style={{ color: '#5C5851', fontWeight: 500 }}>{quote.job_description}</h2>
-      <p style={{ color: '#666' }}>
-        Generated {formatDate(quote.generated_at)}
-      </p>
-      <CustomerNameField quoteId={idNum} customerName={quote.customer_name} />
+    // Bottom padding on mobile keeps the last section clear of the fixed Copy / Download bar.
+    <PageShell className={cn('gap-5 md:gap-6', quote.content && 'pb-40 md:pb-12')}>
+      <Link
+        href="/quotes"
+        className="inline-flex min-h-11 items-center gap-2 self-start text-sm font-medium text-foreground no-underline hover:text-brand hover:underline"
+      >
+        <ArrowLeft className="size-4" aria-hidden="true" />
+        All quotes
+      </Link>
+
+      <div className="flex flex-col gap-2">
+        <h1 className="m-0 text-[32px] leading-tight font-bold tracking-[-0.02em] md:text-[44px] md:leading-[1.15] md:tracking-[-0.025em]">
+          Your Quote
+        </h1>
+        <h2 className="m-0 text-lg leading-snug font-medium text-muted-foreground md:text-xl">{quote.job_description}</h2>
+        <p className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
+          {trade && (
+            <span className="rounded border border-brand-subtle-border bg-brand-tint px-2 py-0.5 text-[11px] font-semibold tracking-wider text-brand uppercase">
+              {trade}
+            </span>
+          )}
+          <span>Generated {formatDate(quote.generated_at)}</span>
+        </p>
+      </div>
+
       {quote.content ? (
         <>
-          {preamble && <pre style={preStyle}>{renderPreamble(preamble)}</pre>}
-          {sections.map((section) => (
-            <details
-              key={section.heading}
-              style={detailsStyle}
-              open={section.heading === 'MATERIALS & EQUIPMENT' && materials.length > 0 ? true : undefined}
-            >
-              <summary style={summaryStyle}>{section.heading}</summary>
-              <pre style={sectionBodyStyle}>
-                {section.heading === 'MATERIALS & EQUIPMENT' && materials.length > 0
-                  ? stripMaterialBullets(section.body)
-                  : section.body}
-              </pre>
-              {section.heading === 'MATERIALS & EQUIPMENT' && materials.length > 0 && (
-                <div style={{ padding: '0 1.25rem 1rem' }}>
-                  <MaterialsPricing quoteId={idNum} materials={materials} overridesByName={overridesByName} />
-                </div>
-              )}
-            </details>
-          ))}
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
-            <QuoteActions
-              content={displayContent}
-              jobDescription={quote.job_description}
-              generatedAt={quote.generated_at}
-            />
+          <QuoteActions content={displayContent} jobDescription={quote.job_description} generatedAt={quote.generated_at} />
+          <CustomerNameField quoteId={idNum} customerName={quote.customer_name} />
+
+          {preamble && <pre className={cn(CARD_CLASS, QUOTE_TEXT_CLASS, 'p-5 md:p-7')}>{renderPreamble(preamble)}</pre>}
+
+          <div className="flex flex-col gap-3">
+            {sections.map((section) => {
+              const isMaterials = section.heading === 'MATERIALS & EQUIPMENT' && hasMaterials;
+              const body = isMaterials ? stripMaterialBullets(section.body) : section.body;
+              return (
+                <details key={section.heading} open={isMaterials ? true : undefined} className={cn(CARD_CLASS, 'group overflow-hidden')}>
+                  <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-5 py-3 text-sm font-bold tracking-[0.06em] uppercase select-none hover:bg-surface-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring md:px-7 [&::-webkit-details-marker]:hidden">
+                    {section.heading}
+                    <ChevronDown
+                      className="size-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180 motion-reduce:transition-none"
+                      strokeWidth={1.75}
+                      aria-hidden="true"
+                    />
+                  </summary>
+                  <div className="flex flex-col gap-4 border-t border-border-subtle px-5 pt-4 pb-5 md:px-7 md:pb-7">
+                    {body && <pre className={QUOTE_TEXT_CLASS}>{body}</pre>}
+                    {isMaterials && <MaterialsPricing quoteId={idNum} materials={materials} overridesByName={overridesByName} />}
+                  </div>
+                </details>
+              );
+            })}
           </div>
         </>
       ) : (
-        <p>No content was saved for this quote.</p>
+        <p className={cn(CARD_CLASS, 'm-0 p-5 text-muted-foreground')}>No content was saved for this quote.</p>
       )}
-    </div>
+    </PageShell>
   );
 }

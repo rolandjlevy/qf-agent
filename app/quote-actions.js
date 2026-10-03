@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Copy, Download, Eye, TriangleAlert } from 'lucide-react'
-import { buttonStyle } from './button-style.js'
-import IconLabel from './icon-label.js'
+import { Check, Copy, Download, TriangleAlert } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { secondaryButtonClass } from '@/components/app-page'
+import { ACTION_BAR_CLASS, primaryButtonClass } from '@/components/quote/primary-action'
 
 function slugify(text) {
   return String(text)
@@ -35,7 +36,8 @@ export function downloadQuote(content, jobDescription, generatedAt) {
   URL.revokeObjectURL(url)
 }
 
-export default function QuoteActions({ content, jobDescription, generatedAt, id, downloadLabel = 'Download as text' }) {
+// Copy and Download for /quote/[id]: inline under the heading on desktop, a bar fixed to the bottom on mobile.
+export default function QuoteActions({ content, jobDescription, generatedAt }) {
   const [copyState, setCopyState] = useState('idle') // idle | copied | error
 
   async function handleCopy() {
@@ -52,37 +54,31 @@ export default function QuoteActions({ content, jobDescription, generatedAt, id,
     }
   }
 
-  function handleDownload() {
-    downloadQuote(content, jobDescription, generatedAt)
-  }
-
+  const CopyIcon = copyState === 'copied' ? Check : copyState === 'error' ? TriangleAlert : Copy
   return (
-    <>
-      {id != null && (
-        <a
-          href={`/quote/${id}`}
-          className="btn-link"
-          style={{ ...buttonStyle, display: 'inline-block', color: 'inherit', textDecoration: 'none' }}
+    <div className={ACTION_BAR_CLASS}>
+      <div className="flex gap-2.5 md:gap-3">
+        <button
+          type="button"
+          data-slot="primary-action"
+          onClick={handleCopy}
+          className={cn(primaryButtonClass(true), 'flex-1 px-6 md:flex-none md:px-8')}
         >
-          <IconLabel Icon={Eye}>View</IconLabel>
-        </a>
-      )}
-      {content && (
-        <button onClick={handleCopy} style={buttonStyle}>
-          {copyState === 'copied' ? (
-            <IconLabel Icon={Check}>Copied!</IconLabel>
-          ) : copyState === 'error' ? (
-            <IconLabel Icon={TriangleAlert}>Copy failed</IconLabel>
-          ) : (
-            <IconLabel Icon={Copy}>Copy</IconLabel>
-          )}
+          <CopyIcon className="size-5" strokeWidth={1.75} aria-hidden="true" />
+          <span aria-live="polite">
+            {copyState === 'copied' ? 'Copied' : copyState === 'error' ? 'Copy failed' : 'Copy quote'}
+          </span>
         </button>
-      )}
-      {content && (
-        <button onClick={handleDownload} style={buttonStyle}>
-          <IconLabel Icon={Download}>{downloadLabel}</IconLabel>
+        <button
+          type="button"
+          data-slot="secondary-action"
+          onClick={() => downloadQuote(content, jobDescription, generatedAt)}
+          className={secondaryButtonClass()}
+        >
+          <Download className="size-5" strokeWidth={1.75} aria-hidden="true" />
+          Download
         </button>
-      )}
-    </>
+      </div>
+    </div>
   )
 }
