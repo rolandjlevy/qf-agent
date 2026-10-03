@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ArrowRight, Building2, ChevronRight, CircleHelp, Menu, Plus, User, X } from 'lucide-react';
+import { ArrowRight, Building2, ChevronRight, CircleHelp, LogOut, Menu, Plus, User, X } from 'lucide-react';
 import Logo from '@/components/logo';
 import { cn } from '@/lib/utils';
 import { headerContext, isNewQuotePath, isQuotesPath } from '@/lib/header-context';
+import { logout } from '@/lib/actions/auth';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +23,7 @@ const MARKETING_LINKS = [
   { href: '/pricing', label: 'Pricing' },
   { href: '/#faq', label: 'FAQ' },
 ];
-// The account menu. No sign-in yet (Phase 4), so no Billing or Sign out.
+// The account menu. Sign out appears below these when the app has a password (lib/auth.js); no Billing until Phase 4.
 const ACCOUNT_LINKS = [
   { href: '/profile', label: 'Your business', Icon: Building2 },
   { href: '/#faq', label: 'Help and FAQ', Icon: CircleHelp },
@@ -82,7 +83,8 @@ function MenuRow({ href, active, onClick, children }) {
 
 // One header per route (lib/header-context.js): marketing pages get the section links and "Start a quote" (the account menu
 // instead on /quote/new); app pages get Quotes, "+ New quote" and the account menu; example quotes drop "+ New quote".
-export default function AppHeader() {
+// `signOut`: the app has a password (set by app/layout.js), so the account menus offer Sign out.
+export default function AppHeader({ signOut = false }) {
   const pathname = usePathname() ?? '';
   const [menuOpen, setMenuOpen] = useState(false);
   const context = headerContext(pathname);
@@ -90,6 +92,7 @@ export default function AppHeader() {
   const onQuotes = isQuotesPath(pathname);
   const onProfile = pathname.startsWith('/profile');
   const onNewQuote = isNewQuotePath(pathname);
+  const onLogin = pathname === '/login';
   const accountMenu = !marketing || onNewQuote;
 
   // On the homepage, a section link in the menu scrolls once the menu has closed: the sheet's
@@ -108,7 +111,7 @@ export default function AppHeader() {
   const mobileRows = marketing
     ? [
         ...MARKETING_LINKS.map((l) => ({ ...l, active: l.href === pathname })),
-        { href: '/quotes', label: 'Your quotes' },
+        ...(onLogin ? [] : [{ href: '/quotes', label: 'Your quotes' }]),
         // The menu already has FAQ, so only the account menu's business link is added.
         ...(onNewQuote ? [ACCOUNT_LINKS[0]] : []),
       ]
@@ -146,16 +149,18 @@ export default function AppHeader() {
         <div className="ml-auto flex items-center gap-2 md:gap-3">
           {marketing ? (
             <>
-              <Link
-                href="/quotes"
-                className={cn(
-                  'hidden min-h-11 items-center px-2 text-[15px] font-medium text-foreground no-underline hover:text-brand lg:inline-flex',
-                  focusRing,
-                )}
-              >
-                Your quotes
-              </Link>
-              {!onNewQuote && (
+              {!onLogin && (
+                <Link
+                  href="/quotes"
+                  className={cn(
+                    'hidden min-h-11 items-center px-2 text-[15px] font-medium text-foreground no-underline hover:text-brand lg:inline-flex',
+                    focusRing,
+                  )}
+                >
+                  Your quotes
+                </Link>
+              )}
+              {!onNewQuote && !onLogin && (
                 <Link href="/quote/new" className={blueButton}>
                   Start a quote
                   <ArrowRight className="size-4" strokeWidth={2} aria-hidden="true" />
@@ -193,6 +198,12 @@ export default function AppHeader() {
                     </Link>
                   </DropdownMenuItem>
                 ))}
+                {signOut && (
+                  <DropdownMenuItem onSelect={() => logout()}>
+                    <LogOut aria-hidden="true" />
+                    Sign out
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -223,6 +234,24 @@ export default function AppHeader() {
                       {row.label}
                     </MenuRow>
                   ))}
+                  {signOut && accountMenu && (
+                    <li className="border-b border-border-subtle last:border-b-0">
+                      <SheetClose asChild>
+                        <button
+                          type="button"
+                          data-slot="menu-row"
+                          onClick={() => logout()}
+                          className={cn(
+                            'flex min-h-12 w-full items-center justify-between gap-3 px-1 text-left text-[15px] font-medium text-foreground',
+                            focusRing,
+                          )}
+                        >
+                          Sign out
+                          <LogOut className="size-4 text-muted-foreground" aria-hidden="true" />
+                        </button>
+                      </SheetClose>
+                    </li>
+                  )}
                 </ul>
               </nav>
             </SheetContent>
