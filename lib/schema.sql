@@ -50,6 +50,8 @@ CREATE TABLE IF NOT EXISTS generated_quotes (
 ALTER TABLE generated_quotes ADD COLUMN IF NOT EXISTS trade TEXT;
 -- Added by the trader on /quote/[id] after drafting, and layered onto content for display (lib/quote-customer.js).
 ALTER TABLE generated_quotes ADD COLUMN IF NOT EXISTS customer_name TEXT;
+-- /quotes and the recent-quote cards list newest first
+CREATE INDEX IF NOT EXISTS generated_quotes_generated_at_idx ON generated_quotes (generated_at DESC);
 
 -- Bridges an in-flight ask_user wait (in one Vercel Lambda instance) to the
 -- /api/quote/[runId]/answer POST that resolves it (routinely a *different*
